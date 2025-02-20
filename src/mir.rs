@@ -12,7 +12,37 @@
 
 use crate::prelude::*;
 
+// An expr can *potentially* return a single value to a single continuation.
+
 #[derive(Clone, Copy)]
+pub enum Exp<'a> {
+  Call(&'a Call<'a>),
+  Do(&'a [Statement<'a>]),
+  If(&'a If<'a>),
+  Symbol(Symbol<'a>),
+  ConstBool(bool),
+  ConstI32(u32),
+  ConstI64(u64),
+}
+
+const _: () = assert!(size_of::<Exp<'static>>() <= 24);
+
+
+// let x = ...
+// let x, y, z = ...
+// goto ... ..., ..., ...
+// return ..., ..., ...
+
+#[derive(Clone, Copy)]
+pub enum Statement<'a> {
+  Let(Symbol<'a>, Exp<'a>),
+  LetVariable(Symbol<'a>, Exp<'a>),
+  SetVariable(Symbol<'a>, Exp<'a>),
+  Goto(Symbol<'a>, &'a [Exp<'a>]),
+  Return(),
+}
+
+#[derive(Clone, Copy, Eq, Ord, PartialEq, PartialOrd)]
 pub struct Symbol<'a>(pub &'a [u8]);
 
 #[derive(Clone, Copy)]
@@ -43,74 +73,46 @@ pub struct Function<'a> {
   pub name: Symbol<'a>,
   pub params: &'a [(Symbol<'a>, Type)],
   // pub rets: &'a [&'a [Type]],
-  pub body: Expression<'a>,
+  pub body: Exp<'a>,
 }
-
-// let x = ...
-// let x, y, z = ...
-// goto ... ..., ..., ...
-// return ..., ..., ...
-
-#[derive(Clone, Copy)]
-pub enum Statement<'a> {
-  Let(Symbol<'a>, Expression<'a>),
-  LetVariable(Symbol<'a>, Expression<'a>),
-  SetVariable(Symbol<'a>, Expression<'a>),
-  Goto(Symbol<'a>, &'a [Expression<'a>]),
-  Return(),
-}
-
-// An expr can *potentially* return a single value to a single continuation.
-
-#[derive(Clone, Copy)]
-pub enum Expression<'a> {
-  Call(&'a Call<'a>),
-  Do(&'a [Statement<'a>]),
-  If(&'a If<'a>),
-  Variable(Symbol<'a>),
-  ConstBool(bool),
-  ConstI64(u64),
-}
-
-const _: () = assert!(size_of::<Expression<'static>>() <= 24);
 
 #[derive(Clone, Copy)]
 pub struct Call<'a> {
   pub function: Symbol<'a>,
-  pub args: &'a [Expression<'a>],
+  pub args: &'a [Exp<'a>],
 }
 
 #[derive(Clone, Copy)]
 pub struct If<'a> {
-  pub condition: Expression<'a>,
-  pub if_true: Expression<'a>,
-  pub if_false: Expression<'a>,
+  pub condition: Exp<'a>,
+  pub if_true: Exp<'a>,
+  pub if_false: Exp<'a>,
 }
 
 #[derive(Clone, Copy)]
 pub struct Loop<'a> {
   pub name: Symbol<'a>,
-  pub bindings: &'a [(Symbol<'a>, Expression<'a>)],
-  pub body: Expression<'a>,
+  pub bindings: &'a [(Symbol<'a>, Exp<'a>)],
+  pub body: Exp<'a>,
 }
 
 pub static FIB: Function<'static> = Function {
   name: Symbol(b"fib"),
   params: &[(Symbol(b"n"), Type::I64)],
-  //body: Expression::ConstI64(13),
+  //body: Exp::ConstI64(13),
   body:
-    Expression::Call(&Call {
+    Exp::Call(&Call {
       function: Symbol(b"add.i64"),
       args: &[
-        Expression::If(&If {
-          condition: Expression::ConstBool(false),
-          if_true: Expression::ConstI64(1),
-          if_false: Expression::ConstI64(2)
+        Exp::If(&If {
+          condition: Exp::ConstBool(false),
+          if_true: Exp::Symbol(Symbol(b"n")),
+          if_false: Exp::ConstI64(2)
         }),
-        Expression::If(&If {
-          condition: Expression::ConstBool(true),
-          if_true: Expression::ConstI64(3),
-          if_false: Expression::ConstI64(4)
+        Exp::If(&If {
+          condition: Exp::ConstBool(true),
+          if_true: Exp::ConstI64(3),
+          if_false: Exp::ConstI64(4)
         })
       ]
     })

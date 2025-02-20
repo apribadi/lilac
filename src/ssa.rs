@@ -82,7 +82,6 @@ impl Type {
   pub const I6: Self = Self(0x04);
   pub const I32: Self = Self(0x07);
   pub const I64: Self = Self(0x08);
-  pub const Ref: Self = Self(0x09);
 
   pub fn name(self) -> &'static str {
     self.info().0
@@ -302,6 +301,13 @@ impl Builder {
     self.next_value()
   }
 
+  pub fn emit_const_i32(&mut self, c: u32) -> Value {
+    let mut w = self.buf.append(5);
+    w.put_u8(Tag::CONST_I32.0);
+    w.put_u32(c);
+    self.next_value()
+  }
+
   pub fn emit_const_i64(&mut self, c: u64) -> Value {
     let mut w = self.buf.append(9);
     w.put_u8(Tag::CONST_I64.0);
@@ -416,6 +422,10 @@ pub fn read<'a, 'b>(buf: &'a mut &'b [u8]) -> Option<Instruction<'b>> {
         let mut r = chomp(&mut cursor, 1)?;
         Instruction::ConstBool(r.pop_u8() != 0)
       }
+      Tag::CONST_I32 => {
+        let mut r = chomp(&mut cursor, 4)?;
+        Instruction::ConstI32(r.pop_u32())
+      }
       Tag::CONST_I64 => {
         let mut r = chomp(&mut cursor, 8)?;
         Instruction::ConstI64(r.pop_u64())
@@ -492,6 +502,7 @@ pub fn display(buf: &[u8]) {
   let mut function_id = 0;
   let mut label_id = 0;
   let mut value_id = 0;
+  let mut variable_id = 0;
   let mut nkonts = 0;
 
   fn next(x: &mut u32) -> u32 {
@@ -508,6 +519,7 @@ pub fn display(buf: &[u8]) {
           Instruction::Function(n, args) => {
             label_id = 0;
             value_id = 0;
+            variable_id = 0;
             nkonts = n;
             print!("{}: function ${} (", next(&mut function_id), next(&mut label_id));
             for (i, ty) in args.iter().enumerate() {
@@ -544,8 +556,21 @@ pub fn display(buf: &[u8]) {
             }
             print!(")\n");
           }
+          Instruction::Kont(args) => {
+            print!("{}: kont (", next(&mut label_id));
+            for (i, ty) in args.iter().enumerate() {
+              if i != 0 {
+                print!(", ");
+              }
+              print!("%{} {}", next(&mut value_id), ty);
+            }
+            print!(")\n");
+          }
           Instruction::ConstBool(p) => {
             print!("\t%{} = const.bool #{}\n", next(&mut value_id), p);
+          }
+          Instruction::ConstI32(c) => {
+            print!("\t%{} = const.i32 #{}\n", next(&mut value_id), c);
           }
           Instruction::ConstI64(c) => {
             print!("\t%{} = const.i64 #{}\n", next(&mut value_id), c);
@@ -558,6 +583,15 @@ pub fn display(buf: &[u8]) {
           }
           Instruction::Select(p, x, y) => {
             print!("\t%{} = select {} {} {}\n", next(&mut value_id), p, x, y);
+          }
+          Instruction::LetVariable(x) => {
+            print!("\tlet mutable @{} = {}\n", next(&mut variable_id), x);
+          }
+          Instruction::GetVariable(x) => {
+            print!("\t%{} = {}\n", next(&mut value_id), x);
+          }
+          Instruction::SetVariable(x, y) => {
+            print!("\t{} <- {}\n", x, y);
           }
           Instruction::If(p, a, b) => {
             print!("\tif {} then {} else {}\n", p, a, b);
@@ -588,9 +622,11 @@ pub fn display(buf: &[u8]) {
             }
             print!(")\n");
           }
+          /*
           _ => {
             print!("UNKNOWN INSTRUCTION\n")
           }
+          */
         }
       }
     }

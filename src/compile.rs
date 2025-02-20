@@ -1,32 +1,75 @@
 use crate::prelude::*;
 use crate::ssa;
 use crate::mir;
-use crate::mir::Expression;
+use crate::mir::Exp;
 use crate::mir::Symbol;
 use crate::ssa::Label;
 use crate::ssa::Value;
 
-pub struct Env {
+pub struct Env<'a> {
+  //arena: Arena<'a>,
   out: ssa::Builder,
+  symbol_table: Vec<(Symbol<'a>, Referent)>,
+  symbol_count: Vec<usize>,
 }
 
-impl Env {
+#[derive(Clone, Copy)]
+pub enum Referent {
+  Value(ssa::Value, ssa::Type),
+  Variable(ssa::Variable, ssa::Type),
+}
+
+impl<'a> Env<'a> {
   pub fn new() -> Self {
     Self {
       out: ssa::Builder::new(),
+      symbol_table: Vec::new(),
+      symbol_count: vec![0],
     }
+  }
+
+  pub fn push_scope(&mut self) {
+    self.symbol_count.push(0);
+  }
+
+  pub fn pop_scope(&mut self) {
+    let c = self.symbol_count.pop().unwrap();
+
+    for _ in 0 .. c {
+      self.symbol_table.pop();
+    }
+  }
+
+  pub fn bind_value(&mut self, symbol: Symbol<'a>, value: ssa::Value, t: ssa::Type) {
+    self.symbol_table.push((symbol, Referent::Value(value, t)));
+    let r = self.symbol_count.last_mut().unwrap();
+    *r = *r + 1;
+  }
+
+  pub fn lookup(&self, symbol: Symbol) -> Option<Referent> {
+    for &(s, x) in self.symbol_table.iter().rev() {
+      if symbol == s {
+        return Some(x);
+      }
+    }
+
+    return None;
   }
 }
 
 pub fn compile(fun: &mir::Function<'_>) {
   let mut env = Env::new();
 
+
   env.out.emit_function(1, fun.params.len() as u32);
 
-  for &(_, t) in fun.params.iter() {
+  env.push_scope();
+
+  for &(s, t) in fun.params.iter() {
     match t {
       mir::Type::I64 => {
-        let _ = env.out.emit_param(ssa::Type::I64);
+        let x = env.out.emit_param(ssa::Type::I64);
+        env.bind_value(s, x, ssa::Type::I64);
       }
     }
   }
@@ -38,6 +81,8 @@ pub fn compile(fun: &mir::Function<'_>) {
       env.out.emit_value(value);
     }
   }
+
+  env.pop_scope();
 
   ssa::display(env.out.view());
 }
@@ -51,22 +96,40 @@ pub fn compile(fun: &mir::Function<'_>) {
 // - zero or multiple return values
 // - two or more continuations
 
-pub fn compile_expression(env: &mut Env, exp: Expression<'_>) -> Option<(ssa::Value, ssa::Type)> {
+pub fn compile_expression<'a>(env: &mut Env, exp: Exp<'a>) -> Option<(ssa::Value, ssa::Type)> {
   match exp {
-    Expression::ConstBool(p) => {
+    Exp::Symbol(s) => {
+      match env.lookup(s).unwrap() {
+        Referent::Value(x, t) => {
+          Some((x, t))
+        }
+        Referent::Variable(x, t) => {
+          Some((env.out.emit_get_variable(x), t))
+        }
+      }
+    }
+
+    Exp::ConstBool(p) => {
       Some((env.out.emit_const_bool(p), ssa::Type::BOOL))
     }
-    Expression::ConstI64(n) => {
+
+    Exp::ConstI32(n) => {
+      Some((env.out.emit_const_i32(n), ssa::Type::I32))
+    }
+
+    Exp::ConstI64(n) => {
       Some((env.out.emit_const_i64(n), ssa::Type::I64))
     }
-    Expression::Call(&mir::Call { function: Symbol(b"add.i64"), args: &[x, y] }) => {
+
+    Exp::Call(&mir::Call { function: Symbol(b"add.i64"), args: &[x, y] }) => {
       let (x, t) = compile_expression(env, x)?;
       assert!(t == ssa::Type::I64);
       let (y, t) = compile_expression(env, y)?;
       assert!(t == ssa::Type::I64);
       Some((env.out.emit_op2(ssa::Op2::ADD_I64, x, y), ssa::Type::I64))
     }
-    Expression::If(&mir::If { condition, if_true, if_false }) => {
+
+    Exp::If(&mir::If { condition, if_true, if_false }) => {
       let (p, t) = compile_expression(env, condition)?;
       assert!(t == ssa::Type::BOOL);
       let (a, b) = env.out.emit_if(p, Label(0), Label(0));
@@ -107,8 +170,25 @@ pub fn compile_expression(env: &mut Env, exp: Expression<'_>) -> Option<(ssa::Va
         }
       }
     }
+
+    Exp::Do(statements) => {
+      env.push_scope();
+      for &stmt in statements.iter() {
+      }
+      env.pop_scope();
+      panic!()
+    }
+
     _ => {
       panic!()
     }
   }
+}
+
+pub fn compile_statement<'a>(
+    env: &mut Env,
+    stmt: mir::Statement<'a>
+  ) -> Option<(ssa::Value, ssa::Type)>
+{
+  None
 }
