@@ -1,9 +1,9 @@
 use crate::prelude::*;
 
-pub enum Instruction<'a> {
+pub enum Inst<'a> {
   // block entry
 
-  Function(u32, TypeList<'a>),
+  Func(u32, TypeList<'a>),
   Case(),
   Join(TypeList<'a>),
   Kont(TypeList<'a>),
@@ -53,7 +53,7 @@ pub struct TypeList<'a>(&'a [u8]);
 pub struct ValueList<'a>(&'a [u8]);
 
 impl Tag {
-  pub const FUNCTION: Self = Self(0x01);
+  pub const FUNC: Self = Self(0x01);
   pub const CASE: Self = Self(0x02);
   pub const JOIN: Self = Self(0x03);
   pub const KONT: Self = Self(0x04);
@@ -202,14 +202,14 @@ impl core::fmt::Display for Variable {
 
 impl<'a> TypeList<'a> {
   #[inline(always)]
-  pub fn iter(&self) -> impl Iterator<Item = Type> + use<'_> {
+  pub fn iter(&self) -> impl Iterator<Item = Type> {
     self.0.iter_chunks().map(|&[x]| Type(x))
   }
 }
 
 impl<'a> ValueList<'a> {
   #[inline(always)]
-  pub fn iter(&self) -> impl Iterator<Item = Value> + use<'_> {
+  pub fn iter(&self) -> impl Iterator<Item = Value> {
     self.0.iter_chunks().map(|x| Value(u32::from_le_bytes(*x)))
   }
 }
@@ -272,9 +272,9 @@ impl Builder {
     w.put_u32(x.0);
   }
 
-  pub fn emit_function(&mut self, nkonts: u32, nargs: u32) {
+  pub fn emit_func(&mut self, nkonts: u32, nargs: u32) {
     let mut w = self.buf.append(9);
-    w.put_u8(Tag::FUNCTION.0);
+    w.put_u8(Tag::FUNC.0);
     w.put_u32(nkonts);
     w.put_u32(nargs);
     self.value_id = 0;
@@ -397,95 +397,95 @@ fn chomp<'a, 'b>(buf: &'a mut &'b [u8], size: usize) -> Option<&'b [u8]> {
   }
 }
 
-pub fn read<'a, 'b>(buf: &'a mut &'b [u8]) -> Option<Instruction<'b>> {
+pub fn read<'a, 'b>(buf: &'a mut &'b [u8]) -> Option<Inst<'b>> {
   let mut cursor = *buf;
 
   let instr =
     match Tag(chomp(&mut cursor, 1)?.pop_u8()) {
-      Tag::FUNCTION => {
+      Tag::FUNC => {
         let mut r = chomp(&mut cursor, 8)?;
         let nkonts = r.pop_u32();
         let nargs = r.pop_u32();
         let mut r = chomp(&mut cursor, nargs as usize)?;
-        Instruction::Function(nkonts, TypeList(r.pop_all()))
+        Inst::Func(nkonts, TypeList(r.pop_all()))
       }
       Tag::CASE => {
-        Instruction::Case()
+        Inst::Case()
       }
       Tag::JOIN => {
         let mut r = chomp(&mut cursor, 4)?;
         let nargs = r.pop_u32();
         let mut r = chomp(&mut cursor, nargs as usize)?;
-        Instruction::Join(TypeList(r.pop_all()))
+        Inst::Join(TypeList(r.pop_all()))
       }
       Tag::CONST_BOOL => {
         let mut r = chomp(&mut cursor, 1)?;
-        Instruction::ConstBool(r.pop_u8() != 0)
+        Inst::ConstBool(r.pop_u8() != 0)
       }
       Tag::CONST_I32 => {
         let mut r = chomp(&mut cursor, 4)?;
-        Instruction::ConstI32(r.pop_u32())
+        Inst::ConstI32(r.pop_u32())
       }
       Tag::CONST_I64 => {
         let mut r = chomp(&mut cursor, 8)?;
-        Instruction::ConstI64(r.pop_u64())
+        Inst::ConstI64(r.pop_u64())
       }
       Tag::OP1 => {
         let mut r = chomp(&mut cursor, 5)?;
         let t = Op1(r.pop_u8());
         let x = Value(r.pop_u32());
-        Instruction::Op1(t, x)
+        Inst::Op1(t, x)
       }
       Tag::OP2 => {
         let mut r = chomp(&mut cursor, 9)?;
         let t = Op2(r.pop_u8());
         let x = Value(r.pop_u32());
         let y = Value(r.pop_u32());
-        Instruction::Op2(t, x, y)
+        Inst::Op2(t, x, y)
       }
       Tag::SELECT => {
         let mut r = chomp(&mut cursor, 12)?;
         let p = Value(r.pop_u32());
         let x = Value(r.pop_u32());
         let y = Value(r.pop_u32());
-        Instruction::Select(p, x, y)
+        Inst::Select(p, x, y)
       }
       Tag::LET_VARIABLE => {
         let mut r = chomp(&mut cursor, 4)?;
         let x = Value(r.pop_u32());
-        Instruction::LetVariable(x)
+        Inst::LetVariable(x)
       }
       Tag::GET_VARIABLE => {
         let mut r = chomp(&mut cursor, 4)?;
         let x = Variable(r.pop_u32());
-        Instruction::GetVariable(x)
+        Inst::GetVariable(x)
       }
       Tag::SET_VARIABLE => {
         let mut r = chomp(&mut cursor, 8)?;
         let x = Variable(r.pop_u32());
         let y = Value(r.pop_u32());
-        Instruction::SetVariable(x, y)
+        Inst::SetVariable(x, y)
       }
       Tag::IF => {
         let mut r = chomp(&mut cursor, 12)?;
         let p = Value(r.pop_u32());
         let a = Label(r.pop_u32());
         let b = Label(r.pop_u32());
-        Instruction::If(p, a, b)
+        Inst::If(p, a, b)
       }
       Tag::GOTO => {
         let mut r = chomp(&mut cursor, 8)?;
         let a = r.pop_u32();
         let nargs = r.pop_u32();
         let mut r = chomp(&mut cursor, nargs as usize * 4)?;
-        Instruction::Goto(Label(a), ValueList(r.pop_all()))
+        Inst::Goto(Label(a), ValueList(r.pop_all()))
       }
       Tag::RETURN => {
         let mut r = chomp(&mut cursor, 8)?;
         let index = r.pop_u32();
         let nargs = r.pop_u32();
         let mut r = chomp(&mut cursor, nargs as usize * 4)?;
-        Instruction::Return(index, ValueList(r.pop_all()))
+        Inst::Return(index, ValueList(r.pop_all()))
       }
       _ => {
         return None;
@@ -499,7 +499,7 @@ pub fn read<'a, 'b>(buf: &'a mut &'b [u8]) -> Option<Instruction<'b>> {
 
 pub fn display(buf: &[u8]) {
   let mut r = buf;
-  let mut function_id = 0;
+  let mut func_id = 0;
   let mut label_id = 0;
   let mut value_id = 0;
   let mut variable_id = 0;
@@ -511,123 +511,113 @@ pub fn display(buf: &[u8]) {
     y
   }
 
-  loop {
-    match read(&mut r) {
-      None => { break; }
-      Some(inst) => {
-        match inst {
-          Instruction::Function(n, args) => {
-            label_id = 0;
-            value_id = 0;
-            variable_id = 0;
-            nkonts = n;
-            print!("{}: function ${} (", next(&mut function_id), next(&mut label_id));
-            for (i, ty) in args.iter().enumerate() {
-              if i != 0 {
-                print!(", ");
-              }
-              print!("%{} {}", next(&mut value_id), ty);
-            }
-            print!(") -> ");
-            if nkonts == 0 {
-              print!("!");
-            } else {
-              print!("(");
-              for i in 0 .. nkonts {
-                if i != 0 {
-                  print!("|");
-                }
-                print!("...");
-              }
-              print!(")");
-            }
-            print!("\n");
+  while let Some(inst) = read(&mut r) {
+    match inst {
+      Inst::Func(n, args) => {
+        label_id = 0;
+        value_id = 0;
+        variable_id = 0;
+        nkonts = n;
+        print!("{}: func ${} (", next(&mut func_id), next(&mut label_id));
+        for (i, ty) in args.iter().enumerate() {
+          if i != 0 {
+            print!(", ");
           }
-          Instruction::Case() => {
-            print!("{}: case\n", next(&mut label_id));
-          }
-          Instruction::Join(args) => {
-            print!("{}: join (", next(&mut label_id));
-            for (i, ty) in args.iter().enumerate() {
-              if i != 0 {
-                print!(", ");
-              }
-              print!("%{} {}", next(&mut value_id), ty);
-            }
-            print!(")\n");
-          }
-          Instruction::Kont(args) => {
-            print!("{}: kont (", next(&mut label_id));
-            for (i, ty) in args.iter().enumerate() {
-              if i != 0 {
-                print!(", ");
-              }
-              print!("%{} {}", next(&mut value_id), ty);
-            }
-            print!(")\n");
-          }
-          Instruction::ConstBool(p) => {
-            print!("\t%{} = const.bool #{}\n", next(&mut value_id), p);
-          }
-          Instruction::ConstI32(c) => {
-            print!("\t%{} = const.i32 #{}\n", next(&mut value_id), c);
-          }
-          Instruction::ConstI64(c) => {
-            print!("\t%{} = const.i64 #{}\n", next(&mut value_id), c);
-          }
-          Instruction::Op1(t, x) => {
-            print!("\t%{} = {} {}\n", next(&mut value_id), t, x);
-          }
-          Instruction::Op2(t, x, y) => {
-            print!("\t%{} = {} {} {}\n", next(&mut value_id), t, x, y);
-          }
-          Instruction::Select(p, x, y) => {
-            print!("\t%{} = select {} {} {}\n", next(&mut value_id), p, x, y);
-          }
-          Instruction::LetVariable(x) => {
-            print!("\tlet mutable @{} = {}\n", next(&mut variable_id), x);
-          }
-          Instruction::GetVariable(x) => {
-            print!("\t%{} = {}\n", next(&mut value_id), x);
-          }
-          Instruction::SetVariable(x, y) => {
-            print!("\t{} <- {}\n", x, y);
-          }
-          Instruction::If(p, a, b) => {
-            print!("\tif {} then {} else {}\n", p, a, b);
-          }
-          Instruction::Goto(a, args) => {
-            print!("\tgoto {} (", a);
-            for (i, x) in args.iter().enumerate() {
-              if i != 0 {
-                print!(", ");
-              }
-              print!("{}", x);
-            }
-            print!(")\n");
-          }
-          Instruction::Return(index, args) => {
-            print!("\treturn (", );
-            for _ in 0 .. index {
-              print!("|")
-            }
-            for (i, x) in args.iter().enumerate() {
-              if i != 0 {
-                print!(", ");
-              }
-              print!("{}", x);
-            }
-            for _ in 0 .. nkonts.saturating_sub(index).saturating_sub(1) {
-              print!("|")
-            }
-            print!(")\n");
-          }
-          /*
-          _ => {
-            print!("UNKNOWN INSTRUCTION\n")
-          }
-          */
+          print!("%{} {}", next(&mut value_id), ty);
         }
+        print!(") -> ");
+        if nkonts == 0 {
+          print!("!");
+        } else {
+          print!("(");
+          for i in 0 .. nkonts {
+            if i != 0 {
+              print!("|");
+            }
+            print!("...");
+          }
+          print!(")");
+        }
+        print!("\n");
+      }
+      Inst::Case() => {
+        print!("{}: case\n", next(&mut label_id));
+      }
+      Inst::Join(args) => {
+        print!("{}: join (", next(&mut label_id));
+        for (i, ty) in args.iter().enumerate() {
+          if i != 0 {
+            print!(", ");
+          }
+          print!("%{} {}", next(&mut value_id), ty);
+        }
+        print!(")\n");
+      }
+      Inst::Kont(args) => {
+        print!("{}: kont (", next(&mut label_id));
+        for (i, ty) in args.iter().enumerate() {
+          if i != 0 {
+            print!(", ");
+          }
+          print!("%{} {}", next(&mut value_id), ty);
+        }
+        print!(")\n");
+      }
+      Inst::ConstBool(p) => {
+        print!("\t%{} = const.bool #{}\n", next(&mut value_id), p);
+      }
+      Inst::ConstI32(c) => {
+        print!("\t%{} = const.i32 #{}\n", next(&mut value_id), c);
+      }
+      Inst::ConstI64(c) => {
+        print!("\t%{} = const.i64 #{}\n", next(&mut value_id), c);
+      }
+      Inst::Op1(t, x) => {
+        print!("\t%{} = {} {}\n", next(&mut value_id), t, x);
+      }
+      Inst::Op2(t, x, y) => {
+        print!("\t%{} = {} {} {}\n", next(&mut value_id), t, x, y);
+      }
+      Inst::Select(p, x, y) => {
+        print!("\t%{} = select {} {} {}\n", next(&mut value_id), p, x, y);
+      }
+      Inst::LetVariable(x) => {
+        print!("\tlet mutable @{} = {}\n", next(&mut variable_id), x);
+      }
+      Inst::GetVariable(x) => {
+        print!("\t%{} = {}\n", next(&mut value_id), x);
+      }
+      Inst::SetVariable(x, y) => {
+        print!("\t{} <- {}\n", x, y);
+      }
+      Inst::If(p, a, b) => {
+        print!("\tif {} then {} else {}\n", p, a, b);
+      }
+      Inst::Goto(a, args) => {
+        print!("\tgoto {} (", a);
+        for (i, x) in args.iter().enumerate() {
+          if i != 0 {
+            print!(", ");
+          }
+          print!("{}", x);
+        }
+        print!(")\n");
+      }
+      Inst::Return(index, args) => {
+        print!("\treturn (", );
+        for _ in 0 .. index {
+          print!("|")
+        }
+        for (i, x) in args.iter().enumerate() {
+          if i != 0 {
+            print!(", ");
+          }
+          print!("{}", x);
+        }
+        for _ in 0 .. nkonts.saturating_sub(index).saturating_sub(1) {
+          print!("|")
+        }
+        print!(")\n");
       }
     }
   }

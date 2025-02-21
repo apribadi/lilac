@@ -10,7 +10,7 @@ use lilac::ssa::Type;
 fn main() {
   let mut buf = lilac::ssa::Builder::new();
 
-  buf.emit_function(1, 1);
+  buf.emit_func(1, 1);
   let _ = buf.emit_param(Type::I64);
   let _ = buf.emit_const_i64(1);
   let _ = buf.emit_const_i64(0);
@@ -39,5 +39,9 @@ fn main() {
 
   print!("\n\n");
 
-  lilac::compile::compile(&lilac::mir::FIB);
+  lilac::compile::compile_func(&lilac::mir::FIB);
+
+  print!("\n\n");
+
+  lilac::compile::compile_func(&lilac::mir::FOO);
 }

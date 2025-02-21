@@ -1,13 +1,10 @@
 use crate::prelude::*;
 use crate::ssa;
 use crate::mir;
-use crate::mir::Exp;
 use crate::mir::Symbol;
-use crate::ssa::Label;
-use crate::ssa::Value;
 
-pub struct Env<'a> {
-  //arena: Arena<'a>,
+pub struct Env<'a, 'b> {
+  arena: Arena<'b>,
   out: ssa::Builder,
   symbol_table: Vec<(Symbol<'a>, Referent)>,
   symbol_count: Vec<usize>,
@@ -19,9 +16,10 @@ pub enum Referent {
   Variable(ssa::Variable, ssa::Type),
 }
 
-impl<'a> Env<'a> {
-  pub fn new() -> Self {
+impl<'a, 'b> Env<'a, 'b> {
+  pub fn new(arena: Arena<'b>) -> Self {
     Self {
+      arena,
       out: ssa::Builder::new(),
       symbol_table: Vec::new(),
       symbol_count: vec![0],
@@ -36,7 +34,7 @@ impl<'a> Env<'a> {
     let c = self.symbol_count.pop().unwrap();
 
     for _ in 0 .. c {
-      self.symbol_table.pop();
+      let _: Option<_> = self.symbol_table.pop();
     }
   }
 
@@ -46,7 +44,7 @@ impl<'a> Env<'a> {
     *r = *r + 1;
   }
 
-  pub fn lookup(&self, symbol: Symbol) -> Option<Referent> {
+  pub fn lookup(&self, symbol: Symbol<'a>) -> Option<Referent> {
     for &(s, x) in self.symbol_table.iter().rev() {
       if symbol == s {
         return Some(x);
@@ -57,15 +55,15 @@ impl<'a> Env<'a> {
   }
 }
 
-pub fn compile(fun: &mir::Function<'_>) {
-  let mut env = Env::new();
-
-
-  env.out.emit_function(1, fun.params.len() as u32);
+pub fn compile_func(func: &mir::Func<'_>) {
+  let mut store = oxcart::Store::new();
+  let mut env = Env::new(store.arena());
 
   env.push_scope();
 
-  for &(s, t) in fun.params.iter() {
+  env.out.emit_func(1, func.params.len() as u32);
+
+  for &(s, t) in func.params.iter() {
     match t {
       mir::Type::I64 => {
         let x = env.out.emit_param(ssa::Type::I64);
@@ -74,7 +72,7 @@ pub fn compile(fun: &mir::Function<'_>) {
     }
   }
 
-  match compile_expression(&mut env, fun.body) {
+  match compile_expr(&mut env, func.body) {
     None => {}
     Some((value, _)) => {
       env.out.emit_return(0, 1);
@@ -96,9 +94,9 @@ pub fn compile(fun: &mir::Function<'_>) {
 // - zero or multiple return values
 // - two or more continuations
 
-pub fn compile_expression<'a>(env: &mut Env, exp: Exp<'a>) -> Option<(ssa::Value, ssa::Type)> {
-  match exp {
-    Exp::Symbol(s) => {
+pub fn compile_expr<'a, 'b>(env: &mut Env<'a, 'b>, expr: mir::Expr<'a>) -> Option<(ssa::Value, ssa::Type)> {
+  match expr {
+    mir::Expr::Symbol(s) => {
       match env.lookup(s).unwrap() {
         Referent::Value(x, t) => {
           Some((x, t))
@@ -109,36 +107,36 @@ pub fn compile_expression<'a>(env: &mut Env, exp: Exp<'a>) -> Option<(ssa::Value
       }
     }
 
-    Exp::ConstBool(p) => {
+    mir::Expr::ConstBool(p) => {
       Some((env.out.emit_const_bool(p), ssa::Type::BOOL))
     }
 
-    Exp::ConstI32(n) => {
+    mir::Expr::ConstI32(n) => {
       Some((env.out.emit_const_i32(n), ssa::Type::I32))
     }
 
-    Exp::ConstI64(n) => {
+    mir::Expr::ConstI64(n) => {
       Some((env.out.emit_const_i64(n), ssa::Type::I64))
     }
 
-    Exp::Call(&mir::Call { function: Symbol(b"add.i64"), args: &[x, y] }) => {
-      let (x, t) = compile_expression(env, x)?;
+    mir::Expr::Call(&mir::Call { func: Symbol(b"add.i64"), args: &[x, y] }) => {
+      let (x, t) = compile_expr(env, x)?;
       assert!(t == ssa::Type::I64);
-      let (y, t) = compile_expression(env, y)?;
+      let (y, t) = compile_expr(env, y)?;
       assert!(t == ssa::Type::I64);
       Some((env.out.emit_op2(ssa::Op2::ADD_I64, x, y), ssa::Type::I64))
     }
 
-    Exp::If(&mir::If { condition, if_true, if_false }) => {
-      let (p, t) = compile_expression(env, condition)?;
+    mir::Expr::If(&mir::If { condition, if_true, if_false }) => {
+      let (p, t) = compile_expr(env, condition)?;
       assert!(t == ssa::Type::BOOL);
-      let (a, b) = env.out.emit_if(p, Label(0), Label(0));
+      let (a, b) = env.out.emit_if(p, ssa::Label(0), ssa::Label(0));
 
       let case0 = 'arm: {
         let label = env.out.emit_case();
         env.out.patch_label(b, label);
-        let Some((x, t)) = compile_expression(env, if_false) else { break 'arm None; };
-        let point = env.out.emit_goto(Label(0), 1);
+        let Some((x, t)) = compile_expr(env, if_false) else { break 'arm None; };
+        let point = env.out.emit_goto(ssa::Label(0), 1);
         env.out.emit_value(x);
         Some((t, point))
       };
@@ -146,8 +144,8 @@ pub fn compile_expression<'a>(env: &mut Env, exp: Exp<'a>) -> Option<(ssa::Value
       let case1 = 'arm: {
         let label = env.out.emit_case();
         env.out.patch_label(a, label);
-        let Some((x, t)) = compile_expression(env, if_true) else { break 'arm None; };
-        let point = env.out.emit_goto(Label(0), 1);
+        let Some((x, t)) = compile_expr(env, if_true) else { break 'arm None; };
+        let point = env.out.emit_goto(ssa::Label(0), 1);
         env.out.emit_value(x);
         Some((t, point))
       };
@@ -171,12 +169,41 @@ pub fn compile_expression<'a>(env: &mut Env, exp: Exp<'a>) -> Option<(ssa::Value
       }
     }
 
-    Exp::Do(statements) => {
+    mir::Expr::Do(stmts) => {
       env.push_scope();
-      for &stmt in statements.iter() {
-      }
+
+      let result = 'do_result: {
+        let (&last, rest) = stmts.split_last().unwrap();
+
+        for &stmt in rest.iter() {
+          match compile_stmt(env, stmt) {
+            None => {
+              break 'do_result None;
+            }
+            Some(&[]) => {
+            }
+            _ => {
+              panic!()
+            }
+          }
+        }
+
+        match compile_stmt(env, last) {
+          None => {
+            break 'do_result None;
+          }
+          Some(&[&[value]]) => {
+            Some(value)
+          }
+          _ => {
+            panic!()
+          }
+        }
+      };
+
       env.pop_scope();
-      panic!()
+
+      result
     }
 
     _ => {
@@ -185,10 +212,34 @@ pub fn compile_expression<'a>(env: &mut Env, exp: Exp<'a>) -> Option<(ssa::Value
   }
 }
 
-pub fn compile_statement<'a>(
-    env: &mut Env,
-    stmt: mir::Statement<'a>
-  ) -> Option<(ssa::Value, ssa::Type)>
+// - outer option: do you return
+// - inner option: when you return, do you return one value or zero values?
+
+pub fn compile_stmt<'a, 'b>(
+    env: &mut Env<'a, 'b>,
+    stmt: mir::Stmt<'a>
+  ) -> Option<&'b [&'b [(ssa::Value, ssa::Type)]]>
 {
-  None
+  match stmt {
+    mir::Stmt::Expr(expr) => {
+      match compile_expr(env, expr) {
+        None => {
+          return None;
+        }
+        Some(value) => {
+          let value = core::slice::from_ref(env.arena.alloc().init(value));
+          let value = core::slice::from_ref(env.arena.alloc().init(value));
+          return Some(value);
+        }
+      }
+    }
+    mir::Stmt::Let(name, init) => {
+      let (x, t) = compile_expr(env, init)?;
+      env.bind_value(name, x, t);
+      Some(&[])
+    }
+    _ => {
+      panic!()
+    }
+  }
 }

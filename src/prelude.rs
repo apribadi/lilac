@@ -1,5 +1,5 @@
 // pub(crate) use oxcart::Store;
-// pub(crate) use oxcart::Arena;
+pub(crate) use oxcart::Arena;
 
 pub(crate) use pop::ptr;
 
