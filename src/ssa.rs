@@ -16,9 +16,9 @@ pub enum Inst<'a> {
   Op1(Op1, Value),
   Op2(Op2, Value, Value),
   Select(Value, Value, Value),
-  LetVariable(Value),
-  GetVariable(Variable),
-  SetVariable(Variable, Value),
+  LetLocal(Value),
+  GetLocal(Local),
+  SetLocal(Local, Value),
 
   // block terminator
 
@@ -46,7 +46,7 @@ pub struct Value(pub u32);
 pub struct Label(pub u32);
 
 #[derive(Clone, Copy, PartialEq, PartialOrd, Eq, Ord)]
-pub struct Variable(pub u32);
+pub struct Local(pub u32);
 
 pub struct TypeList<'a>(&'a [u8]);
 
@@ -65,9 +65,9 @@ impl Tag {
   pub const OP2: Self = Self(0x06);
   pub const SELECT: Self = Self(0x07);
 
-  pub const LET_VARIABLE: Self = Self(0x10);
-  pub const GET_VARIABLE: Self = Self(0x11);
-  pub const SET_VARIABLE: Self = Self(0x12);
+  pub const LET_LOCAL: Self = Self(0x10);
+  pub const GET_LOCAL: Self = Self(0x11);
+  pub const SET_LOCAL: Self = Self(0x12);
 
   pub const IF: Self = Self(0x0a);
   pub const GOTO: Self = Self(0x0b);
@@ -137,6 +137,7 @@ impl Op2 {
   pub const ADD_I64: Self = Self(0x06);
   pub const SUB_I64: Self = Self(0x07);
   pub const IS_EQ_I64: Self = Self(0x08);
+  pub const IS_NE_I64: Self = Self(0x09);
 
   pub fn name(self) -> &'static str {
     self.info().0
@@ -156,6 +157,9 @@ impl Op2 {
       ),
       Self::IS_EQ_I64 => &(
         "is_eq.i64",
+      ),
+      Self::IS_NE_I64 => &(
+        "is_ne.i64",
       ),
       _ => &(
         "unknown",
@@ -194,7 +198,7 @@ impl core::fmt::Display for Label {
   }
 }
 
-impl core::fmt::Display for Variable {
+impl core::fmt::Display for Local {
   fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
     write!(f, "@{}", self.0)
   }
@@ -218,7 +222,7 @@ pub struct Builder {
   buf: Buf,
   value_id: u32,
   label_id: u32,
-  variable_id: u32,
+  local_id: u32,
 }
 
 #[derive(Clone, Copy)]
@@ -236,7 +240,7 @@ impl Builder {
       buf: Buf::new(),
       value_id: 0,
       label_id: 0,
-      variable_id: 0,
+      local_id: 0,
     }
   }
 
@@ -248,8 +252,8 @@ impl Builder {
     Label(incr(&mut self.label_id))
   }
 
-  pub fn next_variable(&mut self) -> Variable {
-    Variable(incr(&mut self.variable_id))
+  pub fn next_local(&mut self) -> Local {
+    Local(incr(&mut self.local_id))
   }
 
   pub fn view(&self) -> &[u8] {
@@ -341,23 +345,23 @@ impl Builder {
     self.next_value()
   }
 
-  pub fn emit_let_variable(&mut self, x: Value) -> Variable {
+  pub fn emit_let_local(&mut self, x: Value) -> Local {
     let mut w = self.buf.append(5);
-    w.put_u8(Tag::LET_VARIABLE.0);
+    w.put_u8(Tag::LET_LOCAL.0);
     w.put_u32(x.0);
-    self.next_variable()
+    self.next_local()
   }
 
-  pub fn emit_get_variable(&mut self, x: Variable) -> Value {
+  pub fn emit_get_local(&mut self, x: Local) -> Value {
     let mut w = self.buf.append(5);
-    w.put_u8(Tag::GET_VARIABLE.0);
+    w.put_u8(Tag::GET_LOCAL.0);
     w.put_u32(x.0);
     self.next_value()
   }
 
-  pub fn emit_set_variable(&mut self, x: Variable, y: Value) {
+  pub fn emit_set_local(&mut self, x: Local, y: Value) {
     let mut w = self.buf.append(9);
-    w.put_u8(Tag::SET_VARIABLE.0);
+    w.put_u8(Tag::SET_LOCAL.0);
     w.put_u32(x.0);
     w.put_u32(y.0);
   }
@@ -450,21 +454,21 @@ pub fn read<'a, 'b>(buf: &'a mut &'b [u8]) -> Option<Inst<'b>> {
         let y = Value(r.pop_u32());
         Inst::Select(p, x, y)
       }
-      Tag::LET_VARIABLE => {
+      Tag::LET_LOCAL => {
         let mut r = chomp(&mut cursor, 4)?;
         let x = Value(r.pop_u32());
-        Inst::LetVariable(x)
+        Inst::LetLocal(x)
       }
-      Tag::GET_VARIABLE => {
+      Tag::GET_LOCAL => {
         let mut r = chomp(&mut cursor, 4)?;
-        let x = Variable(r.pop_u32());
-        Inst::GetVariable(x)
+        let x = Local(r.pop_u32());
+        Inst::GetLocal(x)
       }
-      Tag::SET_VARIABLE => {
+      Tag::SET_LOCAL => {
         let mut r = chomp(&mut cursor, 8)?;
-        let x = Variable(r.pop_u32());
+        let x = Local(r.pop_u32());
         let y = Value(r.pop_u32());
-        Inst::SetVariable(x, y)
+        Inst::SetLocal(x, y)
       }
       Tag::IF => {
         let mut r = chomp(&mut cursor, 12)?;
@@ -502,7 +506,7 @@ pub fn display(buf: &[u8]) {
   let mut func_id = 0;
   let mut label_id = 0;
   let mut value_id = 0;
-  let mut variable_id = 0;
+  let mut local_id = 0;
   let mut nkonts = 0;
 
   fn next(x: &mut u32) -> u32 {
@@ -516,7 +520,7 @@ pub fn display(buf: &[u8]) {
       Inst::Func(n, args) => {
         label_id = 0;
         value_id = 0;
-        variable_id = 0;
+        local_id = 0;
         nkonts = n;
         print!("{}: func ${} (", next(&mut func_id), next(&mut label_id));
         for (i, ty) in args.iter().enumerate() {
@@ -581,14 +585,14 @@ pub fn display(buf: &[u8]) {
       Inst::Select(p, x, y) => {
         print!("\t%{} = select {} {} {}\n", next(&mut value_id), p, x, y);
       }
-      Inst::LetVariable(x) => {
-        print!("\tlet mutable @{} = {}\n", next(&mut variable_id), x);
+      Inst::LetLocal(x) => {
+        print!("\tlocal @{} = {}\n", next(&mut local_id), x);
       }
-      Inst::GetVariable(x) => {
-        print!("\t%{} = {}\n", next(&mut value_id), x);
+      Inst::GetLocal(x) => {
+        print!("\t%{} = [{}]\n", next(&mut value_id), x);
       }
-      Inst::SetVariable(x, y) => {
-        print!("\t{} <- {}\n", x, y);
+      Inst::SetLocal(x, y) => {
+        print!("\t[{}] <- {}\n", x, y);
       }
       Inst::If(p, a, b) => {
         print!("\tif {} then {} else {}\n", p, a, b);

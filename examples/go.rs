@@ -37,11 +37,11 @@ fn main() {
 
   lilac::ssa::display(buf.view());
 
+  /*
   print!("\n\n");
-
-  lilac::compile::compile_func(&lilac::mir::FIB);
-
-  print!("\n\n");
-
   lilac::compile::compile_func(&lilac::mir::FOO);
+  */
+
+  print!("\n\n");
+  lilac::compile::compile_func(&lilac::mir::FIB);
 }

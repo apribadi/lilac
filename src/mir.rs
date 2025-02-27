@@ -10,6 +10,17 @@
 //         (let ($b) (i64.sub $n #1))
 //         (goto $continue-loop ($y $a $b))))))
 
+// (func fib ((n))
+//   (do
+//     (let-mutable n n)
+//     (let-mutable x 1)
+//     (let-mutable y 0)
+//     (while (is_ne.i64 n 0)
+//       (do
+//       ))
+//     y))
+//
+
 // use crate::prelude::*;
 
 // An expr can *potentially* return a single value to a single continuation.
@@ -36,11 +47,12 @@ const _: () = assert!(size_of::<Expr<'static>>() <= 24);
 #[derive(Clone, Copy)]
 pub enum Stmt<'a> {
   Expr(Expr<'a>),
-  Let(Symbol<'a>, Expr<'a>),
-  LetVariable(Symbol<'a>, Expr<'a>),
-  SetVariable(Symbol<'a>, Expr<'a>),
-  Goto(Symbol<'a>, &'a [Expr<'a>]),
-  // Return(),
+  Let(&'a [Symbol<'a>], Expr<'a>),
+  LetLocal(Symbol<'a>, Expr<'a>),
+  SetLocal(Symbol<'a>, Expr<'a>),
+  Return(&'a [Expr<'a>]),
+  While(Expr<'a>, Expr<'a>),
+  // Goto(Symbol<'a>, &'a [Expr<'a>]),
 }
 
 #[derive(Clone, Copy, Eq, Ord, PartialEq, PartialOrd)]
@@ -78,10 +90,7 @@ pub struct Func<'a> {
 }
 
 #[derive(Clone, Copy)]
-pub struct Call<'a> {
-  pub func: Symbol<'a>,
-  pub args: &'a [Expr<'a>],
-}
+pub struct Call<'a>(pub Symbol<'a>, pub &'a [Expr<'a>]);
 
 #[derive(Clone, Copy)]
 pub struct If<'a> {
@@ -97,11 +106,70 @@ pub struct Loop<'a> {
   pub body: Expr<'a>,
 }
 
+pub static FOO: Func<'static> = Func {
+  name: Symbol(b"foo"),
+  params: &[
+    (Symbol(b"x"), Type::I64),
+    (Symbol(b"y"), Type::I64),
+    (Symbol(b"z"), Type::I64),
+  ],
+  body:
+    Expr::Do(&[
+      Stmt::Let(
+        &[Symbol(b"a")],
+        Expr::Call(&Call(
+          Symbol(b"add.i64"),
+          &[Expr::Symbol(Symbol(b"x")), Expr::Symbol(Symbol(b"y"))]
+        ))
+      ),
+      Stmt::Let(
+        &[Symbol(b"b")],
+        Expr::Call(&Call(
+          Symbol(b"add.i64"),
+          &[Expr::Symbol(Symbol(b"a")), Expr::Symbol(Symbol(b"z"))]
+        ))
+      ),
+      Stmt::Expr(Expr::Symbol(Symbol(b"b")))
+    ])
+};
+
 pub static FIB: Func<'static> = Func {
   name: Symbol(b"fib"),
   params: &[(Symbol(b"n"), Type::I64)],
-  //body: Expr::ConstI64(13),
   body:
+    Expr::Do(&[
+      Stmt::LetLocal(Symbol(b"n"), Expr::Symbol(Symbol(b"n"))),
+      Stmt::LetLocal(Symbol(b"x"), Expr::ConstI64(1)),
+      Stmt::LetLocal(Symbol(b"y"), Expr::ConstI64(0)),
+      Stmt::While(
+        Expr::Call(&Call(
+          Symbol(b"is_ne.i64"),
+          &[Expr::Symbol(Symbol(b"n")), Expr::ConstI64(0)]
+        )),
+        Expr::Do(&[
+          Stmt::SetLocal(
+            Symbol(b"n"),
+            Expr::Call(&Call(
+              Symbol(b"sub.i64"),
+              &[Expr::Symbol(Symbol(b"n")), Expr::ConstI64(1)]
+            ))
+          ),
+          Stmt::Let(
+            &[Symbol(b"z")],
+            Expr::Call(&Call(
+              Symbol(b"add.i64"),
+              &[Expr::Symbol(Symbol(b"x")), Expr::Symbol(Symbol(b"y"))]
+            ))
+          ),
+          Stmt::SetLocal(Symbol(b"x"), Expr::Symbol(Symbol(b"y"))),
+          Stmt::SetLocal(Symbol(b"y"), Expr::Symbol(Symbol(b"z")))
+        ])
+      ),
+      Stmt::Return(&[Expr::Symbol(Symbol(b"y"))])
+    ])
+
+    /*
+
     Expr::Call(&Call {
       func: Symbol(b"add.i64"),
       args: &[
@@ -117,31 +185,6 @@ pub static FIB: Func<'static> = Func {
         })
       ]
     })
+    */
 };
 
-pub static FOO: Func<'static> = Func {
-  name: Symbol(b"foo"),
-  params: &[
-    (Symbol(b"x"), Type::I64),
-    (Symbol(b"y"), Type::I64),
-    (Symbol(b"z"), Type::I64),
-  ],
-  body:
-    Expr::Do(&[
-      Stmt::Let(
-        Symbol(b"a"),
-        Expr::Call(&Call {
-          func: Symbol(b"add.i64"),
-          args: &[Expr::Symbol(Symbol(b"x")), Expr::Symbol(Symbol(b"y"))]
-        })
-      ),
-      Stmt::Let(
-        Symbol(b"b"),
-        Expr::Call(&Call {
-          func: Symbol(b"add.i64"),
-          args: &[Expr::Symbol(Symbol(b"a")), Expr::Symbol(Symbol(b"z"))]
-        })
-      ),
-      Stmt::Expr(Expr::Symbol(Symbol(b"b")))
-    ])
-};
