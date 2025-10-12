@@ -2,25 +2,12 @@ use crate::token::Token;
 
 pub struct Lexer<'a> {
   source: &'a [u8],
-  token: Token,
+  index: usize,
+  token_start: usize,
+  token_stop: usize,
   state: u8,
-  token_start: isize,
-  token_stop: isize,
+  token: Token,
 }
-
-static SOURCE: &'static [u8] =
-  b"\
-# blah blah blah
-fun foo(x: int, y: int) -> int {
-  let a = x + y
-  let b = bar(a)
-  let _ = 1 + 1. + .1 + 1.1 + 1.1e10 + 1.1e+10
-  let _ = +1 + +1. + +.1 + +1.1 + +1.1e10 + +1.1e+10
-  let _ = +. + +.+
-  print(\"hello\")
-  return a *** b
-}
-";
 
 const A: u8 = 10;
 const B: u8 = 11;
@@ -57,11 +44,11 @@ const STATE: [[u8; 16]; 16] = [
   [4, 4, 4, 3, 4, 4, 4, 4, 4, 4, 4, 4, E, 4, E, 4], // 4 - punctuation  ( ) , ; [ ] { }
   [5, 5, 2, 3, 5, 2, 2, 2, 2, 5, 5, D, E, D, E, 5], // 5 - plus minus   +-
   [6, 6, 2, 3, 6, 2, 2, 2, 2, 6, 6, 6, E, 6, E, 6], // 6 - operator     ! $ % & * / < = > ? @ ^ | ~
-  [7, 7, 7, 3, 7, D, 2, 2, 2, 7, 7, D, E, D, E, 7], // 7 - dot          .
-  [8, 8, 8, 3, 8, 2, 2, 2, 2, 8, 8, 8, E, 8, E, 8], // 8 - colon        :
-  [A, A, A, 3, A, A, A, A, A, 9, 9, D, E, D, E, A], // 9 - underscore   _
-  [A, A, A, 3, A, A, A, A, A, 9, 9, D, E, D, E, A], // A - alphabet     A ... Z a ... z
-  [B, B, B, 3, B, D, B, B, B, 9, 9, D, E, D, E, B], // B - digit        0 1 2 3 4 5 6 7 7 8 9
+  [7, 7, 2, 3, 7, D, 2, 2, 2, 7, 7, D, E, D, E, 7], // 7 - dot          .
+  [8, 8, 2, 3, 8, 2, 2, 2, 2, 8, 8, 8, E, 8, E, 8], // 8 - colon        :
+  [A, A, A, 3, A, A, A, 9, 9, 9, 9, D, E, D, E, A], // 9 - underscore   _
+  [A, A, A, 3, A, A, A, 9, 9, 9, 9, D, E, D, E, A], // A - alphabet     A ... Z a ... z
+  [B, B, B, 3, B, D, B, D, B, 9, 9, D, E, D, E, B], // B - digit        0 1 2 3 4 5 6 7 7 8 9
   [C, C, C, 3, C, C, C, C, C, C, C, C, F, C, F, C], // C - double quote "
   [1, 1, 1, 3, 1, 1, 1, 1, 1, 1, 1, 1, E, 1, E, 1], // D - single quote '
   [1, 1, 1, 3, 1, 1, 1, 1, 1, 1, 1, 1, E, 1, E, 1], // E - back quote   `
@@ -122,12 +109,12 @@ impl<'a> Lexer<'a> {
     let mut t =
       Self {
         source,
-        token: Token::Error,
+        index: 0,
+        token_start: 0,
+        token_stop: 0,
         state: 0,
-        token_start: -1,
-        token_stop: -1,
+        token: Token::Error,
       };
-    // TODO: inline specialized next
     t.next();
     t
   }
@@ -135,25 +122,82 @@ impl<'a> Lexer<'a> {
   pub fn next(&mut self) {
     let n = self.source.len();
     let mut s = self.state;
-    let mut i = (self.token_stop + 1) as usize;
-    while ! is_start(s) && i != n {
+    let mut z;
+    let mut i = self.index;
+
+    let start;
+    loop {
+      if is_start(s) { start = i - 1; break; }
+      if i == n { start = i; s = 0; break; }
       s = TABLE[self.source[i] as usize][s as usize];
       i += 1;
     }
-    let start = i - 1;
-    if i != n {
+
+    let stop;
+    loop {
+      z = s;
+      if i == n { stop = i; s = 0; break; }
       s = TABLE[self.source[i] as usize][s as usize];
       i += 1;
-      while ! is_start(s) && is_token(s) && i != n {
-        s = TABLE[self.source[i] as usize][s as usize];
-        i += 1;
-      }
+      if is_start(s) || ! is_token(s) { stop = i - 1; break; }
     }
-    let stop = i - 1;
+
+    self.index = i;
+    self.token_start = start;
+    self.token_stop = stop;
     self.state = s;
-    self.token_start = start as isize;
-    self.token_stop = stop as isize;
-    if start == stop { self.token = Token::Eof; }
+
+    self.token =
+      match z {
+        0 => Token::Eof,
+        F => Token::DoubleQuote,
+        4 | 5 | 6 | 7 | 8 =>
+          unsafe { core::mem::transmute::<u8, Token>(self.source[start]) },
+        B | D =>
+          Token::Number,
+        A =>
+          match &self.source[start] {
+            b'_' => Token::Underscore,
+            _ => Token::Symbol,
+          },
+        2 =>
+          match &self.source[start .. stop] {
+            b"&&" => Token::And,
+            b"==" => Token::CmpEq,
+            b">=" => Token::CmpGe,
+            b"<=" => Token::CmpLe,
+            b"!=" => Token::CmpNe,
+            b"||" => Token::Or,
+            b"<<" => Token::Shl,
+            b">>" => Token::Shr,
+            _ => Token::Error,
+          },
+        9 =>
+          match &self.source[start .. stop] {
+            b"break" => Token::Break,
+            b"continue" => Token::Continue,
+            b"do" => Token::Do,
+            b"elif" => Token::Elif,
+            b"else" => Token::Else,
+            b"for" => Token::For,
+            b"fun" => Token::Fun,
+            b"if" => Token::If,
+            b"let" => Token::Let,
+            b"loop" => Token::Loop,
+            b"return" => Token::Return,
+            b"while" => Token::While,
+            _ => {
+              if self.source[start] == b'.' {
+                Token::Field
+              } else if self.source[start] == b':' {
+                Token::Error
+              } else {
+                Token::Symbol
+              }
+            }
+          },
+        _ => Token::Error,
+      }
   }
 
   pub fn token(&self) -> Token {
@@ -162,38 +206,6 @@ impl<'a> Lexer<'a> {
 
   pub fn span(&self) -> &'a [u8] {
     // TODO: unsafe
-    return &self.source[self.token_start as usize .. self.token_stop as usize];
+    return &self.source[self.token_start .. self.token_stop];
   }
 }
-
-pub fn go() {
-  let mut t = Lexer::new(&SOURCE);
-
-  while t.token() != Token::Eof {
-    print!("{}\n", str::from_utf8(t.span()).unwrap());
-    t.next();
-  }
-}
-
-/*
-pub fn go() {
-  print!("{}\n", str::from_utf8(&SOURCE).unwrap());
-  let mut s = 0u8;
-  let mut a = 0;
-  let mut p = false;
-  let mut i = 0;
-
-  for &c in SOURCE.iter() {
-    s = TABLE[c as usize][s as usize];
-    if p && (is_start(s) || ! is_token(s)) {
-      p = false;
-      print!("{:x} {}\n", s, str::from_utf8(&SOURCE[a .. i]).unwrap());
-    }
-    if is_start(s) {
-      a = i;
-      p = true;
-    }
-    i += 1;
-  }
-}
-*/

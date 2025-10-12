@@ -1,5 +1,5 @@
 #[repr(u8)]
-#[derive(Clone, Copy, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Token {
   Not      = 0x21, // !
   Dollar   = 0x24, // $
@@ -29,6 +29,28 @@ pub enum Token {
   Tilde    = 0x7e, // ~
   Eof      = 0,
   Error    = 1,
+  And,
+  CmpEq,
+  CmpGe,
+  CmpLe,
+  CmpNe,
+  Or,
+  Shl,
+  Shr,
+  Break,
+  Continue,
+  Do,
+  Elif,
+  Else,
+  For,
+  Fun,
+  If,
+  Let,
+  Loop,
+  Return,
+  While,
+  Underscore,
+  Field,
   Symbol,
   Number,
   DoubleQuote,
