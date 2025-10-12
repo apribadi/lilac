@@ -1,3 +1,3 @@
 fn main() {
-  unsafe { lilac::lexer::go() };
+  lilac::lexer::go();
 }
