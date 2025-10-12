@@ -28,26 +28,29 @@ const D: u8 = 13;
 const E: u8 = 14;
 const F: u8 = 15;
 
-// STATES
-//
-// 0 - reset
-// 1 - illegal
-// 2 - operator continuation
-// 3 - comment
-// 4 - punctuation
-// 5 - plus minus
-// 6 - operator start
-// 7 - dot
-// 8 - colon
-// 9 - symbol continuation
-// A - symbol start
-// B - number start
-// C - double quote start
-// D - number continuation
-// E - double quote continuation
-// F - quote end
+static STATE_INFO: [u8; 16] = [
+  // 0b00 - skip
+  // 0b01 - token start
+  // 0b10 - token continue
+  0b00, // 0 - nil
+  0b01, // 1 - illegal char
+  0b10, // 2 - operator continuation
+  0b00, // 3 - comment
+  0b01, // 4 - punctuation
+  0b01, // 5 - plus minus
+  0b01, // 6 - operator start
+  0b01, // 7 - dot
+  0b01, // 8 - colon
+  0b10, // 9 - symbol continuation
+  0b01, // A - symbol start
+  0b01, // B - number start
+  0b01, // C - double quote start
+  0b10, // D - number continuation
+  0b10, // E - double quote continuation
+  0b10, // F - quote end
+];
 
-const STATE: [[u8; 16]; 16] = [
+const TRANSITION_BY_CHAR_KIND: [[u8; 16]; 16] = [
 // 0  1  2  3  4  5  6  7  8  9  A  B  C  D  E  F
   [1, 1, 1, 3, 1, 1, 1, 1, 1, 1, 1, 1, E, 1, E, 1], // 0 - illegal
   [0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, E, 0, E, 0], // 1 - space        \t sp
@@ -67,7 +70,7 @@ const STATE: [[u8; 16]; 16] = [
   [1, 1, 1, 3, 1, 1, 1, 1, 1, 1, 1, 1, E, 1, E, 1], // F - back slash   \
 ];
 
-const CLASS: [u8; 128] = [
+const CHAR_KIND: [u8; 128] = [
   0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 0, 0, 0, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
   1, 6, C, 3, 6, 6, 6, D, 4, 4, 6, 5, 4, 5, 7, 6,
@@ -78,42 +81,24 @@ const CLASS: [u8; 128] = [
   A, A, A, A, A, A, A, A, A, A, A, 4, 6, 4, 6, 0,
 ];
 
-static TABLE: [[u8; 16]; 256] = {
+static TRANSITION: [[u8; 16]; 256] = {
   let mut t = [[0u8; 16]; 256];
   let mut i = 0u8;
   loop {
-    t[i as usize] = STATE[if i <= 127 { CLASS[i as usize] as usize } else { 0 }];
+    let k = if i <= 127 { CHAR_KIND[i as usize] } else { 0 };
+    t[i as usize] = TRANSITION_BY_CHAR_KIND[k as usize];
     if i == 255 { break; }
     i += 1;
   }
   t
 };
 
-static PREDS: [u8; 16] = [
-  0b00, // 0 - reset
-  0b11, // 1 - illegal
-  0b10, // 2 - operator continuation
-  0b00, // 3 - comment
-  0b11, // 4 - punctuation
-  0b11, // 5 - plus minus
-  0b11, // 6 - operator start
-  0b11, // 7 - dot
-  0b11, // 8 - colon
-  0b10, // 9 - symbol continuation
-  0b11, // A - symbol start
-  0b11, // B - number start
-  0b11, // C - double quote start
-  0b10, // D - number continuation
-  0b10, // E - double quote continuation
-  0b10, // F - quote end
-];
-
 fn is_start(x: u8) -> bool {
-  PREDS[(x & 0b1111) as usize] & 1 != 0
+  STATE_INFO[(x & 0b1111) as usize] & 1 != 0
 }
 
 fn is_token(x: u8) -> bool {
-  PREDS[(x & 0b1111) as usize] & 2 != 0
+  STATE_INFO[(x & 0b1111) as usize] & 2 != 0
 }
 
 impl<'a> Lexer<'a> {
@@ -157,7 +142,7 @@ impl<'a> Lexer<'a> {
     loop {
       if is_start(s) { start = i - 1; break; }
       if i == n { start = i; s = 0; break; }
-      s = TABLE[unsafe { *self.source.get_unchecked(i) } as usize][s as usize];
+      s = TRANSITION[unsafe { *self.source.get_unchecked(i) } as usize][s as usize];
       i += 1;
     }
 
@@ -165,7 +150,7 @@ impl<'a> Lexer<'a> {
     loop {
       z = s;
       if i == n { stop = i; s = 0; break; }
-      s = TABLE[unsafe { *self.source.get_unchecked(i) } as usize][s as usize];
+      s = TRANSITION[unsafe { *self.source.get_unchecked(i) } as usize][s as usize];
       i += 1;
       if is_start(s) || ! is_token(s) { stop = i - 1; break; }
     }
