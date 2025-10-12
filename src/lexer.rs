@@ -1,16 +1,13 @@
 use crate::token::Token;
 
-// TOOD: This lexer is structured so that an efficient implementation is
-// possible with SIMD on
+// TOOD: This lexer is structured so that it is possible to efficiently
+// implement it with SIMD.
 //
-// - aarch64
-// - x86-64
+// The critical path of the core byte-wise state transition should consist of
+// just a shuffle instruction (cf Sheng).
 //
-// The core byte-wise state transition should consist of a shuffle on the
-// critical path.
-//
-// After post-processing the states, we can extract token start and stop
-// locations with bitwise operations.
+// After post-processing the state sequence, we can extract token start and
+// stop locations with bitwise operations.
 
 pub struct Lexer<'a> {
   source: &'a [u8],
@@ -105,11 +102,11 @@ static TRANSITION: [[u8; 16]; 256] = {
 };
 
 fn is_start(x: u8) -> bool {
-  STATE_INFO[(x & 0b1111) as usize] & 1 != 0
+  return STATE_INFO[(x & 0b1111) as usize] & 1 != 0;
 }
 
-fn is_token(x: u8) -> bool {
-  STATE_INFO[(x & 0b1111) as usize] & 2 != 0
+fn is_continue(x: u8) -> bool {
+  return STATE_INFO[(x & 0b1111) as usize] & 2 != 0;
 }
 
 impl<'a> Lexer<'a> {
@@ -128,20 +125,20 @@ impl<'a> Lexer<'a> {
     t
   }
 
-  pub fn token_is_attached(&self) -> bool {
-    return self.is_attached;
-  }
-
-  pub fn token(&self) -> Token {
-    return self.token;
-  }
-
   pub fn token_start(&self) -> usize {
     return self.start;
   }
 
   pub fn token_stop(&self) -> usize {
     return self.stop;
+  }
+
+  pub fn token_is_attached(&self) -> bool {
+    return self.is_attached;
+  }
+
+  pub fn token(&self) -> Token {
+    return self.token;
   }
 
   pub fn token_slice(&self) -> &'a [u8] {
@@ -168,7 +165,7 @@ impl<'a> Lexer<'a> {
       if i == n { stop = i; s = 0; break; }
       s = TRANSITION[unsafe { *self.source.get_unchecked(i) } as usize][s as usize];
       i += 1;
-      if is_start(s) || ! is_token(s) { stop = i - 1; break; }
+      if is_start(s) || ! is_continue(s) { stop = i - 1; break; }
     }
 
     let is_attached = start == self.stop;
@@ -207,26 +204,25 @@ impl<'a> Lexer<'a> {
             _ => Token::Error,
           },
         9 =>
-          match unsafe { self.source.get_unchecked(start .. stop) } {
-            b"break" => Token::Break,
-            b"continue" => Token::Continue,
-            b"do" => Token::Do,
-            b"elif" => Token::Elif,
-            b"else" => Token::Else,
-            b"for" => Token::For,
-            b"fun" => Token::Fun,
-            b"if" => Token::If,
-            b"let" => Token::Let,
-            b"loop" => Token::Loop,
-            b"return" => Token::Return,
-            b"while" => Token::While,
-            _ => {
-              match unsafe { *self.source.get_unchecked(start) } {
-                b'.' => Token::Field,
-                b':' => Token::StaticField,
+          match unsafe { *self.source.get_unchecked(start) } {
+            b'.' => Token::Field,
+            b':' => Token::StaticField,
+            _ =>
+              match unsafe { self.source.get_unchecked(start .. stop) } {
+                b"break" => Token::Break,
+                b"continue" => Token::Continue,
+                b"do" => Token::Do,
+                b"elif" => Token::Elif,
+                b"else" => Token::Else,
+                b"for" => Token::For,
+                b"fun" => Token::Fun,
+                b"if" => Token::If,
+                b"let" => Token::Let,
+                b"loop" => Token::Loop,
+                b"return" => Token::Return,
+                b"while" => Token::While,
                 _ => Token::Symbol,
               }
-            }
           },
         _ => Token::Error,
       }

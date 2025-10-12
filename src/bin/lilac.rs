@@ -2,6 +2,8 @@ static SOURCE: &'static str =
   "\
 123
 # blah blah blah
+...123
+123...
 .foo
 ._foo
 :foo
