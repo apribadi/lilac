@@ -15,8 +15,8 @@ use crate::token::Token;
 pub struct Lexer<'a> {
   source: &'a [u8],
   index: usize,
-  token_start: usize,
-  token_stop: usize,
+  start: usize,
+  stop: usize,
   state: u8,
   token: Token,
 }
@@ -89,31 +89,31 @@ static TABLE: [[u8; 16]; 256] = {
   t
 };
 
-static OUT: [u8; 16] = [
-  0b00, // reset
-  0b11, // illegal
-  0b10, // operator continuation
-  0b00, // comment
-  0b11, // punctuation
-  0b11, // plus/minus
-  0b11, // operator start
-  0b11, // dot
-  0b11, // colon
-  0b10, // symbol continuation
-  0b11, // symbol start
-  0b11, // number start
-  0b11, // quote start
-  0b10, // number continuation
-  0b10, // quote continuation
-  0b10, // quote end
+static PREDS: [u8; 16] = [
+  0b00, // 0 - reset
+  0b11, // 1 - illegal
+  0b10, // 2 - operator continuation
+  0b00, // 3 - comment
+  0b11, // 4 - punctuation
+  0b11, // 5 - plus minus
+  0b11, // 6 - operator start
+  0b11, // 7 - dot
+  0b11, // 8 - colon
+  0b10, // 9 - symbol continuation
+  0b11, // A - symbol start
+  0b11, // B - number start
+  0b11, // C - double quote start
+  0b10, // D - number continuation
+  0b10, // E - double quote continuation
+  0b10, // F - quote end
 ];
 
 fn is_start(x: u8) -> bool {
-  OUT[(x & 0b1111) as usize] & 1 != 0
+  PREDS[(x & 0b1111) as usize] & 1 != 0
 }
 
 fn is_token(x: u8) -> bool {
-  OUT[(x & 0b1111) as usize] & 2 != 0
+  PREDS[(x & 0b1111) as usize] & 2 != 0
 }
 
 impl<'a> Lexer<'a> {
@@ -122,13 +122,29 @@ impl<'a> Lexer<'a> {
       Self {
         source,
         index: 0,
-        token_start: 0,
-        token_stop: 0,
+        start: 0,
+        stop: 0,
         state: 0,
         token: Token::Error,
       };
     t.next();
     t
+  }
+
+  pub fn token(&self) -> Token {
+    return self.token;
+  }
+
+  pub fn token_start(&self) -> usize {
+    return self.start;
+  }
+
+  pub fn token_stop(&self) -> usize {
+    return self.stop;
+  }
+
+  pub fn token_span(&self) -> &'a [u8] {
+    return unsafe { self.source.get_unchecked(self.start .. self.stop) };
   }
 
   pub fn next(&mut self) {
@@ -155,8 +171,8 @@ impl<'a> Lexer<'a> {
     }
 
     self.index = i;
-    self.token_start = start;
-    self.token_stop = stop;
+    self.start = start;
+    self.stop = stop;
     self.state = s;
 
     self.token =
@@ -208,13 +224,5 @@ impl<'a> Lexer<'a> {
           },
         _ => Token::Error,
       }
-  }
-
-  pub fn token(&self) -> Token {
-    return self.token;
-  }
-
-  pub fn span(&self) -> &'a [u8] {
-    return unsafe { self.source.get_unchecked(self.token_start .. self.token_stop) };
   }
 }
