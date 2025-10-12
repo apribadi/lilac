@@ -1,5 +1,17 @@
 use crate::token::Token;
 
+// TOOD: This lexer is structured so that an efficient implementation is
+// possible with SIMD on
+//
+// - aarch64
+// - x86-64
+//
+// The core byte-wise state transition should consist of a shuffle on the
+// critical path.
+//
+// After post-processing the states, we can extract token start and stop
+// locations with bitwise operations.
+
 pub struct Lexer<'a> {
   source: &'a [u8],
   index: usize,
