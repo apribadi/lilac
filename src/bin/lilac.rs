@@ -1,5 +1,6 @@
-static SOURCE: &'static [u8] =
-  b"\
+static SOURCE: &'static str =
+  "\
+123
 # blah blah blah
 .foo
 ._foo
@@ -18,6 +19,7 @@ static SOURCE: &'static [u8] =
 :::
 .:123
 :.123
+1_000_000
 fun foo(x: int, y: int) -> int {
   let a = x * y
   let b = bar(a)
@@ -30,12 +32,11 @@ fun foo(x: int, y: int) -> int {
 \"blah";
 
 fn main() {
-  let mut t = lilac::lexer::Lexer::new(&SOURCE);
+  let mut t = lilac::lexer::Lexer::new(SOURCE.as_bytes());
 
   loop {
-    print!("{:?} {}\n", t.token(), str::from_utf8(t.token_span()).unwrap());
+    print!("{:?} {} {}\n", t.token(), t.token_is_attached(), str::from_utf8(t.token_slice()).unwrap());
     if t.token() == lilac::token::Token::Eof { break; }
     t.next();
   }
-  t.next();
 }

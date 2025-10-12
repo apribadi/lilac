@@ -18,6 +18,7 @@ pub struct Lexer<'a> {
   start: usize,
   stop: usize,
   state: u8,
+  is_attached: bool,
   token: Token,
 }
 
@@ -28,27 +29,22 @@ const D: u8 = 13;
 const E: u8 = 14;
 const F: u8 = 15;
 
-static STATE_INFO: [u8; 16] = [
-  // 0b00 - skip
-  // 0b01 - token start
-  // 0b10 - token continue
-  0b00, // 0 - nil
-  0b01, // 1 - illegal char
-  0b10, // 2 - operator continuation
-  0b00, // 3 - comment
-  0b01, // 4 - punctuation
-  0b01, // 5 - plus minus
-  0b01, // 6 - operator start
-  0b01, // 7 - dot
-  0b01, // 8 - colon
-  0b10, // 9 - symbol continuation
-  0b01, // A - symbol start
-  0b01, // B - number start
-  0b01, // C - double quote start
-  0b10, // D - number continuation
-  0b10, // E - double quote continuation
-  0b10, // F - quote end
-];
+// 0 - nil
+// 1 - illegal char
+// 2 - operator continuation
+// 3 - comment
+// 4 - punctuation
+// 5 - plus minus
+// 6 - operator start
+// 7 - dot
+// 8 - colon
+// 9 - symbol continuation
+// A - symbol start
+// B - number start
+// C - double quote start
+// D - number continuation
+// E - double quote continuation
+// F - quote end
 
 const TRANSITION_BY_CHAR_KIND: [[u8; 16]; 16] = [
 // 0  1  2  3  4  5  6  7  8  9  A  B  C  D  E  F
@@ -70,7 +66,15 @@ const TRANSITION_BY_CHAR_KIND: [[u8; 16]; 16] = [
   [1, 1, 1, 3, 1, 1, 1, 1, 1, 1, 1, 1, E, 1, E, 1], // F - back slash   \
 ];
 
-const CHAR_KIND: [u8; 128] = [
+// 0 - skip
+// 1 - token start
+// 2 - token continue
+static STATE_INFO: [u8; 16] = [
+//0  1  2  3  4  5  6  7  8  9  A  B  C  D  E  F
+  0, 1, 2, 0, 1, 1, 1, 1, 1, 2, 1, 1, 1, 2, 2, 2
+];
+
+const CHAR_KIND: [u8; 256] = [
   0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 0, 0, 0, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
   1, 6, C, 3, 6, 6, 6, D, 4, 4, 6, 5, 4, 5, 7, 6,
@@ -79,14 +83,21 @@ const CHAR_KIND: [u8; 128] = [
   A, A, A, A, A, A, A, A, A, A, A, 4, F, 4, 6, 9,
   E, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A,
   A, A, A, A, A, A, A, A, A, A, A, 4, 6, 4, 6, 0,
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 ];
 
 static TRANSITION: [[u8; 16]; 256] = {
   let mut t = [[0u8; 16]; 256];
   let mut i = 0u8;
   loop {
-    let k = if i <= 127 { CHAR_KIND[i as usize] } else { 0 };
-    t[i as usize] = TRANSITION_BY_CHAR_KIND[k as usize];
+    t[i as usize] = TRANSITION_BY_CHAR_KIND[CHAR_KIND[i as usize] as usize];
     if i == 255 { break; }
     i += 1;
   }
@@ -110,10 +121,15 @@ impl<'a> Lexer<'a> {
         start: 0,
         stop: 0,
         state: 0,
+        is_attached: false,
         token: Token::Error,
       };
     t.next();
     t
+  }
+
+  pub fn token_is_attached(&self) -> bool {
+    return self.is_attached;
   }
 
   pub fn token(&self) -> Token {
@@ -128,14 +144,13 @@ impl<'a> Lexer<'a> {
     return self.stop;
   }
 
-  pub fn token_span(&self) -> &'a [u8] {
+  pub fn token_slice(&self) -> &'a [u8] {
     return unsafe { self.source.get_unchecked(self.start .. self.stop) };
   }
 
   pub fn next(&mut self) {
     let n = self.source.len();
     let mut s = self.state;
-    let mut z;
     let mut i = self.index;
 
     let start;
@@ -146,22 +161,26 @@ impl<'a> Lexer<'a> {
       i += 1;
     }
 
+    let mut last_state;
     let stop;
     loop {
-      z = s;
+      last_state = s;
       if i == n { stop = i; s = 0; break; }
       s = TRANSITION[unsafe { *self.source.get_unchecked(i) } as usize][s as usize];
       i += 1;
       if is_start(s) || ! is_token(s) { stop = i - 1; break; }
     }
 
+    let is_attached = start == self.stop;
+
     self.index = i;
     self.start = start;
     self.stop = stop;
     self.state = s;
+    self.is_attached = is_attached;
 
     self.token =
-      match z {
+      match last_state {
         0 => Token::Eof,
         F =>
           // can look at first char to see quote kind

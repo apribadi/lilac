@@ -18,7 +18,7 @@ pub enum Token {
   CmpLT    = 0x3c, // <
   Equal    = 0x3d, // =
   CmpGT    = 0x3e, // >
-  Query    = 0x3f, // ?
+  Question = 0x3f, // ?
   At       = 0x40, // @
   LBracket = 0x5b, // [
   RBracket = 0x5d, // ]
@@ -29,14 +29,17 @@ pub enum Token {
   Tilde    = 0x7e, // ~
   Eof      = 0,
   Error    = 1,
-  And,
-  CmpEq,
-  CmpGe,
-  CmpLe,
-  CmpNe,
-  Or,
-  Shl,
-  Shr,
+  And,             // &&
+  CmpEq,           // ==
+  CmpGe,           // >=
+  CmpLe,           // <=
+  CmpNe,           // !=
+  Or,              // ||
+  Shl,             // <<
+  Shr,             // >>
+  Underscore,      // _
+  Field,           // .foo
+  StaticField,     // :foo
   Break,
   Continue,
   Do,
@@ -49,9 +52,6 @@ pub enum Token {
   Loop,
   Return,
   While,
-  Underscore,
-  Field,
-  StaticField,
   Symbol,
   Number,
   DoubleQuote,
