@@ -1,3 +1,5 @@
+// untyped bytecode
+
 #[derive(Debug)]
 pub struct Symbol(pub u64);
 

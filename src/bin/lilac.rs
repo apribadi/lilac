@@ -33,7 +33,7 @@ fn main() {
   let mut t = lilac::lexer::Lexer::new(&SOURCE);
 
   loop {
-    print!("{:?} {:?}\n", t.token(), str::from_utf8(t.token_span()).unwrap());
+    print!("{:?} {}\n", t.token(), str::from_utf8(t.token_span()).unwrap());
     if t.token() == lilac::token::Token::Eof { break; }
     t.next();
   }

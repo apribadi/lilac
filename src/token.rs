@@ -51,6 +51,7 @@ pub enum Token {
   While,
   Underscore,
   Field,
+  StaticField,
   Symbol,
   Number,
   DoubleQuote,

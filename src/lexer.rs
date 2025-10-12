@@ -178,7 +178,9 @@ impl<'a> Lexer<'a> {
     self.token =
       match z {
         0 => Token::Eof,
-        F => Token::DoubleQuote,
+        F =>
+          // can look at first char to see quote kind
+          Token::DoubleQuote,
         4 | 5 | 6 | 7 | 8 =>
           unsafe { core::mem::transmute::<u8, Token>(*self.source.get_unchecked(start)) },
         B | D =>
@@ -217,7 +219,7 @@ impl<'a> Lexer<'a> {
             _ => {
               match unsafe { *self.source.get_unchecked(start) } {
                 b'.' => Token::Field,
-                b':' => Token::Error,
+                b':' => Token::StaticField,
                 _ => Token::Symbol,
               }
             }
