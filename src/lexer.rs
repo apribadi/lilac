@@ -129,7 +129,7 @@ impl<'a> Lexer<'a> {
     loop {
       if is_start(s) { start = i - 1; break; }
       if i == n { start = i; s = 0; break; }
-      s = TABLE[self.source[i] as usize][s as usize];
+      s = TABLE[unsafe { *self.source.get_unchecked(i) } as usize][s as usize];
       i += 1;
     }
 
@@ -137,7 +137,7 @@ impl<'a> Lexer<'a> {
     loop {
       z = s;
       if i == n { stop = i; s = 0; break; }
-      s = TABLE[self.source[i] as usize][s as usize];
+      s = TABLE[unsafe { *self.source.get_unchecked(i) } as usize][s as usize];
       i += 1;
       if is_start(s) || ! is_token(s) { stop = i - 1; break; }
     }
@@ -152,16 +152,16 @@ impl<'a> Lexer<'a> {
         0 => Token::Eof,
         F => Token::DoubleQuote,
         4 | 5 | 6 | 7 | 8 =>
-          unsafe { core::mem::transmute::<u8, Token>(self.source[start]) },
+          unsafe { core::mem::transmute::<u8, Token>(*self.source.get_unchecked(start)) },
         B | D =>
           Token::Number,
         A =>
-          match &self.source[start] {
+          match unsafe { self.source.get_unchecked(start) } {
             b'_' => Token::Underscore,
             _ => Token::Symbol,
           },
         2 =>
-          match &self.source[start .. stop] {
+          match unsafe { self.source.get_unchecked(start .. stop) } {
             b"&&" => Token::And,
             b"==" => Token::CmpEq,
             b">=" => Token::CmpGe,
@@ -173,7 +173,7 @@ impl<'a> Lexer<'a> {
             _ => Token::Error,
           },
         9 =>
-          match &self.source[start .. stop] {
+          match unsafe { self.source.get_unchecked(start .. stop) } {
             b"break" => Token::Break,
             b"continue" => Token::Continue,
             b"do" => Token::Do,
@@ -187,12 +187,10 @@ impl<'a> Lexer<'a> {
             b"return" => Token::Return,
             b"while" => Token::While,
             _ => {
-              if self.source[start] == b'.' {
-                Token::Field
-              } else if self.source[start] == b':' {
-                Token::Error
-              } else {
-                Token::Symbol
+              match unsafe { *self.source.get_unchecked(start) } {
+                b'.' => Token::Field,
+                b':' => Token::Error,
+                _ => Token::Symbol,
               }
             }
           },
@@ -205,7 +203,6 @@ impl<'a> Lexer<'a> {
   }
 
   pub fn span(&self) -> &'a [u8] {
-    // TODO: unsafe
-    return &self.source[self.token_start .. self.token_stop];
+    return unsafe { self.source.get_unchecked(self.token_start .. self.token_stop) };
   }
 }
