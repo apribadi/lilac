@@ -34,7 +34,7 @@ fun foo(x: int, y: int) -> int {
 \"blah";
 
 fn main() {
-  let mut t = lilac::lexer::Lexer::new(SOURCE.as_bytes());
+  let mut t = lilac::lex::Lexer::new(SOURCE.as_bytes());
 
   loop {
     print!("{:?} {} {}\n", t.token(), t.token_is_attached(), str::from_utf8(t.token_slice()).unwrap());

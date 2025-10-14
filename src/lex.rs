@@ -52,11 +52,11 @@ const TRANSITION_BY_CHAR_KIND: [[u8; 16]; 16] = [
   [4, 4, 4, 3, 4, 4, 4, 4, 4, 4, 4, 4, E, 4, E, 4], // 4 - punctuation  ( ) , ; [ ] { }
   [5, 5, 2, 3, 5, 2, 2, 2, 2, 5, 5, D, E, D, E, 5], // 5 - plus minus   +-
   [6, 6, 2, 3, 6, 2, 2, 2, 2, 6, 6, 6, E, 6, E, 6], // 6 - operator     ! $ % & * / < = > ? @ ^ | ~
-  [7, 7, 2, 3, 7, D, 2, 2, 2, 7, 7, D, E, D, E, 7], // 7 - dot          .
+  [7, 7, 2, 3, 7, 2, 2, 2, 2, 7, 7, D, E, D, E, 7], // 7 - dot          .
   [8, 8, 2, 3, 8, 2, 2, 2, 2, 8, 8, 8, E, 8, E, 8], // 8 - colon        :
   [A, A, A, 3, A, A, A, 9, 9, 9, 9, D, E, D, E, A], // 9 - underscore   _
   [A, A, A, 3, A, A, A, 9, 9, 9, 9, D, E, D, E, A], // A - alphabet     A ... Z a ... z
-  [B, B, B, 3, B, D, B, D, B, 9, 9, D, E, D, E, B], // B - digit        0 1 2 3 4 5 6 7 7 8 9
+  [B, B, B, 3, B, D, B, 9, B, 9, 9, D, E, D, E, B], // B - digit        0 1 2 3 4 5 6 7 7 8 9
   [C, C, C, 3, C, C, C, C, C, C, C, C, F, C, F, C], // C - double quote "
   [1, 1, 1, 3, 1, 1, 1, 1, 1, 1, 1, 1, E, 1, E, 1], // D - single quote '
   [1, 1, 1, 3, 1, 1, 1, 1, 1, 1, 1, 1, E, 1, E, 1], // E - back quote   `

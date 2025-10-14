@@ -1,3 +1,4 @@
-pub mod ir0;
-pub mod lexer;
+pub mod ir1;
+pub mod lex;
+pub mod parse;
 pub mod token;
