@@ -1,5 +1,5 @@
 static SOURCE: &'static str =
-  "1 + 2 + 13";
+  "z != - 2 * x.bar + 3 * ! - y.foo - 10";
 
 fn main() {
   print!("{}\n", lilac::parse::parse(SOURCE.as_bytes(), &mut lilac::parse::SexpPrinter));

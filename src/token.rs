@@ -15,9 +15,9 @@ pub enum Token {
   Div      = 0x2f, // /
   Colon    = 0x3a, // :
   Semi     = 0x3b, // ;
-  CmpLT    = 0x3c, // <
+  CmpLt    = 0x3c, // <
   Equal    = 0x3d, // =
-  CmpGT    = 0x3e, // >
+  CmpGt    = 0x3e, // >
   Question = 0x3f, // ?
   At       = 0x40, // @
   LBracket = 0x5b, // [
