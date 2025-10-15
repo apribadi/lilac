@@ -1,4 +1,12 @@
 static SOURCE: &'static str =
+  "1 + 2 + 13";
+
+fn main() {
+  print!("{}\n", lilac::parse::parse(SOURCE.as_bytes(), &mut lilac::parse::SexpPrinter));
+}
+
+/*
+static SOURCE: &'static str =
   "\
 123
 # blah blah blah
@@ -42,3 +50,4 @@ fn main() {
     t.next();
   }
 }
+*/
