@@ -10,7 +10,7 @@ pub enum Token {
   Mul      = 0x2a, // *
   Add      = 0x2b, // +
   Comma    = 0x2c, // ,
-  Dash     = 0x2d, // -
+  Hyphen   = 0x2d, // -
   Dot      = 0x2e, // .
   Div      = 0x2f, // /
   Colon    = 0x3a, // :
@@ -18,7 +18,7 @@ pub enum Token {
   CmpLt    = 0x3c, // <
   Equal    = 0x3d, // =
   CmpGt    = 0x3e, // >
-  Question = 0x3f, // ?
+  Query    = 0x3f, // ?
   At       = 0x40, // @
   LBracket = 0x5b, // [
   RBracket = 0x5d, // ]

@@ -16,6 +16,9 @@ impl Op1 {
 #[derive(Clone, Copy, Eq, PartialEq)]
 pub enum Op2 {
   Add,
+  BitAnd,
+  BitOr,
+  BitXor,
   CmpEq,
   CmpGe,
   CmpGt,
@@ -34,6 +37,9 @@ impl Op2 {
   pub fn as_str(self) -> &'static str {
     match self {
       Self::Add => "+",
+      Self::BitAnd => "&",
+      Self::BitOr => "|",
+      Self::BitXor => "^",
       Self::CmpEq => "==",
       Self::CmpGe => ">=",
       Self::CmpGt => ">",

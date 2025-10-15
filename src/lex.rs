@@ -141,7 +141,7 @@ impl<'a> Lexer<'a> {
     return self.token;
   }
 
-  pub fn token_slice(&self) -> &'a [u8] {
+  pub fn token_span(&self) -> &'a [u8] {
     return unsafe { self.source.get_unchecked(self.start .. self.stop) };
   }
 

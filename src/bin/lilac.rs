@@ -1,8 +1,20 @@
-static SOURCE: &'static str =
-  "z != - 2 * x.bar + 3 * ! - y.foo - 10";
+static A: &'static str =
+  "x == y ? a != b ? 1 + 1 : 2 * 2 : 3 / 3";
+
+static B: &'static str =
+  "z != - 2 * a[x.foo - 1] + 3 * ! - y.bar - 10";
+
+static C: &'static str =
+  "a & b | c ^ d";
+
+static D: &'static str =
+  "a || b && c ? 1 : 2";
 
 fn main() {
-  print!("{}\n", lilac::parse::parse(SOURCE.as_bytes(), &mut lilac::parse::SexpPrinter));
+  print!("{}\n", lilac::parse::parse(A.as_bytes(), &mut lilac::parse::SexpPrinter));
+  print!("{}\n", lilac::parse::parse(B.as_bytes(), &mut lilac::parse::SexpPrinter));
+  print!("{}\n", lilac::parse::parse(C.as_bytes(), &mut lilac::parse::SexpPrinter));
+  print!("{}\n", lilac::parse::parse(D.as_bytes(), &mut lilac::parse::SexpPrinter));
 }
 
 /*
