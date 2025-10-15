@@ -3,20 +3,20 @@ use crate::token::Token;
 use crate::ir1::Inst;
 use crate::sexp::Sexp;
 
-pub fn parse<T: Visitor>(source: &[u8], visitor: &mut T) -> T::ExprResult {
+pub fn parse<T: Visitor>(source: &[u8], visitor: &mut T) -> T::Expr {
   return Parser::new(source).parse_expr(visitor);
 }
 
 pub trait Visitor {
-  type ExprResult;
+  type Expr;
 
-  fn visit_variable(&mut self, x: &[u8]) -> Self::ExprResult;
+  fn visit_variable(&mut self, x: &[u8]) -> Self::Expr;
 
-  fn visit_number(&mut self, x: &[u8]) -> Self::ExprResult;
+  fn visit_number(&mut self, x: &[u8]) -> Self::Expr;
 
-  fn visit_undefined(&mut self) -> Self::ExprResult;
+  fn visit_undefined(&mut self) -> Self::Expr;
 
-  fn visit_add(&mut self, x: Self::ExprResult, y: Self::ExprResult) -> Self::ExprResult;
+  fn visit_add(&mut self, x: Self::Expr, y: Self::Expr) -> Self::Expr;
 }
 
 pub struct Parser<'a> {
@@ -50,7 +50,7 @@ impl<'a> Parser<'a> {
     // else error
   }
 
-  fn parse_leaf<T: Visitor>(&mut self, visitor: &mut T) -> T::ExprResult {
+  fn parse_leaf<T: Visitor>(&mut self, visitor: &mut T) -> T::Expr {
     match self.token() {
       Token::Number => {
         let r = visitor.visit_number(self.token_slice());
@@ -69,7 +69,7 @@ impl<'a> Parser<'a> {
     }
   }
 
-  fn parse_expr<T: Visitor>(&mut self, visitor: &mut T) -> T::ExprResult {
+  fn parse_expr<T: Visitor>(&mut self, visitor: &mut T) -> T::Expr {
     let mut x = self.parse_leaf(visitor);
     loop {
       match self.token() {
@@ -89,21 +89,21 @@ impl<'a> Parser<'a> {
 pub struct SexpPrinter;
 
 impl Visitor for SexpPrinter {
-  type ExprResult = Sexp;
+  type Expr = Sexp;
 
-  fn visit_variable(&mut self, x: &[u8]) -> Self::ExprResult {
+  fn visit_variable(&mut self, x: &[u8]) -> Self::Expr {
     Sexp::atom(x)
   }
 
-  fn visit_number(&mut self, x: &[u8]) -> Self::ExprResult {
+  fn visit_number(&mut self, x: &[u8]) -> Self::Expr {
     Sexp::atom(x)
   }
 
-  fn visit_undefined(&mut self) -> Self::ExprResult {
+  fn visit_undefined(&mut self) -> Self::Expr {
     Sexp::atom(b"undefined")
   }
 
-  fn visit_add(&mut self, x: Sexp, y: Sexp) -> Self::ExprResult {
+  fn visit_add(&mut self, x: Sexp, y: Sexp) -> Self::Expr {
     Sexp::from_array([Sexp::atom(b"add"), x, y])
   }
 }
