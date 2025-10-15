@@ -11,10 +11,10 @@ static D: &'static str =
   "a || b && c ? 1 : 2";
 
 fn main() {
-  print!("{}\n", lilac::parse::parse(A.as_bytes(), &mut lilac::parse::SexpPrinter));
-  print!("{}\n", lilac::parse::parse(B.as_bytes(), &mut lilac::parse::SexpPrinter));
-  print!("{}\n", lilac::parse::parse(C.as_bytes(), &mut lilac::parse::SexpPrinter));
-  print!("{}\n", lilac::parse::parse(D.as_bytes(), &mut lilac::parse::SexpPrinter));
+  print!("{}\n", lilac::parse::parse_expr(A.as_bytes(), &mut lilac::parse::SexpPrinter));
+  print!("{}\n", lilac::parse::parse_expr(B.as_bytes(), &mut lilac::parse::SexpPrinter));
+  print!("{}\n", lilac::parse::parse_expr(C.as_bytes(), &mut lilac::parse::SexpPrinter));
+  print!("{}\n", lilac::parse::parse_expr(D.as_bytes(), &mut lilac::parse::SexpPrinter));
 }
 
 /*
@@ -54,7 +54,7 @@ fun foo(x: int, y: int) -> int {
 \"blah";
 
 fn main() {
-  let mut t = lilac::lex::Lexer::new(SOURCE.as_bytes());
+  let mut t = lilac::lexer::Lexer::new(SOURCE.as_bytes());
 
   loop {
     print!("{:?} {} {}\n", t.token(), t.token_is_attached(), str::from_utf8(t.token_slice()).unwrap());

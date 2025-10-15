@@ -1,11 +1,11 @@
-use crate::lex::Lexer;
+use crate::lexer::Lexer;
 use crate::token::Token;
 use crate::ir1::Inst;
 use crate::sexp::Sexp;
 use crate::operator::Op1;
 use crate::operator::Op2;
 
-pub fn parse<T: Visitor>(source: &[u8], visitor: &mut T) -> T::Expr {
+pub fn parse_expr<T: Visitor>(source: &[u8], visitor: &mut T) -> T::Expr {
   return Parser::new(source).parse_expr(visitor);
 }
 
@@ -67,7 +67,7 @@ impl<'a> Parser<'a> {
       self.lexer.next()
     }
 
-    // else error
+    // TODO: else error
   }
 
   fn parse_expr<T: Visitor>(&mut self, visitor: &mut T) -> T::Expr {
@@ -100,7 +100,7 @@ impl<'a> Parser<'a> {
           visitor.visit_op1(Op1::Not, y)
         }
         _ => {
-          // error
+          // TODO: error
           visitor.visit_undefined()
         }
       };
