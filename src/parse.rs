@@ -11,8 +11,6 @@ pub fn parse_expr<'a, V: Visitor>(t: &mut Lexer<'a>, v: &mut V) -> V::Expr {
 pub trait Visitor {
   type Expr;
 
-  fn visit_undefined(&mut self) -> Self::Expr;
-
   fn visit_variable(&mut self, x: &[u8]) -> Self::Expr;
 
   fn visit_number(&mut self, x: &[u8]) -> Self::Expr;
@@ -30,16 +28,18 @@ pub trait Visitor {
   fn visit_field(&mut self, f: &[u8], x: Self::Expr) -> Self::Expr;
 
   fn visit_index(&mut self, x: Self::Expr, i: Self::Expr) -> Self::Expr;
+
+  fn visit_error_missing_expr(&mut self) -> Self::Expr;
+
+  fn visit_error_missing_expected_token(&mut self, token: Token);
 }
 
-fn expect<'a, V: Visitor>(t: &mut Lexer<'a>, v: &mut V, x: Token) {
-  if t.token() == x {
-    t.next()
+fn expect<'a, V: Visitor>(t: &mut Lexer<'a>, v: &mut V, token: Token) {
+  if t.token() == token {
+    t.next();
+  } else {
+    v.visit_error_missing_expected_token(token);
   }
-
-  let _ = v;
-
-  // TODO: else error
 }
 
 fn parse_prec<'a, V: Visitor>(t: &mut Lexer<'a>, v: &mut V, n: usize) -> V::Expr {
@@ -72,8 +72,7 @@ fn parse_prec<'a, V: Visitor>(t: &mut Lexer<'a>, v: &mut V, n: usize) -> V::Expr
         v.visit_op1(Op1::Not, y)
       }
       _ => {
-        // TODO: error
-        v.visit_undefined()
+        v.visit_error_missing_expr()
       }
     };
 
@@ -200,10 +199,6 @@ pub struct DumpSexp;
 impl Visitor for DumpSexp {
   type Expr = Sexp;
 
-  fn visit_undefined(&mut self) -> Self::Expr {
-    Sexp::atom(b"undefined")
-  }
-
   fn visit_variable(&mut self, x: &[u8]) -> Self::Expr {
     Sexp::atom(x)
   }
@@ -238,5 +233,12 @@ impl Visitor for DumpSexp {
 
   fn visit_index(&mut self, x: Sexp, i: Sexp) -> Self::Expr {
     Sexp::from_array([Sexp::atom(b"[]"), x, i])
+  }
+
+  fn visit_error_missing_expr(&mut self) -> Self::Expr {
+    Sexp::atom(b"undefined")
+  }
+
+  fn visit_error_missing_expected_token(&mut self, _: Token) {
   }
 }

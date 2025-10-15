@@ -10,12 +10,17 @@ static C: &'static str =
 static D: &'static str =
   "a || b && c ? 1 : 2";
 
+static E: &'static str =
+  "1 + ";
+
+static F: &'static str =
+  "+ 1";
+
 fn parse_expr(source: &str) -> lilac::sexp::Sexp {
   lilac::parse::parse_expr(
       &mut lilac::lexer::Lexer::new(source.as_bytes()),
       &mut lilac::parse::DumpSexp
     )
-
 }
 
 fn main() {
@@ -23,6 +28,8 @@ fn main() {
   print!("{}\n", parse_expr(B));
   print!("{}\n", parse_expr(C));
   print!("{}\n", parse_expr(D));
+  print!("{}\n", parse_expr(E));
+  print!("{}\n", parse_expr(F));
 }
 
 /*
