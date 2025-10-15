@@ -52,14 +52,12 @@ impl<'a> Parser<'a> {
     return self.lexer.token_is_attached();
   }
 
-  fn next(&mut self) {
-    self.lexer.next();
+  fn token_span(&self) -> &'a [u8] {
+    return self.lexer.token_span();
   }
 
-  fn next_span(&mut self) -> &'a [u8] {
-    let s = self.lexer.token_span();
+  fn next(&mut self) {
     self.lexer.next();
-    s
   }
 
   fn expect(&mut self, t: Token) {
@@ -84,10 +82,14 @@ impl<'a> Parser<'a> {
           y
         }
         Token::Number => {
-          visitor.visit_number(self.next_span())
+          let s = self.token_span();
+          self.next();
+          visitor.visit_number(s)
         }
         Token::Symbol => {
-          visitor.visit_variable(self.next_span())
+          let s = self.token_span();
+          self.next();
+          visitor.visit_variable(s)
         }
         Token::Hyphen => {
           self.next();
@@ -206,7 +208,9 @@ impl<'a> Parser<'a> {
             visitor.visit_op2(Op2::Rem, x, y)
           }
           Token::Field if self.token_is_attached() && n <= 40 => {
-            visitor.visit_field(self.next_span(), x)
+            let s = self.token_span();
+            self.next();
+            visitor.visit_field(s, x)
           }
           Token::LBracket if self.token_is_attached() && n <= 40 => {
             self.next();
