@@ -34,8 +34,6 @@ pub trait Visitor {
   fn visit_stmt_expr(&mut self, x: Self::Expr) -> Self::Stmt;
 
   fn visit_error_missing_expected_token(&mut self, token: Token);
-
-  fn visit_error_missing_expected_symbol(&mut self);
 }
 
 pub fn parse_expr<'a, V: Visitor>(t: &mut Lexer<'a>, v: &mut V) -> V::Expr {
@@ -73,7 +71,7 @@ fn expect_symbol<'a, V: Visitor>(t: &mut Lexer<'a>, v: &mut V) -> &'a [u8] {
     t.next();
     s
   } else {
-    v.visit_error_missing_expected_symbol();
+    v.visit_error_missing_expected_token(Token::Symbol);
     b"!!!"
   }
 }
@@ -292,8 +290,5 @@ impl Visitor for DumpSexp {
   }
 
   fn visit_error_missing_expected_token(&mut self, _: Token) {
-  }
-
-  fn visit_error_missing_expected_symbol(&mut self) {
   }
 }
