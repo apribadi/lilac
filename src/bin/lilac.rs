@@ -1,20 +1,9 @@
-static A: &'static str =
-  "x == y ? a != b ? 1 + 1 : 2 * 2 : 3 / 3";
-
-static B: &'static str =
-  "z != - 2 * a[x.foo - 1] + 3 * ! - y.bar - 10";
-
-static C: &'static str =
-  "a & b | c ^ d";
-
-static D: &'static str =
-  "a || b && c ? 1 : 2";
-
-static E: &'static str =
-  "1 + ";
-
-static F: &'static str =
-  "+ 1";
+fn parse_stmt(source: &str) -> lilac::sexp::Sexp {
+  lilac::parse::parse_stmt(
+      &mut lilac::lexer::Lexer::new(source.as_bytes()),
+      &mut lilac::parse::DumpSexp
+    )
+}
 
 fn parse_expr(source: &str) -> lilac::sexp::Sexp {
   lilac::parse::parse_expr(
@@ -24,12 +13,13 @@ fn parse_expr(source: &str) -> lilac::sexp::Sexp {
 }
 
 fn main() {
-  print!("{}\n", parse_expr(A));
-  print!("{}\n", parse_expr(B));
-  print!("{}\n", parse_expr(C));
-  print!("{}\n", parse_expr(D));
-  print!("{}\n", parse_expr(E));
-  print!("{}\n", parse_expr(F));
+  print!("{}\n", parse_stmt("let x = 1 + 2 * e"));
+  print!("{}\n", parse_expr("x == y ? a != b ? 1 + 1 : 2 * 2 : 3 / 3"));
+  print!("{}\n", parse_expr("z != - 2 * a[x.foo - 1] + 3 * ! - y.bar - 10"));
+  print!("{}\n", parse_expr("a & b | c ^ d"));
+  print!("{}\n", parse_expr("a || b && c ? 1 : 2"));
+  print!("{}\n", parse_expr("1 +"));
+  print!("{}\n", parse_expr("+ 1"));
 }
 
 /*

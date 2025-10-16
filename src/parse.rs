@@ -4,12 +4,10 @@ use crate::operator::Op2;
 use crate::sexp::Sexp;
 use crate::token::Token;
 
-pub fn parse_expr<'a, V: Visitor>(t: &mut Lexer<'a>, v: &mut V) -> V::Expr {
-  return parse_prec(t, v, 0x00);
-}
-
 pub trait Visitor {
   type Expr;
+
+  type Stmt;
 
   fn visit_variable(&mut self, x: &[u8]) -> Self::Expr;
 
@@ -31,7 +29,34 @@ pub trait Visitor {
 
   fn visit_error_missing_expr(&mut self) -> Self::Expr;
 
+  fn visit_let(&mut self, s: &[u8], x: Self::Expr) -> Self::Stmt;
+
+  fn visit_stmt_expr(&mut self, x: Self::Expr) -> Self::Stmt;
+
   fn visit_error_missing_expected_token(&mut self, token: Token);
+
+  fn visit_error_missing_expected_symbol(&mut self);
+}
+
+pub fn parse_expr<'a, V: Visitor>(t: &mut Lexer<'a>, v: &mut V) -> V::Expr {
+  return parse_prec(t, v, 0x00);
+}
+
+pub fn parse_stmt<'a, V: Visitor>(t: &mut Lexer<'a>, v: &mut V) -> V::Stmt {
+  match t.token() {
+    Token::Let => {
+      // TODO: multiple value bind
+      t.next();
+      let s = expect_symbol(t, v);
+      expect(t, v, Token::Equal);
+      let x = parse_expr(t, v);
+      v.visit_let(s, x)
+    }
+    _ => {
+      let x = parse_expr(t, v);
+      v.visit_stmt_expr(x)
+    }
+  }
 }
 
 fn expect<'a, V: Visitor>(t: &mut Lexer<'a>, v: &mut V, token: Token) {
@@ -39,6 +64,17 @@ fn expect<'a, V: Visitor>(t: &mut Lexer<'a>, v: &mut V, token: Token) {
     t.next();
   } else {
     v.visit_error_missing_expected_token(token);
+  }
+}
+
+fn expect_symbol<'a, V: Visitor>(t: &mut Lexer<'a>, v: &mut V) -> &'a [u8] {
+  if t.token() == Token::Symbol {
+    let s = t.token_span();
+    t.next();
+    s
+  } else {
+    v.visit_error_missing_expected_symbol();
+    b"!!!"
   }
 }
 
@@ -205,46 +241,59 @@ pub struct DumpSexp;
 impl Visitor for DumpSexp {
   type Expr = Sexp;
 
-  fn visit_variable(&mut self, x: &[u8]) -> Self::Expr {
+  type Stmt = Sexp;
+
+  fn visit_variable(&mut self, x: &[u8]) -> Sexp {
     Sexp::atom(x)
   }
 
-  fn visit_number(&mut self, x: &[u8]) -> Self::Expr {
+  fn visit_number(&mut self, x: &[u8]) -> Sexp {
     Sexp::atom(x)
   }
 
-  fn visit_ternary(&mut self, p: Sexp, x: Sexp, y: Sexp) -> Self::Expr {
+  fn visit_ternary(&mut self, p: Sexp, x: Sexp, y: Sexp) -> Sexp {
     Sexp::from_array([Sexp::atom(b"?:"), p, x, y])
   }
 
-  fn visit_or(&mut self, x: Sexp, y: Sexp) -> Self::Expr {
+  fn visit_or(&mut self, x: Sexp, y: Sexp) -> Sexp {
     Sexp::from_array([Sexp::atom(b"||"), x, y])
   }
 
-  fn visit_and(&mut self, x: Sexp, y: Sexp) -> Self::Expr {
+  fn visit_and(&mut self, x: Sexp, y: Sexp) -> Sexp {
     Sexp::from_array([Sexp::atom(b"&&"), x, y])
   }
 
-  fn visit_op1(&mut self, f: Op1, x: Sexp) -> Self::Expr {
+  fn visit_op1(&mut self, f: Op1, x: Sexp) -> Sexp {
     Sexp::from_array([Sexp::atom(f.as_str().as_bytes()), x])
   }
 
-  fn visit_op2(&mut self, f: Op2, x: Sexp, y: Sexp) -> Self::Expr {
+  fn visit_op2(&mut self, f: Op2, x: Sexp, y: Sexp) -> Sexp {
     Sexp::from_array([Sexp::atom(f.as_str().as_bytes()), x, y])
   }
 
-  fn visit_field(&mut self, f: &[u8], x: Sexp) -> Self::Expr {
+  fn visit_field(&mut self, f: &[u8], x: Sexp) -> Sexp {
     Sexp::from_array([Sexp::atom(f), x])
   }
 
-  fn visit_index(&mut self, x: Sexp, i: Sexp) -> Self::Expr {
+  fn visit_index(&mut self, x: Sexp, i: Sexp) -> Sexp {
     Sexp::from_array([Sexp::atom(b"[]"), x, i])
   }
 
-  fn visit_error_missing_expr(&mut self) -> Self::Expr {
+  fn visit_error_missing_expr(&mut self) -> Sexp {
     Sexp::atom(b"undefined")
   }
 
+  fn visit_let(&mut self, s: &[u8], x: Sexp) -> Sexp {
+    Sexp::from_array([Sexp::atom(b"let"), Sexp::atom(s), Sexp::atom(b"="), x])
+  }
+
+  fn visit_stmt_expr(&mut self, x: Sexp) -> Sexp {
+    x
+  }
+
   fn visit_error_missing_expected_token(&mut self, _: Token) {
+  }
+
+  fn visit_error_missing_expected_symbol(&mut self) {
   }
 }
