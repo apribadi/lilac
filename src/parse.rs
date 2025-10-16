@@ -5,7 +5,7 @@ use crate::sexp::Sexp;
 use crate::token::Token;
 
 pub fn parse_expr<'a, V: Visitor>(t: &mut Lexer<'a>, v: &mut V) -> V::Expr {
-  return parse_prec(t, v, 0);
+  return parse_prec(t, v, 0x00);
 }
 
 pub trait Visitor {
@@ -44,6 +44,12 @@ fn expect<'a, V: Visitor>(t: &mut Lexer<'a>, v: &mut V, token: Token) {
 
 fn parse_prec<'a, V: Visitor>(t: &mut Lexer<'a>, v: &mut V, n: usize) -> V::Expr {
   let mut x =
+    // TODO: parse black structured expressions, like
+    //
+    //   [expr] = if (...) { ... } else { ... }
+    //
+    // that start with a keyword
+
     match t.token() {
       Token::LParen => {
         t.next();
@@ -63,12 +69,12 @@ fn parse_prec<'a, V: Visitor>(t: &mut Lexer<'a>, v: &mut V, n: usize) -> V::Expr
       }
       Token::Hyphen => {
         t.next();
-        let y = parse_prec(t, v, 30);
+        let y = parse_prec(t, v, 0xff);
         v.visit_op1(Op1::Neg, y)
       }
       Token::Not => {
         t.next();
-        let y = parse_prec(t, v, 30);
+        let y = parse_prec(t, v, 0xff);
         v.visit_op1(Op1::Not, y)
       }
       _ => {
@@ -79,109 +85,109 @@ fn parse_prec<'a, V: Visitor>(t: &mut Lexer<'a>, v: &mut V, n: usize) -> V::Expr
   loop {
     x =
       match t.token() {
-        Token::Query if n <= 1 => {
+        Token::Query if n <= 0x10 => {
           t.next();
           let y = parse_expr(t, v);
           expect(t, v, Token::Colon);
-          let z = parse_prec(t, v, 0);
+          let z = parse_prec(t, v, 0x10);
           v.visit_ternary(x, y, z)
         }
-        Token::Or if n <= 6 => {
+        Token::Or if n <= 0x20 => {
           t.next();
-          let y = parse_prec(t, v, 7);
+          let y = parse_prec(t, v, 0x21);
           v.visit_or(x, y)
         }
-        Token::And if n <= 8 => {
+        Token::And if n <= 0x30 => {
           t.next();
-          let y = parse_prec(t, v, 9);
+          let y = parse_prec(t, v, 0x31);
           v.visit_and(x, y)
         }
-        Token::CmpEq if n <= 10 => {
+        Token::CmpEq if n <= 0x40 => {
           t.next();
-          let y = parse_prec(t, v, 11);
+          let y = parse_prec(t, v, 0x41);
           v.visit_op2(Op2::CmpEq, x, y)
         }
-        Token::CmpGe if n <= 10 => {
+        Token::CmpGe if n <= 0x40 => {
           t.next();
-          let y = parse_prec(t, v, 11);
+          let y = parse_prec(t, v, 0x41);
           v.visit_op2(Op2::CmpGe, x, y)
         }
-        Token::CmpGt if n <= 10 => {
+        Token::CmpGt if n <= 0x40 => {
           t.next();
-          let y = parse_prec(t, v, 11);
+          let y = parse_prec(t, v, 0x41);
           v.visit_op2(Op2::CmpGt, x, y)
         }
-        Token::CmpLe if n <= 10 => {
+        Token::CmpLe if n <= 0x40 => {
           t.next();
-          let y = parse_prec(t, v, 11);
+          let y = parse_prec(t, v, 0x41);
           v.visit_op2(Op2::CmpLe, x, y)
         }
-        Token::CmpLt if n <= 10 => {
+        Token::CmpLt if n <= 0x40 => {
           t.next();
-          let y = parse_prec(t, v, 11);
+          let y = parse_prec(t, v, 0x41);
           v.visit_op2(Op2::CmpLt, x, y)
         }
-        Token::CmpNe if n <= 10 => {
+        Token::CmpNe if n <= 0x40 => {
           t.next();
-          let y = parse_prec(t, v, 11);
+          let y = parse_prec(t, v, 0x41);
           v.visit_op2(Op2::CmpNe, x, y)
         }
-        Token::BitOr if n <= 12 => {
+        Token::BitOr if n <= 0x50 => {
           t.next();
-          let y = parse_prec(t, v, 13);
+          let y = parse_prec(t, v, 0x51);
           v.visit_op2(Op2::BitOr, x, y)
         }
-        Token::BitXor if n <= 14 => {
+        Token::BitXor if n <= 0x60 => {
           t.next();
-          let y = parse_prec(t, v, 15);
+          let y = parse_prec(t, v, 0x61);
           v.visit_op2(Op2::BitXor, x, y)
         }
-        Token::BitAnd if n <= 16 => {
+        Token::BitAnd if n <= 0x70 => {
           t.next();
-          let y = parse_prec(t, v, 17);
+          let y = parse_prec(t, v, 0x71);
           v.visit_op2(Op2::BitAnd, x, y)
         }
-        Token::Shl if n <= 18 => {
+        Token::Shl if n <= 0x80 => {
           t.next();
-          let y = parse_prec(t, v, 19);
+          let y = parse_prec(t, v, 0x81);
           v.visit_op2(Op2::Shl, x, y)
         }
-        Token::Shr if n <= 18 => {
+        Token::Shr if n <= 0x80 => {
           t.next();
-          let y = parse_prec(t, v, 19);
+          let y = parse_prec(t, v, 0x81);
           v.visit_op2(Op2::Shr, x, y)
         }
-        Token::Add if n <= 20 => {
+        Token::Add if n <= 0x90 => {
           t.next();
-          let y = parse_prec(t, v, 21);
+          let y = parse_prec(t, v, 0x91);
           v.visit_op2(Op2::Add, x, y)
         }
-        Token::Hyphen if n <= 20 => {
+        Token::Hyphen if n <= 0x90 => {
           t.next();
-          let y = parse_prec(t, v, 21);
+          let y = parse_prec(t, v, 0x91);
           v.visit_op2(Op2::Sub, x, y)
         }
-        Token::Div if n <= 22 => {
+        Token::Div if n <= 0xA0 => {
           t.next();
-          let y = parse_prec(t, v, 23);
+          let y = parse_prec(t, v, 0xA1);
           v.visit_op2(Op2::Div, x, y)
         }
-        Token::Mul if n <= 22 => {
+        Token::Mul if n <= 0xA0 => {
           t.next();
-          let y = parse_prec(t, v, 23);
+          let y = parse_prec(t, v, 0xA1);
           v.visit_op2(Op2::Mul, x, y)
         }
-        Token::Rem if n <= 22 => {
+        Token::Rem if n <= 0xA0 => {
           t.next();
-          let y = parse_prec(t, v, 23);
+          let y = parse_prec(t, v, 0xA1);
           v.visit_op2(Op2::Rem, x, y)
         }
-        Token::Field if t.token_is_attached() && n <= 40 => {
+        Token::Field if t.token_is_attached() => {
           let s = t.token_span();
           t.next();
           v.visit_field(s, x)
         }
-        Token::LBracket if t.token_is_attached() && n <= 40 => {
+        Token::LBracket if t.token_is_attached() => {
           t.next();
           let i = parse_expr(t, v);
           expect(t, v, Token::RBracket);
