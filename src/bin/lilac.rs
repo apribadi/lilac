@@ -1,6 +1,4 @@
-use oxcart::Store;
-use oxcart::Arena;
-
+/*
 fn parse_stmt(source: &str) -> lilac::sexp::Sexp {
   lilac::parse::parse_stmt(
       &mut lilac::lexer::Lexer::new(source.as_bytes()),
@@ -14,13 +12,10 @@ fn parse_expr(source: &str) -> lilac::sexp::Sexp {
       &mut lilac::parse::EmitSexp
     )
 }
-
-fn parse_expr_ast<'a>(source: &str, arena: &mut Arena<'a>) -> lilac::ast::Expr<'a> {
-  lilac::ast::parse_expr(source.as_bytes(), arena)
-}
+*/
 
 fn compile(source: &str) {
-  let mut store = Store::new();
+  let mut store = oxcart::Store::new();
   let mut arena = store.arena();
 
   let a = lilac::ast::parse_expr(source.as_bytes(), &mut arena);
@@ -33,6 +28,7 @@ fn compile(source: &str) {
 }
 
 fn main() {
+  compile("(1 + 2).foo != 2");
   compile("1 == 1 && 2 != 2");
   compile("! (1 == 1 && 2 != 2)");
 

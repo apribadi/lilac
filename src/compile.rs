@@ -1,4 +1,5 @@
 use crate::ast::Expr;
+use crate::symbol::Symbol;
 use crate::uir::Inst;
 
 struct Env {
@@ -31,20 +32,24 @@ fn compile_expr_value<'a>(env: &mut Env, x: Expr<'a>) -> u32 {
   match x {
     Expr::And(&(x, y)) => {
       let x = compile_expr_value(env, x);
-      let c = env.emit(Inst::Undefined);
+      let i = env.emit(Inst::Undefined);
       let a = env.emit(Inst::Label);
       let f = env.emit(Inst::ConstBool(false));
       let _ = env.emit(Inst::Put(f));
-      let u = env.emit(Inst::Undefined);
+      let j = env.emit(Inst::Undefined);
       let b = env.emit(Inst::Label);
       let y = compile_expr_value(env, y);
       let _ = env.emit(Inst::Put(y));
-      let v = env.emit(Inst::Undefined);
-      let j = env.emit(Inst::Label);
-      env.edit(c, Inst::Cond(x, a, b));
-      env.edit(u, Inst::Jump(j));
-      env.edit(v, Inst::Jump(j));
+      let k = env.emit(Inst::Undefined);
+      let c = env.emit(Inst::Label);
+      env.edit(i, Inst::Cond(x, a, b));
+      env.edit(j, Inst::Jump(c));
+      env.edit(k, Inst::Jump(c));
       env.emit(Inst::Pop)
+    }
+    Expr::Field(&(s, x)) => {
+      let x = compile_expr_value(env, x);
+      env.emit(Inst::Field(Symbol::from_bytes(s), x))
     }
     Expr::Index(&(x, i)) => {
       let x = compile_expr_value(env, x);
@@ -52,7 +57,7 @@ fn compile_expr_value<'a>(env: &mut Env, x: Expr<'a>) -> u32 {
       env.emit(Inst::Index(x, i))
     }
     Expr::Integer(n) => {
-      env.emit(Inst::Integer(n))
+      env.emit(Inst::ConstInteger(n))
     }
     Expr::Op1(&(op, x)) => {
       let x = compile_expr_value(env, x);
@@ -73,7 +78,7 @@ fn compile_expr_tail<'a>(env: &mut Env, x: Expr<'a>) {
   match x {
     Expr::And(&(x, y)) => {
       let x = compile_expr_value(env, x);
-      let c = env.emit(Inst::Undefined);
+      let i = env.emit(Inst::Undefined);
       let a = env.emit(Inst::Label);
       let f = env.emit(Inst::ConstBool(false));
       let _ = env.emit(Inst::Put(f));
@@ -82,7 +87,7 @@ fn compile_expr_tail<'a>(env: &mut Env, x: Expr<'a>) {
       let y = compile_expr_value(env, y);
       let _ = env.emit(Inst::Put(y));
       let _ = env.emit(Inst::Ret);
-      env.edit(c, Inst::Cond(x, a, b));
+      env.edit(i, Inst::Cond(x, a, b));
     }
     Expr::Op1(&(op, x)) => {
       let x = compile_expr_value(env, x);

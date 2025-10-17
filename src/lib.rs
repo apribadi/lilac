@@ -8,3 +8,4 @@ pub mod primop2;
 pub mod sexp;
 pub mod token;
 pub mod uir;
+pub mod symbol;

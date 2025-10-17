@@ -77,9 +77,9 @@ impl<'a, 'b> parse::Emit for AstEmit<'a, 'b> {
     return Expr::Op2(self.arena.alloc().init((op, x, y)));
   }
 
-  fn emit_field(&mut self, f: &[u8], x: Self::Expr) -> Self::Expr {
-    let f: &_ = self.arena.copy_slice(f);
-    return Expr::Field(self.arena.alloc().init((f, x)));
+  fn emit_field(&mut self, s: &[u8], x: Self::Expr) -> Self::Expr {
+    let s: &_ = self.arena.copy_slice(s);
+    return Expr::Field(self.arena.alloc().init((s, x)));
   }
 
   fn emit_index(&mut self, x: Self::Expr, i: Self::Expr) -> Self::Expr {

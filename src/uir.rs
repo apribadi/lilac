@@ -4,8 +4,7 @@
 
 use crate::op1::Op1;
 use crate::op2::Op2;
-
-pub struct Symbol(pub u64);
+use crate::symbol::Symbol;
 
 type Label = u32;
 
@@ -20,11 +19,12 @@ pub enum Inst {
   Ret,
   CallK1(Value, Label),
   CallTail(Value),
+  Field(Symbol, Value),
   Index(Value, Value),
   Op1(Op1, Value),
   Op2(Op2, Value, Value),
   ConstBool(bool),
-  Integer(i64),
+  ConstInteger(i64),
   Undefined,
 }
 
@@ -37,11 +37,12 @@ impl std::fmt::Display for Inst {
       Self::Jump(x) => write!(f, "JUMP =>{}", x),
       Self::Cond(x, a, b) => write!(f, "COND %{} =>{} =>{}", x, a, b),
       Self::Ret => write!(f, "RET"),
+      Self::Field(s, x) => write!(f, "= .{{{}}} %{}", s, x),
       Self::Index(x, y) => write!(f, "= %{}[%{}]", x, y),
       Self::Op1(op, x) => write!(f, "= {} %{}", op, x),
       Self::Op2(op, x, y) => write!(f, "= %{} {} %{}", x, op, y),
       Self::ConstBool(p) => write!(f, "= {}", p),
-      Self::Integer(n) => write!(f, "= #{}", n),
+      Self::ConstInteger(n) => write!(f, "= #{}", n),
       _ => unimplemented!()
     }
   }
