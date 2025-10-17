@@ -7,12 +7,22 @@ use crate::operator::Op2;
 
 #[derive(Debug)]
 pub enum Expr<'a> {
+  And(&'a (Expr<'a>, Expr<'a>)),
+  Field(&'a (&'a [u8], Expr<'a>)),
+  Index(&'a (Expr<'a>, Expr<'a>)),
   Integer(i64),
   Op1(&'a (Op1, Expr<'a>)),
   Op2(&'a (Op2, Expr<'a>, Expr<'a>)),
+  Or(&'a (Expr<'a>, Expr<'a>)),
   Ternary(&'a (Expr<'a>, Expr<'a>, Expr<'a>)),
   Undefined,
   Variable(&'a [u8]),
+}
+
+#[derive(Debug)]
+pub enum Stmt<'a> {
+  Expr(Expr<'a>),
+  Let(&'a (&'a [u8], Expr<'a>)),
 }
 
 pub fn parse_expr<'a>(source: &[u8], arena: &mut Arena<'a>) -> Expr<'a> {
@@ -27,7 +37,7 @@ struct AstEmit<'a, 'b> {
 impl<'a, 'b> parse::Emit for AstEmit<'a, 'b> {
   type Expr = Expr<'a>;
 
-  type Stmt = ();
+  type Stmt = Stmt<'a>;
 
   fn emit_variable(&mut self, x: &[u8]) -> Self::Expr {
     return Expr::Variable(self.arena.copy_slice(x));
@@ -49,11 +59,11 @@ impl<'a, 'b> parse::Emit for AstEmit<'a, 'b> {
   }
 
   fn emit_or(&mut self, x: Self::Expr, y: Self::Expr) -> Self::Expr {
-    unimplemented!();
+    return Expr::Or(self.arena.alloc().init((x, y)));
   }
 
   fn emit_and(&mut self, x: Self::Expr, y: Self::Expr) -> Self::Expr {
-    unimplemented!();
+    return Expr::And(self.arena.alloc().init((x, y)));
   }
 
   fn emit_op1(&mut self, f: Op1, x: Self::Expr) -> Self::Expr {
@@ -65,26 +75,30 @@ impl<'a, 'b> parse::Emit for AstEmit<'a, 'b> {
   }
 
   fn emit_field(&mut self, f: &[u8], x: Self::Expr) -> Self::Expr {
-    unimplemented!();
+    let f: &_ = self.arena.copy_slice(f);
+    return Expr::Field(self.arena.alloc().init((f, x)));
   }
 
   fn emit_index(&mut self, x: Self::Expr, i: Self::Expr) -> Self::Expr {
-    unimplemented!();
+    return Expr::Index(self.arena.alloc().init((x, i)));
   }
 
   fn emit_error_missing_expr(&mut self) -> Self::Expr {
-    unimplemented!();
+    // TODO: accumulate errors
+    return Expr::Undefined;
   }
 
   fn emit_let(&mut self, s: &[u8], x: Self::Expr) -> Self::Stmt {
-    unimplemented!();
+    let s: &_ = self.arena.copy_slice(s);
+    return Stmt::Let(self.arena.alloc().init((s, x)));
   }
 
   fn emit_stmt_expr(&mut self, x: Self::Expr) -> Self::Stmt {
-    unimplemented!();
+    return Stmt::Expr(x);
   }
 
   fn emit_error_missing_expected_token(&mut self, token: Token) {
-    unimplemented!();
+    let _ = token;
+    // TODO: accumulate errors
   }
 }
