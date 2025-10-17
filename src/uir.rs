@@ -24,7 +24,7 @@ pub enum Inst {
   Op1(Op1, Value),
   Op2(Op2, Value, Value),
   ConstBool(bool),
-  ConstInteger(i64),
+  ConstInt(i64),
   Undefined,
 }
 
@@ -42,7 +42,7 @@ impl std::fmt::Display for Inst {
       Self::Op1(op, x) => write!(f, "= {} %{}", op, x),
       Self::Op2(op, x, y) => write!(f, "= %{} {} %{}", x, op, y),
       Self::ConstBool(p) => write!(f, "= {}", p),
-      Self::ConstInteger(n) => write!(f, "= #{}", n),
+      Self::ConstInt(n) => write!(f, "= #{}", n),
       _ => unimplemented!()
     }
   }

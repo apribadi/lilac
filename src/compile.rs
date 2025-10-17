@@ -56,8 +56,8 @@ fn compile_expr<'a>(env: &mut Env, x: Expr<'a>) -> u32 {
       let i = compile_expr(env, i);
       env.emit(Inst::Index(x, i))
     }
-    Expr::Integer(n) => {
-      env.emit(Inst::ConstInteger(n))
+    Expr::Int(n) => {
+      env.emit(Inst::ConstInt(n))
     }
     Expr::Op1(&(op, x)) => {
       let x = compile_expr(env, x);
@@ -84,40 +84,18 @@ fn compile_expr_tail<'a>(env: &mut Env, x: Expr<'a>) {
       let _ = env.emit(Inst::Put(f));
       let _ = env.emit(Inst::Ret);
       let b = env.emit(Inst::Label);
-      let y = compile_expr(env, y);
-      let _ = env.emit(Inst::Put(y));
-      let _ = env.emit(Inst::Ret);
+      compile_expr_tail(env, y);
       env.edit(i, Inst::Cond(x, a, b));
     }
-    Expr::Field(&(s, x)) => {
+    x @ (
+      | Expr::Field(_)
+      | Expr::Index(_)
+      | Expr::Int(_)
+      | Expr::Op1(_)
+      | Expr::Op2(_)
+    ) => {
       let x = compile_expr(env, x);
-      let y = env.emit(Inst::Field(Symbol::from_bytes(s), x));
-      let _ = env.emit(Inst::Put(y));
-      let _ = env.emit(Inst::Ret);
-    }
-    Expr::Index(&(x, i)) => {
-      let x = compile_expr(env, x);
-      let i = compile_expr(env, i);
-      let y = env.emit(Inst::Index(x, i));
-      let _ = env.emit(Inst::Put(y));
-      let _ = env.emit(Inst::Ret);
-    }
-    Expr::Integer(n) => {
-      let x = env.emit(Inst::ConstInteger(n));
       let _ = env.emit(Inst::Put(x));
-      let _ = env.emit(Inst::Ret);
-    }
-    Expr::Op1(&(op, x)) => {
-      let x = compile_expr(env, x);
-      let y = env.emit(Inst::Op1(op, x));
-      let _ = env.emit(Inst::Put(y));
-      let _ = env.emit(Inst::Ret);
-    }
-    Expr::Op2(&(op, x, y)) => {
-      let x = compile_expr(env, x);
-      let y = compile_expr(env, y);
-      let z = env.emit(Inst::Op2(op, x, y));
-      let _ = env.emit(Inst::Put(z));
       let _ = env.emit(Inst::Ret);
     }
     _ => {

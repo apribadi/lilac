@@ -10,7 +10,7 @@ pub enum Expr<'a> {
   And(&'a (Expr<'a>, Expr<'a>)),
   Field(&'a (&'a [u8], Expr<'a>)),
   Index(&'a (Expr<'a>, Expr<'a>)),
-  Integer(i64),
+  Int(i64),
   Op1(&'a (Op1, Expr<'a>)),
   Op2(&'a (Op2, Expr<'a>, Expr<'a>)),
   Or(&'a (Expr<'a>, Expr<'a>)),
@@ -54,7 +54,7 @@ impl<'a, 'b> parse::Emit for AstEmit<'a, 'b> {
         }
         Ok(n) => n
       };
-    return Expr::Integer(n);
+    return Expr::Int(n);
   }
 
   fn emit_ternary(&mut self, p: Self::Expr, x: Self::Expr, y: Self::Expr) -> Self::Expr {
