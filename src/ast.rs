@@ -5,7 +5,7 @@ use crate::lexer::Lexer;
 use crate::op1::Op1;
 use crate::op2::Op2;
 
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 pub enum Expr<'a> {
   And(&'a (Expr<'a>, Expr<'a>)),
   Field(&'a (&'a [u8], Expr<'a>)),
@@ -69,12 +69,12 @@ impl<'a, 'b> parse::Emit for AstEmit<'a, 'b> {
     return Expr::And(self.arena.alloc().init((x, y)));
   }
 
-  fn emit_op1(&mut self, f: Op1, x: Self::Expr) -> Self::Expr {
-    return Expr::Op1(self.arena.alloc().init((f, x)));
+  fn emit_op1(&mut self, op: Op1, x: Self::Expr) -> Self::Expr {
+    return Expr::Op1(self.arena.alloc().init((op, x)));
   }
 
-  fn emit_op2(&mut self, f: Op2, x: Self::Expr, y: Self::Expr) -> Self::Expr {
-    return Expr::Op2(self.arena.alloc().init((f, x, y)));
+  fn emit_op2(&mut self, op: Op2, x: Self::Expr, y: Self::Expr) -> Self::Expr {
+    return Expr::Op2(self.arena.alloc().init((op, x, y)));
   }
 
   fn emit_field(&mut self, f: &[u8], x: Self::Expr) -> Self::Expr {

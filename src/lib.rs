@@ -1,4 +1,5 @@
 pub mod ast;
+pub mod compile;
 pub mod lexer;
 pub mod op1;
 pub mod op2;

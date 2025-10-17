@@ -24,3 +24,17 @@ pub enum Inst {
   Op2(Op2, Value, Value),
   Integer(i64),
 }
+
+impl std::fmt::Display for Inst {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    match self {
+      Self::Label => write!(f, "LABEL"),
+      Self::Pop => write!(f, "= POP"),
+      Self::Put(x) => write!(f, "PUT %{}", x),
+      Self::Ret => write!(f, "RET"),
+      Self::Op2(op, x, y) => write!(f, "= %{} {} %{}", x, op, y),
+      Self::Integer(n) => write!(f, "= INTEGER {}", n),
+      _ => unimplemented!()
+    }
+  }
+}

@@ -22,6 +22,15 @@ fn parse_expr_ast<'a>(source: &str, arena: &mut Arena<'a>) -> lilac::ast::Expr<'
 fn main() {
   let mut store = Store::new();
   let mut arena = store.arena();
+
+  let e = parse_expr_ast("1 + 2 * 3 - 4", &mut arena);
+  let e = lilac::compile::compile(e);
+
+  for (i, x) in e.iter().enumerate() {
+    print!("%{} {}\n", i, x);
+  }
+
+  /*
   print!("{:?}\n", parse_expr_ast("a + b * c - d", &mut arena));
   print!("{}\n", parse_stmt("let x = 1 + 2 * e"));
   print!("{}\n", parse_expr("x == y ? a != b ? 1 + 1 : 2 * 2 : 3 / 3"));
@@ -30,51 +39,5 @@ fn main() {
   print!("{}\n", parse_expr("a || b && c ? 1 : 2"));
   print!("{}\n", parse_expr("1 +"));
   print!("{}\n", parse_expr("+ 1"));
+  */
 }
-
-/*
-static SOURCE: &'static str =
-  "\
-123
-# blah blah blah
-...123
-123...
-.foo
-._foo
-:foo
-:_foo
-:99
-`
-`
-\\
-\x00
-.
-..
-...
-:
-::
-:::
-.:123
-:.123
-1_000_000
-fun foo(x: int, y: int) -> int {
-  let a = x * y
-  let b = bar(a)
-  let _ = 1 + 1. + .1 + 1.1 + 1.1e10 + 1.1e+10
-  let _ = +1 + +1. + +.1 + +1.1 + +1.1e10 + +1.1e+10
-  let _ = +. - +.+
-  print(\"hello\")
-  return a << b
-}
-\"blah";
-
-fn main() {
-  let mut t = lilac::lexer::Lexer::new(SOURCE.as_bytes());
-
-  loop {
-    print!("{:?} {} {}\n", t.token(), t.token_is_attached(), str::from_utf8(t.token_slice()).unwrap());
-    if t.token() == lilac::token::Token::Eof { break; }
-    t.next();
-  }
-}
-*/
