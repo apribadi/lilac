@@ -20,9 +20,12 @@ pub enum Inst {
   Ret,
   CallK1(Value, Label),
   CallTail(Value),
+  Index(Value, Value),
   Op1(Op1, Value),
   Op2(Op2, Value, Value),
+  ConstBool(bool),
   Integer(i64),
+  Undefined,
 }
 
 impl std::fmt::Display for Inst {
@@ -31,9 +34,14 @@ impl std::fmt::Display for Inst {
       Self::Label => write!(f, "LABEL"),
       Self::Pop => write!(f, "= POP"),
       Self::Put(x) => write!(f, "PUT %{}", x),
+      Self::Jump(x) => write!(f, "JUMP =>{}", x),
+      Self::Cond(x, a, b) => write!(f, "COND %{} =>{} =>{}", x, a, b),
       Self::Ret => write!(f, "RET"),
+      Self::Index(x, y) => write!(f, "= %{}[%{}]", x, y),
+      Self::Op1(op, x) => write!(f, "= {} %{}", op, x),
       Self::Op2(op, x, y) => write!(f, "= %{} {} %{}", x, op, y),
-      Self::Integer(n) => write!(f, "= INTEGER {}", n),
+      Self::ConstBool(p) => write!(f, "= {}", p),
+      Self::Integer(n) => write!(f, "= #{}", n),
       _ => unimplemented!()
     }
   }

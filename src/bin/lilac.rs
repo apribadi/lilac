@@ -19,16 +19,22 @@ fn parse_expr_ast<'a>(source: &str, arena: &mut Arena<'a>) -> lilac::ast::Expr<'
   lilac::ast::parse_expr(source.as_bytes(), arena)
 }
 
-fn main() {
+fn compile(source: &str) {
   let mut store = Store::new();
   let mut arena = store.arena();
 
-  let e = parse_expr_ast("1 + 2 * 3 - 4", &mut arena);
-  let e = lilac::compile::compile(e);
+  let a = lilac::ast::parse_expr(source.as_bytes(), &mut arena);
+  let a = lilac::compile::compile(a);
 
-  for (i, x) in e.iter().enumerate() {
+  for (i, x) in a.iter().enumerate() {
     print!("%{} {}\n", i, x);
   }
+  print!("\n");
+}
+
+fn main() {
+  compile("1 == 1 && 2 != 2");
+  compile("! (1 == 1 && 2 != 2)");
 
   /*
   print!("{:?}\n", parse_expr_ast("a + b * c - d", &mut arena));
