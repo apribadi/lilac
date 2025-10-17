@@ -1,6 +1,6 @@
 use crate::lexer::Lexer;
-use crate::operator::Op1;
-use crate::operator::Op2;
+use crate::op1::Op1;
+use crate::op2::Op2;
 use crate::sexp::Sexp;
 use crate::token::Token;
 

@@ -2,8 +2,8 @@ use oxcart::Arena;
 use crate::parse;
 use crate::token::Token;
 use crate::lexer::Lexer;
-use crate::operator::Op1;
-use crate::operator::Op2;
+use crate::op1::Op1;
+use crate::op2::Op2;
 
 #[derive(Debug)]
 pub enum Expr<'a> {
@@ -26,8 +26,11 @@ pub enum Stmt<'a> {
 }
 
 pub fn parse_expr<'a>(source: &[u8], arena: &mut Arena<'a>) -> Expr<'a> {
-  let mut lexer = Lexer::new(source);
-  parse::parse_expr(&mut lexer, &mut AstEmit { arena })
+  parse::parse_expr(&mut Lexer::new(source), &mut AstEmit { arena })
+}
+
+pub fn parse_stmt<'a>(source: &[u8], arena: &mut Arena<'a>) -> Stmt<'a> {
+  parse::parse_stmt(&mut Lexer::new(source), &mut AstEmit { arena })
 }
 
 struct AstEmit<'a, 'b> {
