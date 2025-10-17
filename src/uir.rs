@@ -1,4 +1,6 @@
-// untyped bytecode
+// untyped intermediate representation - bytecode
+//
+//
 
 use crate::op1::Op1;
 use crate::op2::Op2;
