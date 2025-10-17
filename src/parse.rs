@@ -4,79 +4,79 @@ use crate::operator::Op2;
 use crate::sexp::Sexp;
 use crate::token::Token;
 
-pub trait Visitor {
+pub trait Emit {
   type Expr;
 
   type Stmt;
 
-  fn visit_variable(&mut self, x: &[u8]) -> Self::Expr;
+  fn emit_variable(&mut self, x: &[u8]) -> Self::Expr;
 
-  fn visit_number(&mut self, x: &[u8]) -> Self::Expr;
+  fn emit_number(&mut self, x: &[u8]) -> Self::Expr;
 
-  fn visit_ternary(&mut self, p: Self::Expr, x: Self::Expr, y: Self::Expr) -> Self::Expr;
+  fn emit_ternary(&mut self, p: Self::Expr, x: Self::Expr, y: Self::Expr) -> Self::Expr;
 
-  fn visit_or(&mut self, x: Self::Expr, y: Self::Expr) -> Self::Expr;
+  fn emit_or(&mut self, x: Self::Expr, y: Self::Expr) -> Self::Expr;
 
-  fn visit_and(&mut self, x: Self::Expr, y: Self::Expr) -> Self::Expr;
+  fn emit_and(&mut self, x: Self::Expr, y: Self::Expr) -> Self::Expr;
 
-  fn visit_op1(&mut self, f: Op1, x: Self::Expr) -> Self::Expr;
+  fn emit_op1(&mut self, f: Op1, x: Self::Expr) -> Self::Expr;
 
-  fn visit_op2(&mut self, f: Op2, x: Self::Expr, y: Self::Expr) -> Self::Expr;
+  fn emit_op2(&mut self, f: Op2, x: Self::Expr, y: Self::Expr) -> Self::Expr;
 
-  fn visit_field(&mut self, f: &[u8], x: Self::Expr) -> Self::Expr;
+  fn emit_field(&mut self, f: &[u8], x: Self::Expr) -> Self::Expr;
 
-  fn visit_index(&mut self, x: Self::Expr, i: Self::Expr) -> Self::Expr;
+  fn emit_index(&mut self, x: Self::Expr, i: Self::Expr) -> Self::Expr;
 
-  fn visit_error_missing_expr(&mut self) -> Self::Expr;
+  fn emit_error_missing_expr(&mut self) -> Self::Expr;
 
-  fn visit_let(&mut self, s: &[u8], x: Self::Expr) -> Self::Stmt;
+  fn emit_let(&mut self, s: &[u8], x: Self::Expr) -> Self::Stmt;
 
-  fn visit_stmt_expr(&mut self, x: Self::Expr) -> Self::Stmt;
+  fn emit_stmt_expr(&mut self, x: Self::Expr) -> Self::Stmt;
 
-  fn visit_error_missing_expected_token(&mut self, token: Token);
+  fn emit_error_missing_expected_token(&mut self, token: Token);
 }
 
-pub fn parse_expr<'a, V: Visitor>(t: &mut Lexer<'a>, v: &mut V) -> V::Expr {
-  return parse_prec(t, v, 0x00);
+pub fn parse_expr<'a, E: Emit>(t: &mut Lexer<'a>, e: &mut E) -> E::Expr {
+  return parse_prec(t, e, 0x00);
 }
 
-pub fn parse_stmt<'a, V: Visitor>(t: &mut Lexer<'a>, v: &mut V) -> V::Stmt {
+pub fn parse_stmt<'a, E: Emit>(t: &mut Lexer<'a>, e: &mut E) -> E::Stmt {
   match t.token() {
     Token::Let => {
       // TODO: multiple value bind
       t.next();
-      let s = expect_symbol(t, v);
-      expect(t, v, Token::Equal);
-      let x = parse_expr(t, v);
-      v.visit_let(s, x)
+      let s = expect_symbol(t, e);
+      expect(t, e, Token::Equal);
+      let x = parse_expr(t, e);
+      e.emit_let(s, x)
     }
     _ => {
-      let x = parse_expr(t, v);
-      v.visit_stmt_expr(x)
+      let x = parse_expr(t, e);
+      e.emit_stmt_expr(x)
     }
   }
 }
 
-fn expect<'a, V: Visitor>(t: &mut Lexer<'a>, v: &mut V, token: Token) {
-  if t.token() == token {
-    t.next();
+fn expect<'a, E: Emit>(t: &mut Lexer<'a>, e: &mut E, token: Token) {
+  if t.token() != token {
+    e.emit_error_missing_expected_token(token);
   } else {
-    v.visit_error_missing_expected_token(token);
+    t.next();
   }
 }
 
-fn expect_symbol<'a, V: Visitor>(t: &mut Lexer<'a>, v: &mut V) -> &'a [u8] {
-  if t.token() == Token::Symbol {
+fn expect_symbol<'a, E: Emit>(t: &mut Lexer<'a>, e: &mut E) -> &'a [u8] {
+  if t.token() != Token::Symbol {
+    e.emit_error_missing_expected_token(Token::Symbol);
+    return b"!!!";
+  } else {
     let s = t.token_span();
     t.next();
-    s
-  } else {
-    v.visit_error_missing_expected_token(Token::Symbol);
-    b"!!!"
+    return s;
   }
 }
 
-fn parse_prec<'a, V: Visitor>(t: &mut Lexer<'a>, v: &mut V, n: usize) -> V::Expr {
+fn parse_prec<'a, E: Emit>(t: &mut Lexer<'a>, e: &mut E, n: usize) -> E::Expr {
   let mut x =
     // TODO: parse black structured expressions, like
     //
@@ -87,32 +87,32 @@ fn parse_prec<'a, V: Visitor>(t: &mut Lexer<'a>, v: &mut V, n: usize) -> V::Expr
     match t.token() {
       Token::LParen => {
         t.next();
-        let y = parse_expr(t, v);
-        expect(t, v, Token::RParen);
+        let y = parse_expr(t, e);
+        expect(t, e, Token::RParen);
         y
       }
       Token::Number => {
         let s = t.token_span();
         t.next();
-        v.visit_number(s)
+        e.emit_number(s)
       }
       Token::Symbol => {
         let s = t.token_span();
         t.next();
-        v.visit_variable(s)
+        e.emit_variable(s)
       }
       Token::Hyphen => {
         t.next();
-        let y = parse_prec(t, v, 0xff);
-        v.visit_op1(Op1::Neg, y)
+        let y = parse_prec(t, e, 0xff);
+        e.emit_op1(Op1::Neg, y)
       }
       Token::Not => {
         t.next();
-        let y = parse_prec(t, v, 0xff);
-        v.visit_op1(Op1::Not, y)
+        let y = parse_prec(t, e, 0xff);
+        e.emit_op1(Op1::Not, y)
       }
       _ => {
-        v.visit_error_missing_expr()
+        e.emit_error_missing_expr()
       }
     };
 
@@ -121,111 +121,111 @@ fn parse_prec<'a, V: Visitor>(t: &mut Lexer<'a>, v: &mut V, n: usize) -> V::Expr
       match t.token() {
         Token::Query if n <= 0x10 => {
           t.next();
-          let y = parse_expr(t, v);
-          expect(t, v, Token::Colon);
-          let z = parse_prec(t, v, 0x10);
-          v.visit_ternary(x, y, z)
+          let y = parse_expr(t, e);
+          expect(t, e, Token::Colon);
+          let z = parse_prec(t, e, 0x10);
+          e.emit_ternary(x, y, z)
         }
         Token::Or if n <= 0x20 => {
           t.next();
-          let y = parse_prec(t, v, 0x21);
-          v.visit_or(x, y)
+          let y = parse_prec(t, e, 0x21);
+          e.emit_or(x, y)
         }
         Token::And if n <= 0x30 => {
           t.next();
-          let y = parse_prec(t, v, 0x31);
-          v.visit_and(x, y)
+          let y = parse_prec(t, e, 0x31);
+          e.emit_and(x, y)
         }
         Token::CmpEq if n <= 0x40 => {
           t.next();
-          let y = parse_prec(t, v, 0x41);
-          v.visit_op2(Op2::CmpEq, x, y)
+          let y = parse_prec(t, e, 0x41);
+          e.emit_op2(Op2::CmpEq, x, y)
         }
         Token::CmpGe if n <= 0x40 => {
           t.next();
-          let y = parse_prec(t, v, 0x41);
-          v.visit_op2(Op2::CmpGe, x, y)
+          let y = parse_prec(t, e, 0x41);
+          e.emit_op2(Op2::CmpGe, x, y)
         }
         Token::CmpGt if n <= 0x40 => {
           t.next();
-          let y = parse_prec(t, v, 0x41);
-          v.visit_op2(Op2::CmpGt, x, y)
+          let y = parse_prec(t, e, 0x41);
+          e.emit_op2(Op2::CmpGt, x, y)
         }
         Token::CmpLe if n <= 0x40 => {
           t.next();
-          let y = parse_prec(t, v, 0x41);
-          v.visit_op2(Op2::CmpLe, x, y)
+          let y = parse_prec(t, e, 0x41);
+          e.emit_op2(Op2::CmpLe, x, y)
         }
         Token::CmpLt if n <= 0x40 => {
           t.next();
-          let y = parse_prec(t, v, 0x41);
-          v.visit_op2(Op2::CmpLt, x, y)
+          let y = parse_prec(t, e, 0x41);
+          e.emit_op2(Op2::CmpLt, x, y)
         }
         Token::CmpNe if n <= 0x40 => {
           t.next();
-          let y = parse_prec(t, v, 0x41);
-          v.visit_op2(Op2::CmpNe, x, y)
+          let y = parse_prec(t, e, 0x41);
+          e.emit_op2(Op2::CmpNe, x, y)
         }
         Token::BitOr if n <= 0x50 => {
           t.next();
-          let y = parse_prec(t, v, 0x51);
-          v.visit_op2(Op2::BitOr, x, y)
+          let y = parse_prec(t, e, 0x51);
+          e.emit_op2(Op2::BitOr, x, y)
         }
         Token::BitXor if n <= 0x60 => {
           t.next();
-          let y = parse_prec(t, v, 0x61);
-          v.visit_op2(Op2::BitXor, x, y)
+          let y = parse_prec(t, e, 0x61);
+          e.emit_op2(Op2::BitXor, x, y)
         }
         Token::BitAnd if n <= 0x70 => {
           t.next();
-          let y = parse_prec(t, v, 0x71);
-          v.visit_op2(Op2::BitAnd, x, y)
+          let y = parse_prec(t, e, 0x71);
+          e.emit_op2(Op2::BitAnd, x, y)
         }
         Token::Shl if n <= 0x80 => {
           t.next();
-          let y = parse_prec(t, v, 0x81);
-          v.visit_op2(Op2::Shl, x, y)
+          let y = parse_prec(t, e, 0x81);
+          e.emit_op2(Op2::Shl, x, y)
         }
         Token::Shr if n <= 0x80 => {
           t.next();
-          let y = parse_prec(t, v, 0x81);
-          v.visit_op2(Op2::Shr, x, y)
+          let y = parse_prec(t, e, 0x81);
+          e.emit_op2(Op2::Shr, x, y)
         }
         Token::Add if n <= 0x90 => {
           t.next();
-          let y = parse_prec(t, v, 0x91);
-          v.visit_op2(Op2::Add, x, y)
+          let y = parse_prec(t, e, 0x91);
+          e.emit_op2(Op2::Add, x, y)
         }
         Token::Hyphen if n <= 0x90 => {
           t.next();
-          let y = parse_prec(t, v, 0x91);
-          v.visit_op2(Op2::Sub, x, y)
+          let y = parse_prec(t, e, 0x91);
+          e.emit_op2(Op2::Sub, x, y)
         }
         Token::Div if n <= 0xA0 => {
           t.next();
-          let y = parse_prec(t, v, 0xA1);
-          v.visit_op2(Op2::Div, x, y)
+          let y = parse_prec(t, e, 0xA1);
+          e.emit_op2(Op2::Div, x, y)
         }
         Token::Mul if n <= 0xA0 => {
           t.next();
-          let y = parse_prec(t, v, 0xA1);
-          v.visit_op2(Op2::Mul, x, y)
+          let y = parse_prec(t, e, 0xA1);
+          e.emit_op2(Op2::Mul, x, y)
         }
         Token::Rem if n <= 0xA0 => {
           t.next();
-          let y = parse_prec(t, v, 0xA1);
-          v.visit_op2(Op2::Rem, x, y)
+          let y = parse_prec(t, e, 0xA1);
+          e.emit_op2(Op2::Rem, x, y)
         }
         Token::Field if t.token_is_attached() => {
           let s = t.token_span();
           t.next();
-          v.visit_field(s, x)
+          e.emit_field(s, x)
         }
         Token::LBracket if t.token_is_attached() => {
           t.next();
-          let i = parse_expr(t, v);
-          expect(t, v, Token::RBracket);
-          v.visit_index(x, i)
+          let i = parse_expr(t, e);
+          expect(t, e, Token::RBracket);
+          e.emit_index(x, i)
         }
         _ => {
           return x;
@@ -234,61 +234,61 @@ fn parse_prec<'a, V: Visitor>(t: &mut Lexer<'a>, v: &mut V, n: usize) -> V::Expr
   }
 }
 
-pub struct DumpSexp;
+pub struct EmitSexp;
 
-impl Visitor for DumpSexp {
+impl Emit for EmitSexp {
   type Expr = Sexp;
 
   type Stmt = Sexp;
 
-  fn visit_variable(&mut self, x: &[u8]) -> Sexp {
+  fn emit_variable(&mut self, x: &[u8]) -> Sexp {
     Sexp::atom(x)
   }
 
-  fn visit_number(&mut self, x: &[u8]) -> Sexp {
+  fn emit_number(&mut self, x: &[u8]) -> Sexp {
     Sexp::atom(x)
   }
 
-  fn visit_ternary(&mut self, p: Sexp, x: Sexp, y: Sexp) -> Sexp {
+  fn emit_ternary(&mut self, p: Sexp, x: Sexp, y: Sexp) -> Sexp {
     Sexp::from_array([Sexp::atom(b"?:"), p, x, y])
   }
 
-  fn visit_or(&mut self, x: Sexp, y: Sexp) -> Sexp {
+  fn emit_or(&mut self, x: Sexp, y: Sexp) -> Sexp {
     Sexp::from_array([Sexp::atom(b"||"), x, y])
   }
 
-  fn visit_and(&mut self, x: Sexp, y: Sexp) -> Sexp {
+  fn emit_and(&mut self, x: Sexp, y: Sexp) -> Sexp {
     Sexp::from_array([Sexp::atom(b"&&"), x, y])
   }
 
-  fn visit_op1(&mut self, f: Op1, x: Sexp) -> Sexp {
+  fn emit_op1(&mut self, f: Op1, x: Sexp) -> Sexp {
     Sexp::from_array([Sexp::atom(f.as_str().as_bytes()), x])
   }
 
-  fn visit_op2(&mut self, f: Op2, x: Sexp, y: Sexp) -> Sexp {
+  fn emit_op2(&mut self, f: Op2, x: Sexp, y: Sexp) -> Sexp {
     Sexp::from_array([Sexp::atom(f.as_str().as_bytes()), x, y])
   }
 
-  fn visit_field(&mut self, f: &[u8], x: Sexp) -> Sexp {
+  fn emit_field(&mut self, f: &[u8], x: Sexp) -> Sexp {
     Sexp::from_array([Sexp::atom(f), x])
   }
 
-  fn visit_index(&mut self, x: Sexp, i: Sexp) -> Sexp {
+  fn emit_index(&mut self, x: Sexp, i: Sexp) -> Sexp {
     Sexp::from_array([Sexp::atom(b"[]"), x, i])
   }
 
-  fn visit_error_missing_expr(&mut self) -> Sexp {
+  fn emit_error_missing_expr(&mut self) -> Sexp {
     Sexp::atom(b"undefined")
   }
 
-  fn visit_let(&mut self, s: &[u8], x: Sexp) -> Sexp {
+  fn emit_let(&mut self, s: &[u8], x: Sexp) -> Sexp {
     Sexp::from_array([Sexp::atom(b"let"), Sexp::atom(s), Sexp::atom(b"="), x])
   }
 
-  fn visit_stmt_expr(&mut self, x: Sexp) -> Sexp {
+  fn emit_stmt_expr(&mut self, x: Sexp) -> Sexp {
     x
   }
 
-  fn visit_error_missing_expected_token(&mut self, _: Token) {
+  fn emit_error_missing_expected_token(&mut self, _: Token) {
   }
 }

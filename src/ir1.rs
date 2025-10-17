@@ -3,8 +3,10 @@
 #[derive(Debug)]
 pub struct Symbol(pub u64);
 
+/*
 #[derive(Debug)]
 pub enum Inst {
+  Integer(i64),
   Label { n: u32 },
   Pop { i: u32 },
   Put { i: u32, x: u32 },
@@ -14,7 +16,7 @@ pub enum Inst {
   TailCall { n: u32, f: u32 },
   Ret { n: u32 },
   Global { s: Symbol },
-  OpAdd { x: u32, y: u32 },    // x + y
+  OpAdd(u32, u32),             // x + y
   OpBitAnd { x: u32, y: u32 }, // x & y
   OpBitOr { x: u32, y: u32 },  // x | y
   OpBitXor { x: u32, y: u32 }, // x ^ y
@@ -33,3 +35,4 @@ pub enum Inst {
   OpShr { x: u32, y: u32 },    // x >> y
   OpSub { x: u32, y: u32 },    // x - y
 }
+*/

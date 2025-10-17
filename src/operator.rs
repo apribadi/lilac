@@ -1,4 +1,4 @@
-#[derive(Clone, Copy, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Op1 {
   Neg,
   Not,
@@ -13,7 +13,7 @@ impl Op1 {
   }
 }
 
-#[derive(Clone, Copy, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Op2 {
   Add,
   BitAnd,
