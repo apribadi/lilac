@@ -32,15 +32,15 @@ fn compile_expr<'a>(env: &mut Env, x: Expr<'a>) -> u32 {
   match x {
     Expr::And(&(x, y)) => {
       let x = compile_expr(env, x);
-      let i = env.emit(Inst::Undefined);
+      let i = env.emit(Inst::Undefined); // Cond(x, a, b)
       let a = env.emit(Inst::Label);
       let f = env.emit(Inst::ConstBool(false));
       let _ = env.emit(Inst::Put(f));
-      let j = env.emit(Inst::Undefined);
+      let j = env.emit(Inst::Undefined); // Jump(c)
       let b = env.emit(Inst::Label);
       let y = compile_expr(env, y);
       let _ = env.emit(Inst::Put(y));
-      let k = env.emit(Inst::Undefined);
+      let k = env.emit(Inst::Undefined); // Jump(c)
       let c = env.emit(Inst::Label);
       env.edit(i, Inst::Cond(x, a, b));
       env.edit(j, Inst::Jump(c));
@@ -70,23 +70,37 @@ fn compile_expr<'a>(env: &mut Env, x: Expr<'a>) -> u32 {
     }
     Expr::Or(&(x, y)) => {
       let x = compile_expr(env, x);
-      let i = env.emit(Inst::Undefined);
+      let i = env.emit(Inst::Undefined); // Cond(x, a, b)
       let a = env.emit(Inst::Label);
       let y = compile_expr(env, y);
       let _ = env.emit(Inst::Put(y));
-      let j = env.emit(Inst::Undefined);
+      let j = env.emit(Inst::Undefined); // Jump(c)
       let b = env.emit(Inst::Label);
       let t = env.emit(Inst::ConstBool(true));
       let _ = env.emit(Inst::Put(t));
-      let k = env.emit(Inst::Undefined);
+      let k = env.emit(Inst::Undefined); // Jump(c)
       let c = env.emit(Inst::Label);
       env.edit(i, Inst::Cond(x, a, b));
       env.edit(j, Inst::Jump(c));
       env.edit(k, Inst::Jump(c));
       env.emit(Inst::Pop)
     }
-    Expr::Ternary(_) => {
-      unimplemented!()
+    Expr::Ternary(&(p, x, y)) => {
+      let p = compile_expr(env, p);
+      let i = env.emit(Inst::Undefined); // Cond(p, a, b)
+      let a = env.emit(Inst::Label);
+      let x = compile_expr(env, x);
+      let _ = env.emit(Inst::Put(x));
+      let j = env.emit(Inst::Undefined); // Jump(c)
+      let b = env.emit(Inst::Label);
+      let y = compile_expr(env, y);
+      let _ = env.emit(Inst::Put(y));
+      let k = env.emit(Inst::Undefined); // Jump(c)
+      let c = env.emit(Inst::Label);
+      env.edit(i, Inst::Cond(p, a, b));
+      env.edit(j, Inst::Jump(c));
+      env.edit(k, Inst::Jump(c));
+      env.emit(Inst::Pop)
     }
     Expr::Undefined => {
       env.emit(Inst::Undefined)
@@ -102,7 +116,7 @@ fn compile_expr_tail<'a>(env: &mut Env, x: Expr<'a>) {
   match x {
     Expr::And(&(x, y)) => {
       let x = compile_expr(env, x);
-      let i = env.emit(Inst::Undefined);
+      let i = env.emit(Inst::Undefined); // Cond(x, a, b)
       let a = env.emit(Inst::Label);
       let f = env.emit(Inst::ConstBool(false));
       let _ = env.emit(Inst::Put(f));
@@ -113,7 +127,7 @@ fn compile_expr_tail<'a>(env: &mut Env, x: Expr<'a>) {
     }
     Expr::Or(&(x, y)) => {
       let x = compile_expr(env, x);
-      let i = env.emit(Inst::Undefined);
+      let i = env.emit(Inst::Undefined); // Cond(x, a, b)
       let a = env.emit(Inst::Label);
       compile_expr_tail(env, y);
       let b = env.emit(Inst::Label);
@@ -122,19 +136,27 @@ fn compile_expr_tail<'a>(env: &mut Env, x: Expr<'a>) {
       let _ = env.emit(Inst::Ret);
       env.edit(i, Inst::Cond(x, a, b));
     }
+    Expr::Ternary(_) => {
+      let p = compile_expr(env, p);
+      let i = env.emit(Inst::Undefined); // Cond(p, a, b)
+      let a = env.emit(Inst::Label);
+      compile_expr_tail(env, x);
+      let b = env.emit(Inst::Label);
+      compile_expr_tail(env, y);
+      env.edit(i, Inst::Cond(p, a, b));
+    }
     x @ (
       | Expr::Field(_)
       | Expr::Index(_)
       | Expr::Int(_)
       | Expr::Op1(_)
       | Expr::Op2(_)
+      | Expr::Undefined
+      | Expr::Variable(_)
     ) => {
       let x = compile_expr(env, x);
       let _ = env.emit(Inst::Put(x));
       let _ = env.emit(Inst::Ret);
-    }
-    _ => {
-      unimplemented!()
     }
   }
 }
