@@ -136,7 +136,7 @@ fn compile_expr_tail<'a>(env: &mut Env, x: Expr<'a>) {
       let _ = env.emit(Inst::Ret);
       env.edit(i, Inst::Cond(x, a, b));
     }
-    Expr::Ternary(_) => {
+    Expr::Ternary(&(p, x, y)) => {
       let p = compile_expr(env, p);
       let i = env.emit(Inst::Undefined); // Cond(p, a, b)
       let a = env.emit(Inst::Label);
