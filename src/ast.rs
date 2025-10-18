@@ -86,11 +86,6 @@ impl<'a, 'b> parse::Emit for AstEmit<'a, 'b> {
     return Expr::Index(self.arena.alloc().init((x, i)));
   }
 
-  fn emit_error_missing_expr(&mut self) -> Self::Expr {
-    // TODO: accumulate errors
-    return Expr::Undefined;
-  }
-
   fn emit_let(&mut self, s: &[u8], x: Self::Expr) -> Self::Stmt {
     let s: &_ = self.arena.copy_slice(s);
     return Stmt::Let(self.arena.alloc().init((s, x)));
@@ -103,5 +98,10 @@ impl<'a, 'b> parse::Emit for AstEmit<'a, 'b> {
   fn emit_error_missing_expected_token(&mut self, token: Token) {
     let _ = token;
     // TODO: accumulate errors
+  }
+
+  fn emit_error_missing_expr(&mut self) -> Self::Expr {
+    // TODO: accumulate errors
+    return Expr::Undefined;
   }
 }

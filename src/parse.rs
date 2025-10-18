@@ -27,13 +27,13 @@ pub trait Emit {
 
   fn emit_index(&mut self, x: Self::Expr, i: Self::Expr) -> Self::Expr;
 
-  fn emit_error_missing_expr(&mut self) -> Self::Expr;
-
   fn emit_let(&mut self, s: &[u8], x: Self::Expr) -> Self::Stmt;
 
   fn emit_stmt_expr(&mut self, x: Self::Expr) -> Self::Stmt;
 
   fn emit_error_missing_expected_token(&mut self, token: Token);
+
+  fn emit_error_missing_expr(&mut self) -> Self::Expr;
 }
 
 pub fn parse_expr<'a, E: Emit>(t: &mut Lexer<'a>, e: &mut E) -> E::Expr {
@@ -278,10 +278,6 @@ impl Emit for EmitSexp {
     Sexp::from_array([Sexp::atom(b"[]"), x, i])
   }
 
-  fn emit_error_missing_expr(&mut self) -> Sexp {
-    Sexp::atom(b"undefined")
-  }
-
   fn emit_let(&mut self, s: &[u8], x: Sexp) -> Sexp {
     Sexp::from_array([Sexp::atom(b"let"), Sexp::atom(s), Sexp::atom(b"="), x])
   }
@@ -291,5 +287,9 @@ impl Emit for EmitSexp {
   }
 
   fn emit_error_missing_expected_token(&mut self, _: Token) {
+  }
+
+  fn emit_error_missing_expr(&mut self) -> Sexp {
+    Sexp::atom(b"undefined")
   }
 }

@@ -1,3 +1,24 @@
+fn compile(source: &str) {
+  let mut store = oxcart::Store::new();
+  let mut arena = store.arena();
+
+  let a = lilac::ast::parse_expr(source.as_bytes(), &mut arena);
+  let a = lilac::compile::compile(a);
+
+  for (i, x) in a.iter().enumerate() {
+    print!("%{} {}\n", i, x);
+  }
+
+  print!("\n");
+}
+
+fn main() {
+  compile("(1 + 2).foo != 2");
+  compile("(1 + 2).foofoofoofoo != 2");
+  compile("1 == 1 && 2 != 2");
+  compile("! (1 == 1 && 2 != 2)");
+}
+
 /*
 fn parse_stmt(source: &str) -> lilac::sexp::Sexp {
   lilac::parse::parse_stmt(
@@ -14,33 +35,3 @@ fn parse_expr(source: &str) -> lilac::sexp::Sexp {
 }
 */
 
-fn compile(source: &str) {
-  let mut store = oxcart::Store::new();
-  let mut arena = store.arena();
-
-  let a = lilac::ast::parse_expr(source.as_bytes(), &mut arena);
-  let a = lilac::compile::compile(a);
-
-  for (i, x) in a.iter().enumerate() {
-    print!("%{} {}\n", i, x);
-  }
-  print!("\n");
-}
-
-fn main() {
-  compile("(1 + 2).foo != 2");
-  compile("(1 + 2).foofoofoofoo != 2");
-  compile("1 == 1 && 2 != 2");
-  compile("! (1 == 1 && 2 != 2)");
-
-  /*
-  print!("{:?}\n", parse_expr_ast("a + b * c - d", &mut arena));
-  print!("{}\n", parse_stmt("let x = 1 + 2 * e"));
-  print!("{}\n", parse_expr("x == y ? a != b ? 1 + 1 : 2 * 2 : 3 / 3"));
-  print!("{}\n", parse_expr("z != - 2 * a[x.foo - 1] + 3 * ! - y.bar - 10"));
-  print!("{}\n", parse_expr("a & b | c ^ d"));
-  print!("{}\n", parse_expr("a || b && c ? 1 : 2"));
-  print!("{}\n", parse_expr("1 +"));
-  print!("{}\n", parse_expr("+ 1"));
-  */
-}
