@@ -4,6 +4,7 @@ use crate::uir::Inst;
 
 struct Env {
   code: Vec<Inst>,
+  args: Vec<u32>,
 }
 
 impl Env {
@@ -22,6 +23,7 @@ pub fn compile<'a>(x: Expr<'a>) -> Vec<Inst> {
   let mut env =
     Env {
       code: Vec::new(),
+      args: Vec::new(),
     };
 
   compile_expr_tail(&mut env, x);
@@ -47,19 +49,24 @@ fn compile_expr<'a>(env: &mut Env, x: Expr<'a>) -> u32 {
       env.edit(k, Inst::Jump(c));
       env.emit(Inst::Pop)
     }
-    Expr::Call(&(f, xs)) => {
+    Expr::Call(&(f, x)) => {
+      let n = x.len();
       let f = compile_expr(env, f);
-      let mut ys = Vec::with_capacity(xs.len());
-      for &x in xs.iter() { ys.push(compile_expr(env, x)); }
-      for &y in ys.iter() { let _ = env.emit(Inst::Put(y)); }
+      for &x in x {
+        let i = compile_expr(env, x);
+        env.args.push(i);
+      }
+      for x in env.args.drain(env.args.len() - n ..) {
+        env.code.push(Inst::Put(x));
+      }
       let i = env.emit(Inst::Undefined); // Call(a)
       let a = env.emit(Inst::Label);
       env.edit(i, Inst::Call(f, a));
       env.emit(Inst::Pop)
     }
-    Expr::Field(&(s, x)) => {
+    Expr::Field(&(symbol, x)) => {
       let x = compile_expr(env, x);
-      env.emit(Inst::Field(Symbol::from_bytes(s), x))
+      env.emit(Inst::Field(Symbol::from_bytes(symbol), x))
     }
     Expr::Index(&(x, i)) => {
       let x = compile_expr(env, x);
@@ -115,9 +122,9 @@ fn compile_expr<'a>(env: &mut Env, x: Expr<'a>) -> u32 {
     Expr::Undefined => {
       env.emit(Inst::Undefined)
     }
-    Expr::Variable(s) => {
+    Expr::Variable(symbol) => {
       // TODO: local scope
-      env.emit(Inst::Global(Symbol::from_bytes(s)))
+      env.emit(Inst::Global(Symbol::from_bytes(symbol)))
     }
   }
 }

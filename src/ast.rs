@@ -35,7 +35,7 @@ pub fn parse_expr<'a>(source: &[u8], arena: &mut Arena<'a>) -> Expr<'a> {
 pub fn parse_stmt<'a>(source: &[u8], arena: &mut Arena<'a>) -> Stmt<'a> {
   let mut e = AstEmit::new(arena);
   parse::parse_stmt(&mut Lexer::new(source), &mut e);
-  return e.stmts.pop().unwrap();
+  return e.pop_stmt();
 }
 
 struct AstEmit<'a, 'b> {
@@ -76,6 +76,10 @@ impl<'a, 'b> AstEmit<'a, 'b> {
 
   fn put_stmt(&mut self, x: Stmt<'a>) {
     self.stmts.push(x);
+  }
+
+  fn pop_stmt(&mut self) -> Stmt<'a> {
+    return self.stmts.pop().unwrap();
   }
 }
 
