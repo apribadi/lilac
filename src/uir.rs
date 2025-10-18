@@ -17,7 +17,7 @@ pub enum Inst {
   Jump(Label),
   Cond(Value, /* false */ Label, /* true */ Label),
   Ret,
-  CallK1(Value, Label),
+  Call(Value, Label),
   CallTail(Value),
   Field(Symbol, Value),
   Index(Value, Value),
@@ -38,14 +38,16 @@ impl std::fmt::Display for Inst {
       Self::Jump(x) => write!(f, "JUMP =>{}", x),
       Self::Cond(x, a, b) => write!(f, "COND %{} =>{} =>{}", x, a, b),
       Self::Ret => write!(f, "RET"),
-      Self::Field(s, x) => write!(f, "= .{{{}}} %{}", s, x),
+      Self::Call(x, a) => write!(f, "CALL %{} =>{}", x, a),
+      Self::CallTail(x) => write!(f, "CALLTAIL %{}", x),
+      Self::Field(s, x) => write!(f, "= .{} %{}", s, x),
       Self::Index(x, y) => write!(f, "= %{}[%{}]", x, y),
       Self::Op1(op, x) => write!(f, "= {} %{}", op, x),
       Self::Op2(op, x, y) => write!(f, "= %{} {} %{}", x, op, y),
       Self::Global(s) => write!(f, "= {}", s),
       Self::ConstBool(p) => write!(f, "= {}", p),
-      Self::ConstInt(n) => write!(f, "= #{}", n),
-      _ => unimplemented!()
+      Self::ConstInt(n) => write!(f, "= {}", n),
+      Self::Undefined => write!(f, "= UNDEFINED"),
     }
   }
 }

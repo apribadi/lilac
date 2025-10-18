@@ -217,7 +217,7 @@ fn parse_prec<'a, E: Emit>(t: &mut Lexer<'a>, e: &mut E, n: usize) -> E::Expr {
           e.emit_op2(Op2::Rem, x, y)
         }
         Token::Field if t.token_is_attached() => {
-          let s = t.token_span();
+          let s = &t.token_span()[1 ..];
           t.next();
           e.emit_field(s, x)
         }

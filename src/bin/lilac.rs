@@ -29,6 +29,7 @@ fn compile(source: &str) {
 
 fn main() {
   compile("(1 + 2).foo != 2");
+  compile("(1 + 2).foofoofoofoo != 2");
   compile("1 == 1 && 2 != 2");
   compile("! (1 == 1 && 2 != 2)");
 
