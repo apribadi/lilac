@@ -2,6 +2,8 @@
 //
 //
 
+// TODO: consider operator application in tail position
+
 use crate::op1::Op1;
 use crate::op2::Op2;
 use crate::symbol::Symbol;

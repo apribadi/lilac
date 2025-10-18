@@ -2,6 +2,40 @@ use crate::ast::Expr;
 use crate::symbol::Symbol;
 use crate::uir::Inst;
 
+/*
+struct Code(Vec<Inst>);
+
+impl Code {
+  fn emit(&mut self, inst: Inst) -> u32 {
+    let n = self.0.len();
+    self.0.push(inst);
+    return n as u32;
+  }
+
+  fn edit(&mut self, index: u32, inst: Inst) {
+    self.0[index as usize] = inst;
+  }
+}
+
+struct Env {
+  stack: Vec<u32>,
+}
+
+impl Env {
+  fn put(&mut self, x: u32) {
+    self.stack.push(x)
+  }
+
+  fn pop(&mut self) -> u32 {
+    return self.stack.pop().unwrap();
+  }
+}
+
+fn compile_expr<'a>(env: &mut Env, code: &mut Code, x: Expr<'a>) {
+  }
+}
+*/
+
 struct Env {
   code: Vec<Inst>,
   args: Vec<u32>,
