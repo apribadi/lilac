@@ -38,7 +38,7 @@ fn compile_expr<'a>(env: &mut Env, x: Expr<'a>) -> u32 {
       let _ = env.emit(Inst::Put(f));
       let j = env.emit(Inst::Undefined);
       let b = env.emit(Inst::Label);
-      let y = compile_expr(env, y); // use compile_expr_kont?
+      let y = compile_expr(env, y);
       let _ = env.emit(Inst::Put(y));
       let k = env.emit(Inst::Undefined);
       let c = env.emit(Inst::Label);
@@ -68,8 +68,32 @@ fn compile_expr<'a>(env: &mut Env, x: Expr<'a>) -> u32 {
       let y = compile_expr(env, y);
       env.emit(Inst::Op2(op, x, y))
     }
-    _ => {
+    Expr::Or(&(x, y)) => {
+      let x = compile_expr(env, x);
+      let i = env.emit(Inst::Undefined);
+      let a = env.emit(Inst::Label);
+      let y = compile_expr(env, y);
+      let _ = env.emit(Inst::Put(y));
+      let j = env.emit(Inst::Undefined);
+      let b = env.emit(Inst::Label);
+      let t = env.emit(Inst::ConstBool(true));
+      let _ = env.emit(Inst::Put(t));
+      let k = env.emit(Inst::Undefined);
+      let c = env.emit(Inst::Label);
+      env.edit(i, Inst::Cond(x, a, b));
+      env.edit(j, Inst::Jump(c));
+      env.edit(k, Inst::Jump(c));
+      env.emit(Inst::Pop)
+    }
+    Expr::Ternary(_) => {
       unimplemented!()
+    }
+    Expr::Undefined => {
+      env.emit(Inst::Undefined)
+    }
+    Expr::Variable(s) => {
+      // TODO: local scope
+      env.emit(Inst::Global(Symbol::from_bytes(s)))
     }
   }
 }
@@ -85,6 +109,17 @@ fn compile_expr_tail<'a>(env: &mut Env, x: Expr<'a>) {
       let _ = env.emit(Inst::Ret);
       let b = env.emit(Inst::Label);
       compile_expr_tail(env, y);
+      env.edit(i, Inst::Cond(x, a, b));
+    }
+    Expr::Or(&(x, y)) => {
+      let x = compile_expr(env, x);
+      let i = env.emit(Inst::Undefined);
+      let a = env.emit(Inst::Label);
+      compile_expr_tail(env, y);
+      let b = env.emit(Inst::Label);
+      let t = env.emit(Inst::ConstBool(true));
+      let _ = env.emit(Inst::Put(t));
+      let _ = env.emit(Inst::Ret);
       env.edit(i, Inst::Cond(x, a, b));
     }
     x @ (

@@ -227,6 +227,7 @@ fn parse_prec<'a, E: Emit>(t: &mut Lexer<'a>, e: &mut E, n: usize) -> E::Expr {
           expect(t, e, Token::RBracket);
           e.emit_index(x, i)
         }
+        // TODO: parse function application
         _ => {
           return x;
         }

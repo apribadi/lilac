@@ -23,6 +23,7 @@ pub enum Inst {
   Index(Value, Value),
   Op1(Op1, Value),
   Op2(Op2, Value, Value),
+  Global(Symbol),
   ConstBool(bool),
   ConstInt(i64),
   Undefined,
@@ -41,6 +42,7 @@ impl std::fmt::Display for Inst {
       Self::Index(x, y) => write!(f, "= %{}[%{}]", x, y),
       Self::Op1(op, x) => write!(f, "= {} %{}", op, x),
       Self::Op2(op, x, y) => write!(f, "= %{} {} %{}", x, op, y),
+      Self::Global(s) => write!(f, "= {}", s),
       Self::ConstBool(p) => write!(f, "= {}", p),
       Self::ConstInt(n) => write!(f, "= #{}", n),
       _ => unimplemented!()
