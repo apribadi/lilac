@@ -19,13 +19,15 @@ pub trait Emit {
 
   fn emit_and(&mut self, x: Self::Expr, y: Self::Expr) -> Self::Expr;
 
-  fn emit_op1(&mut self, f: Op1, x: Self::Expr) -> Self::Expr;
+  fn emit_op1(&mut self, op: Op1, x: Self::Expr) -> Self::Expr;
 
-  fn emit_op2(&mut self, f: Op2, x: Self::Expr, y: Self::Expr) -> Self::Expr;
+  fn emit_op2(&mut self, op: Op2, x: Self::Expr, y: Self::Expr) -> Self::Expr;
 
-  fn emit_field(&mut self, f: &[u8], x: Self::Expr) -> Self::Expr;
+  fn emit_field(&mut self, s: &[u8], x: Self::Expr) -> Self::Expr;
 
   fn emit_index(&mut self, x: Self::Expr, i: Self::Expr) -> Self::Expr;
+
+  fn emit_call(&mut self, f: Self::Expr, xs: Box<[Self::Expr]>) -> Self::Expr;
 
   fn emit_let(&mut self, s: &[u8], x: Self::Expr) -> Self::Stmt;
 
@@ -227,6 +229,22 @@ fn parse_prec<'a, E: Emit>(t: &mut Lexer<'a>, e: &mut E, n: usize) -> E::Expr {
           expect(t, e, Token::RBracket);
           e.emit_index(x, i)
         }
+        Token::LParen if t.token_is_attached() => {
+          t.next();
+          if t.token() == Token::RParen {
+            t.next();
+            e.emit_call(x, Box::from([]))
+          } else {
+            let mut xs = Vec::new();
+            loop {
+              xs.push(parse_expr(t, e));
+              if t.token() != Token::Comma { break; }
+              t.next();
+            }
+            expect(t, e, Token::RParen);
+            e.emit_call(x, xs.into_boxed_slice())
+          }
+        }
         // TODO: parse function application
         _ => {
           return x;
@@ -270,12 +288,18 @@ impl Emit for EmitSexp {
     Sexp::from_array([Sexp::atom(f.as_str().as_bytes()), x, y])
   }
 
-  fn emit_field(&mut self, f: &[u8], x: Sexp) -> Sexp {
-    Sexp::from_array([Sexp::atom(f), x])
+  fn emit_field(&mut self, s: &[u8], x: Sexp) -> Sexp {
+    Sexp::from_array([Sexp::atom(s), x])
   }
 
   fn emit_index(&mut self, x: Sexp, i: Sexp) -> Sexp {
     Sexp::from_array([Sexp::atom(b"[]"), x, i])
+  }
+
+  fn emit_call(&mut self, f: Sexp, xs: Box<[Sexp]>) -> Sexp {
+    let mut ys = vec![f];
+    ys.extend(xs.into_iter());
+    Sexp::List(ys.into_boxed_slice())
   }
 
   fn emit_let(&mut self, s: &[u8], x: Sexp) -> Sexp {

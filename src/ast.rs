@@ -8,6 +8,7 @@ use crate::op2::Op2;
 #[derive(Clone, Copy, Debug)]
 pub enum Expr<'a> {
   And(&'a (Expr<'a>, Expr<'a>)),
+  Call(&'a (Expr<'a>, &'a [Expr<'a>])),
   Field(&'a (&'a [u8], Expr<'a>)),
   Index(&'a (Expr<'a>, Expr<'a>)),
   Int(i64),
@@ -84,6 +85,11 @@ impl<'a, 'b> parse::Emit for AstEmit<'a, 'b> {
 
   fn emit_index(&mut self, x: Self::Expr, i: Self::Expr) -> Self::Expr {
     return Expr::Index(self.arena.alloc().init((x, i)));
+  }
+
+  fn emit_call(&mut self, f: Self::Expr, xs: Box<[Self::Expr]>) -> Self::Expr {
+    let xs: &_ = self.arena.copy_slice(&xs);
+    return Expr::Call(self.arena.alloc().init((f, xs)));
   }
 
   fn emit_let(&mut self, s: &[u8], x: Self::Expr) -> Self::Stmt {

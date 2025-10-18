@@ -13,6 +13,10 @@ fn compile(source: &str) {
 }
 
 fn main() {
+  compile("f(1, 2, 3) != x");
+  compile("f(1, 2, 3)");
+  compile("x == y && f(1, 2, 3)");
+  compile("x != y ? 1 : a != b ? 2 : 3");
   compile("(1 + 2).foo != 2");
   compile("(1 + 2).foofoofoofoo != 2");
   compile("1 == 1 && 2 != 2");

@@ -47,6 +47,16 @@ fn compile_expr<'a>(env: &mut Env, x: Expr<'a>) -> u32 {
       env.edit(k, Inst::Jump(c));
       env.emit(Inst::Pop)
     }
+    Expr::Call(&(f, xs)) => {
+      let f = compile_expr(env, f);
+      let mut ys = Vec::with_capacity(xs.len());
+      for &x in xs.iter() { ys.push(compile_expr(env, x)); }
+      for &y in ys.iter() { let _ = env.emit(Inst::Put(y)); }
+      let i = env.emit(Inst::Undefined); // Call(a)
+      let a = env.emit(Inst::Label);
+      env.edit(i, Inst::Call(f, a));
+      env.emit(Inst::Pop)
+    }
     Expr::Field(&(s, x)) => {
       let x = compile_expr(env, x);
       env.emit(Inst::Field(Symbol::from_bytes(s), x))
@@ -124,6 +134,13 @@ fn compile_expr_tail<'a>(env: &mut Env, x: Expr<'a>) {
       let b = env.emit(Inst::Label);
       compile_expr_tail(env, y);
       env.edit(i, Inst::Cond(x, a, b));
+    }
+    Expr::Call(&(f, xs)) => {
+      let f = compile_expr(env, f);
+      let mut ys = Vec::with_capacity(xs.len());
+      for &x in xs.iter() { ys.push(compile_expr(env, x)); }
+      for &y in ys.iter() { let _ = env.emit(Inst::Put(y)); }
+      let _ = env.emit(Inst::CallTail(f));
     }
     Expr::Or(&(x, y)) => {
       let x = compile_expr(env, x);
