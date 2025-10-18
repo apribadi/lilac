@@ -1,3 +1,4 @@
+/*
 fn compile(source: &str) {
   let mut store = oxcart::Store::new();
   let mut arena = store.arena();
@@ -22,6 +23,7 @@ fn main() {
   compile("1 == 1 && 2 != 2");
   compile("! (1 == 1 && 2 != 2)");
 }
+*/
 
 /*
 fn parse_stmt(source: &str) -> lilac::sexp::Sexp {
@@ -30,12 +32,9 @@ fn parse_stmt(source: &str) -> lilac::sexp::Sexp {
       &mut lilac::parse::EmitSexp
     )
 }
-
-fn parse_expr(source: &str) -> lilac::sexp::Sexp {
-  lilac::parse::parse_expr(
-      &mut lilac::lexer::Lexer::new(source.as_bytes()),
-      &mut lilac::parse::EmitSexp
-    )
-}
 */
 
+fn main() {
+  print!("{}\n", lilac::parse::parse_expr_sexp("x == y && f(1 + 2 * 3, 1 * 2 + 3)"));
+  print!("{}\n", lilac::parse::parse_stmt_sexp("let foo = x == y && f(1 + 2 * 3, 1 * 2 + 3)"));
+}
