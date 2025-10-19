@@ -150,12 +150,17 @@ fn compile_expr_tail<'a>(t: &mut Env, o: &mut Code, x: Expr<'a>) {
       compile_expr_tail(t, o, y);
       o.set(i, Inst::Cond(x, a, b));
     }
-    Expr::Call(&(f, xs)) => {
+    Expr::Call(&(f, x)) => {
+      let n = x.len();
       let f = compile_expr(t, o, f);
-      let mut ys = Vec::with_capacity(xs.len());
-      for &x in xs.iter() { ys.push(compile_expr(t, o, x)); }
-      for &y in ys.iter() { let _ = o.put(Inst::Put(y)); }
-      let _ = o.put(Inst::Tail(f));
+      for x in x {
+        let x = compile_expr(t, o, *x);
+        t.put_arg(x);
+      }
+      for x in t.pop_arg_multi(n) {
+        let _ = o.put(Inst::Put(x));
+      }
+      let _ = o.put(Inst::TailCall(f));
     }
     Expr::Or(&(x, y)) => {
       let x = compile_expr(t, o, x);
