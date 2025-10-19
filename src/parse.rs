@@ -35,6 +35,8 @@ pub trait Sink {
 
   fn on_set_index(&mut self);
 
+  fn on_var(&mut self, symbol: &[u8]);
+
   fn on_error_missing_expected_token(&mut self, token: Token);
 
   fn on_error_missing_expr(&mut self);
@@ -53,6 +55,13 @@ pub fn parse_stmt<'a, S: Sink>(t: &mut Lexer<'a>, o: &mut S) {
       expect(t, o, Token::Equal);
       parse_expr(t, o);
       o.on_let(symbol);
+    }
+    Token::Var => {
+      t.next();
+      let symbol = expect_symbol(t, o);
+      expect(t, o, Token::Equal);
+      parse_expr(t, o);
+      o.on_var(symbol);
     }
     _ => {
       parse_prec(t, o, 0x00, true);
@@ -394,6 +403,12 @@ impl Sink for ToSexp {
     let i = self.pop();
     let x = self.pop();
     self.put(Sexp::from_array([Sexp::from_bytes(b"[]<-"), x, i, y]));
+  }
+
+  fn on_var(&mut self, symbol: &[u8]) {
+    let x = self.pop();
+    let s = Sexp::from_bytes(symbol);
+    self.put(Sexp::from_array([Sexp::from_bytes(b"var"), s, x]));
   }
 
   fn on_error_missing_expected_token(&mut self, _: Token) {

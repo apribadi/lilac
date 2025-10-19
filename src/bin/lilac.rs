@@ -21,6 +21,7 @@ fn compile(source: &str) {
 }
 
 fn main() {
+  parse("var x = 1 * 2 + 3");
   parse("1 * 2 + 3");
   parse("1 + 2 * 3");
   parse("foo().bar.baz <- 1 + qux()");

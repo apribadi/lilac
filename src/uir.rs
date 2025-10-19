@@ -28,6 +28,8 @@ pub enum Inst {
   Index(Value, Value),
   Op1(Op1, Value),
   Op2(Op2, Value, Value),
+  SetField(Value, Symbol, Value),
+  SetIndex(Value, Value, Value),
   Undefined,
 }
 
@@ -44,11 +46,13 @@ impl std::fmt::Display for Inst {
       Self::TailCall(x) => write!(f, "TAILCALL %{}", x),
       Self::ConstBool(p) => write!(f, "= {}", p),
       Self::ConstInt(n) => write!(f, "= {}", n),
-      Self::Field(x, s) => write!(f, "= .{} %{}", s, x),
+      Self::Field(x, s) => write!(f, "= %{} .{}", x, s),
       Self::Global(s) => write!(f, "= {}", s),
-      Self::Index(x, y) => write!(f, "= %{}[%{}]", x, y),
+      Self::Index(x, y) => write!(f, "= %{} [ %{} ]", x, y),
       Self::Op1(op, x) => write!(f, "= {} %{}", op, x),
       Self::Op2(op, x, y) => write!(f, "= %{} {} %{}", x, op, y),
+      Self::SetField(x, s, y) => write!(f, "%{} .{} <- %{}", x, s, y),
+      Self::SetIndex(x, i, y) => write!(f, "%{} [ %{} ] <- %{}", x, i, y),
       Self::Undefined => write!(f, "= UNDEFINED"),
     }
   }

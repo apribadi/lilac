@@ -27,6 +27,7 @@ pub enum Stmt<'a> {
   Set(&'a (&'a [u8], Expr<'a>)),
   SetField(&'a (Expr<'a>, &'a [u8], Expr<'a>)),
   SetIndex(&'a (Expr<'a>, Expr<'a>, Expr<'a>)),
+  Var(&'a (&'a [u8], Expr<'a>)),
 }
 
 pub fn parse_expr<'a>(source: &[u8], arena: &mut Arena<'a>) -> Expr<'a> {
@@ -193,6 +194,13 @@ impl<'a, 'b> parse::Sink for ToAst<'a, 'b> {
     let i = self.pop_expr();
     let x = self.pop_expr();
     let x = Stmt::SetIndex(self.alloc((x, i, y)));
+    self.put_stmt(x);
+  }
+
+  fn on_var(&mut self, symbol: &[u8]) {
+    let s = self.copy_symbol(symbol);
+    let x = self.pop_expr();
+    let x = Stmt::Var(self.alloc((s, x)));
     self.put_stmt(x);
   }
 
