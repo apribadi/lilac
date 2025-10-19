@@ -25,6 +25,7 @@ fn main() {
   parse("1 + 2 * 3");
   parse("foo().bar.baz <- 1 + qux()");
   parse("a <- 1 * 2 + 3");
+  parse("foo(0)[1 + 2] <- 3 + 4");
   parse_ast("a <- 1 * 2 + 3");
 
   compile("1 + 2 * 3 != 4");

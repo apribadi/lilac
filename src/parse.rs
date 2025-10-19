@@ -239,7 +239,14 @@ fn parse_prec<'a, S: Sink>(t: &mut Lexer<'a>, o: &mut S, n: usize, is_stmt: bool
         t.next();
         parse_expr(t, o);
         expect(t, o, Token::RBracket);
-        o.on_index();
+        if is_stmt && t.token() == Token::Set {
+          t.next();
+          parse_expr(t, o);
+          o.on_set_index();
+          return;
+        } else {
+          o.on_index();
+        }
       }
       Token::LParen if t.token_is_attached() => {
         t.next();
