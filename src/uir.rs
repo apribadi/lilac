@@ -26,10 +26,13 @@ pub enum Inst {
   Field(Value, Symbol),
   Global(Symbol),
   Index(Value, Value),
+  Local(Value),
   Op1(Op1, Value),
   Op2(Op2, Value, Value),
   SetField(Value, Symbol, Value),
   SetIndex(Value, Value, Value),
+  SetLocal(Value, Value),
+  Var(Value), // InitLocal?
   Undefined,
 }
 
@@ -49,10 +52,13 @@ impl std::fmt::Display for Inst {
       Self::Field(x, s) => write!(f, "= %{} .{}", x, s),
       Self::Global(s) => write!(f, "= {}", s),
       Self::Index(x, y) => write!(f, "= %{} [ %{} ]", x, y),
+      Self::Local(v) => write!(f, "= [ %{} ]", v),
       Self::Op1(op, x) => write!(f, "= {} %{}", op, x),
       Self::Op2(op, x, y) => write!(f, "= %{} {} %{}", x, op, y),
       Self::SetField(x, s, y) => write!(f, "%{} .{} <- %{}", x, s, y),
       Self::SetIndex(x, i, y) => write!(f, "%{} [ %{} ] <- %{}", x, i, y),
+      Self::SetLocal(v, x) => write!(f, "[ %{} ] <- %{}", v, x),
+      Self::Var(x) => write!(f, "= VAR %{}", x),
       Self::Undefined => write!(f, "= UNDEFINED"),
     }
   }
