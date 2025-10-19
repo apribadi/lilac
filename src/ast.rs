@@ -27,24 +27,24 @@ pub enum Stmt<'a> {
 }
 
 pub fn parse_expr<'a>(source: &[u8], arena: &mut Arena<'a>) -> Expr<'a> {
-  let mut e = AstEmit::new(arena);
+  let mut e = ToAst::new(arena);
   parse::parse_expr(&mut Lexer::new(source), &mut e);
   return e.pop_expr();
 }
 
 pub fn parse_stmt<'a>(source: &[u8], arena: &mut Arena<'a>) -> Stmt<'a> {
-  let mut e = AstEmit::new(arena);
+  let mut e = ToAst::new(arena);
   parse::parse_stmt(&mut Lexer::new(source), &mut e);
   return e.pop_stmt();
 }
 
-struct AstEmit<'a, 'b> {
+struct ToAst<'a, 'b> {
   arena: &'b mut Arena<'a>,
   exprs: Vec<Expr<'a>>,
   stmts: Vec<Stmt<'a>>,
 }
 
-impl<'a, 'b> AstEmit<'a, 'b> {
+impl<'a, 'b> ToAst<'a, 'b> {
   fn new(arena: &'b mut Arena<'a>) -> Self {
     Self {
       arena,
@@ -83,13 +83,13 @@ impl<'a, 'b> AstEmit<'a, 'b> {
   }
 }
 
-impl<'a, 'b> parse::Emit for AstEmit<'a, 'b> {
-  fn emit_variable(&mut self, symbol: &[u8]) {
+impl<'a, 'b> parse::Sink for ToAst<'a, 'b> {
+  fn on_variable(&mut self, symbol: &[u8]) {
     let x = Expr::Variable(self.copy_symbol(symbol));
     self.put_expr(x);
   }
 
-  fn emit_number(&mut self, x: &[u8]) {
+  fn on_number(&mut self, x: &[u8]) {
     let n =
       match i64::from_str_radix(str::from_utf8(x).unwrap(), 10) {
         Err(_) => {
@@ -101,7 +101,7 @@ impl<'a, 'b> parse::Emit for AstEmit<'a, 'b> {
     self.put_expr(Expr::Int(n));
   }
 
-  fn emit_ternary(&mut self) {
+  fn on_ternary(&mut self) {
     let y = self.pop_expr();
     let x = self.pop_expr();
     let p = self.pop_expr();
@@ -109,72 +109,72 @@ impl<'a, 'b> parse::Emit for AstEmit<'a, 'b> {
     self.put_expr(x);
   }
 
-  fn emit_or(&mut self) {
+  fn on_or(&mut self) {
     let y = self.pop_expr();
     let x = self.pop_expr();
     let x = Expr::Or(self.alloc((x, y)));
     self.put_expr(x);
   }
 
-  fn emit_and(&mut self) {
+  fn on_and(&mut self) {
     let y = self.pop_expr();
     let x = self.pop_expr();
     let x = Expr::And(self.alloc((x, y)));
     self.put_expr(x);
   }
 
-  fn emit_op1(&mut self, op: Op1) {
+  fn on_op1(&mut self, op: Op1) {
     let x = self.pop_expr();
     let x = Expr::Op1(self.alloc((op, x)));
     self.put_expr(x);
   }
 
-  fn emit_op2(&mut self, op: Op2) {
+  fn on_op2(&mut self, op: Op2) {
     let y = self.pop_expr();
     let x = self.pop_expr();
     let x = Expr::Op2(self.alloc((op, x, y)));
     self.put_expr(x);
   }
 
-  fn emit_field(&mut self, symbol: &[u8]) {
+  fn on_field(&mut self, symbol: &[u8]) {
     let symbol = self.copy_symbol(symbol);
     let x = self.pop_expr();
     let x = Expr::Field(self.alloc((symbol, x)));
     self.put_expr(x);
   }
 
-  fn emit_index(&mut self) {
+  fn on_index(&mut self) {
     let i = self.pop_expr();
     let x = self.pop_expr();
     let x = Expr::Index(self.alloc((x, i)));
     self.put_expr(x);
   }
 
-  fn emit_call(&mut self, arity: usize) {
+  fn on_call(&mut self, arity: usize) {
     let x = self.pop_expr_multi(arity);
     let f = self.pop_expr();
     let x = Expr::Call(self.alloc((f, x)));
     self.put_expr(x);
   }
 
-  fn emit_let(&mut self, symbol: &[u8]) {
+  fn on_let(&mut self, symbol: &[u8]) {
     let symbol = self.copy_symbol(symbol);
     let x = self.pop_expr();
     let x = Stmt::Let(self.alloc((symbol, x)));
     self.put_stmt(x);
   }
 
-  fn emit_stmt_expr(&mut self) {
+  fn on_stmt_expr(&mut self) {
     let x = self.pop_expr();
     self.put_stmt(Stmt::Expr(x));
   }
 
-  fn emit_error_missing_expected_token(&mut self, token: Token) {
+  fn on_error_missing_expected_token(&mut self, token: Token) {
     let _ = token;
     // TODO: accumulate errors
   }
 
-  fn emit_error_missing_expr(&mut self) {
+  fn on_error_missing_expr(&mut self) {
     // TODO: accumulate errors
     self.put_expr(Expr::Undefined);
   }

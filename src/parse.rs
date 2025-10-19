@@ -4,41 +4,41 @@ use crate::op2::Op2;
 use crate::sexp::Sexp;
 use crate::token::Token;
 
-pub trait Emit {
-  fn emit_variable(&mut self, symbol: &[u8]);
+pub trait Sink {
+  fn on_variable(&mut self, symbol: &[u8]);
 
-  fn emit_number(&mut self, number: &[u8]);
+  fn on_number(&mut self, number: &[u8]);
 
-  fn emit_ternary(&mut self);
+  fn on_ternary(&mut self);
 
-  fn emit_or(&mut self);
+  fn on_or(&mut self);
 
-  fn emit_and(&mut self);
+  fn on_and(&mut self);
 
-  fn emit_op1(&mut self, op: Op1);
+  fn on_op1(&mut self, op: Op1);
 
-  fn emit_op2(&mut self, op: Op2);
+  fn on_op2(&mut self, op: Op2);
 
-  fn emit_field(&mut self, symbol: &[u8]);
+  fn on_field(&mut self, symbol: &[u8]);
 
-  fn emit_index(&mut self);
+  fn on_index(&mut self);
 
-  fn emit_call(&mut self, arity: usize);
+  fn on_call(&mut self, arity: usize);
 
-  fn emit_let(&mut self, symbol: &[u8]);
+  fn on_let(&mut self, symbol: &[u8]);
 
-  fn emit_stmt_expr(&mut self);
+  fn on_stmt_expr(&mut self);
 
-  fn emit_error_missing_expected_token(&mut self, token: Token);
+  fn on_error_missing_expected_token(&mut self, token: Token);
 
-  fn emit_error_missing_expr(&mut self);
+  fn on_error_missing_expr(&mut self);
 }
 
-pub fn parse_expr<'a, E: Emit>(t: &mut Lexer<'a>, o: &mut E) {
+pub fn parse_expr<'a, S: Sink>(t: &mut Lexer<'a>, o: &mut S) {
   return parse_prec(t, o, 0x00);
 }
 
-pub fn parse_stmt<'a, E: Emit>(t: &mut Lexer<'a>, o: &mut E) {
+pub fn parse_stmt<'a, S: Sink>(t: &mut Lexer<'a>, o: &mut S) {
   match t.token() {
     Token::Let => {
       // TODO: multiple value bind
@@ -46,26 +46,26 @@ pub fn parse_stmt<'a, E: Emit>(t: &mut Lexer<'a>, o: &mut E) {
       let symbol = expect_symbol(t, o);
       expect(t, o, Token::Equal);
       parse_expr(t, o);
-      o.emit_let(symbol);
+      o.on_let(symbol);
     }
     _ => {
       parse_expr(t, o);
-      o.emit_stmt_expr();
+      o.on_stmt_expr();
     }
   }
 }
 
-fn expect<'a, E: Emit>(t: &mut Lexer<'a>, o: &mut E, token: Token) {
+fn expect<'a, S: Sink>(t: &mut Lexer<'a>, o: &mut S, token: Token) {
   if t.token() != token {
-    o.emit_error_missing_expected_token(token);
+    o.on_error_missing_expected_token(token);
   } else {
     t.next();
   }
 }
 
-fn expect_symbol<'a, E: Emit>(t: &mut Lexer<'a>, o: &mut E) -> &'a [u8] {
+fn expect_symbol<'a, S: Sink>(t: &mut Lexer<'a>, o: &mut S) -> &'a [u8] {
   if t.token() != Token::Symbol {
-    o.emit_error_missing_expected_token(Token::Symbol);
+    o.on_error_missing_expected_token(Token::Symbol);
     return b"!!!";
   } else {
     let symbol = t.token_span();
@@ -74,7 +74,7 @@ fn expect_symbol<'a, E: Emit>(t: &mut Lexer<'a>, o: &mut E) -> &'a [u8] {
   }
 }
 
-fn parse_prec<'a, E: Emit>(t: &mut Lexer<'a>, o: &mut E, n: usize) {
+fn parse_prec<'a, S: Sink>(t: &mut Lexer<'a>, o: &mut S, n: usize) {
   // TODO: parse black structured expressions, like
   //
   //   [expr] = if (...) { ... } else { ... }
@@ -90,25 +90,25 @@ fn parse_prec<'a, E: Emit>(t: &mut Lexer<'a>, o: &mut E, n: usize) {
     Token::Number => {
       let number = t.token_span();
       t.next();
-      o.emit_number(number);
+      o.on_number(number);
     }
     Token::Symbol => {
       let symbol = t.token_span();
       t.next();
-      o.emit_variable(symbol);
+      o.on_variable(symbol);
     }
     Token::Hyphen => {
       t.next();
       parse_prec(t, o, 0xff);
-      o.emit_op1(Op1::Neg);
+      o.on_op1(Op1::Neg);
     }
     Token::Not => {
       t.next();
       parse_prec(t, o, 0xff);
-      o.emit_op1(Op1::Not);
+      o.on_op1(Op1::Not);
     }
     _ => {
-      o.emit_error_missing_expr();
+      o.on_error_missing_expr();
     }
   }
 
@@ -119,114 +119,114 @@ fn parse_prec<'a, E: Emit>(t: &mut Lexer<'a>, o: &mut E, n: usize) {
         parse_expr(t, o);
         expect(t, o, Token::Colon);
         parse_prec(t, o, 0x10);
-        o.emit_ternary();
+        o.on_ternary();
       }
       Token::Or if n <= 0x20 => {
         t.next();
         parse_prec(t, o, 0x21);
-        o.emit_or();
+        o.on_or();
       }
       Token::And if n <= 0x30 => {
         t.next();
         parse_prec(t, o, 0x31);
-        o.emit_and();
+        o.on_and();
       }
       Token::CmpEq if n <= 0x40 => {
         t.next();
         parse_prec(t, o, 0x41);
-        o.emit_op2(Op2::CmpEq);
+        o.on_op2(Op2::CmpEq);
       }
       Token::CmpGe if n <= 0x40 => {
         t.next();
         parse_prec(t, o, 0x41);
-        o.emit_op2(Op2::CmpGe);
+        o.on_op2(Op2::CmpGe);
       }
       Token::CmpGt if n <= 0x40 => {
         t.next();
         parse_prec(t, o, 0x41);
-        o.emit_op2(Op2::CmpGt);
+        o.on_op2(Op2::CmpGt);
       }
       Token::CmpLe if n <= 0x40 => {
         t.next();
         parse_prec(t, o, 0x41);
-        o.emit_op2(Op2::CmpLe);
+        o.on_op2(Op2::CmpLe);
       }
       Token::CmpLt if n <= 0x40 => {
         t.next();
         parse_prec(t, o, 0x41);
-        o.emit_op2(Op2::CmpLt);
+        o.on_op2(Op2::CmpLt);
       }
       Token::CmpNe if n <= 0x40 => {
         t.next();
         parse_prec(t, o, 0x41);
-        o.emit_op2(Op2::CmpNe);
+        o.on_op2(Op2::CmpNe);
       }
       Token::BitOr if n <= 0x50 => {
         t.next();
         parse_prec(t, o, 0x51);
-        o.emit_op2(Op2::BitOr);
+        o.on_op2(Op2::BitOr);
       }
       Token::BitXor if n <= 0x60 => {
         t.next();
         parse_prec(t, o, 0x61);
-        o.emit_op2(Op2::BitXor);
+        o.on_op2(Op2::BitXor);
       }
       Token::BitAnd if n <= 0x70 => {
         t.next();
         parse_prec(t, o, 0x71);
-        o.emit_op2(Op2::BitAnd);
+        o.on_op2(Op2::BitAnd);
       }
       Token::Shl if n <= 0x80 => {
         t.next();
         parse_prec(t, o, 0x81);
-        o.emit_op2(Op2::Shl);
+        o.on_op2(Op2::Shl);
       }
       Token::Shr if n <= 0x80 => {
         t.next();
         parse_prec(t, o, 0x81);
-        o.emit_op2(Op2::Shr);
+        o.on_op2(Op2::Shr);
       }
       Token::Add if n <= 0x90 => {
         t.next();
         parse_prec(t, o, 0x91);
-        o.emit_op2(Op2::Add);
+        o.on_op2(Op2::Add);
       }
       Token::Hyphen if n <= 0x90 => {
         t.next();
         parse_prec(t, o, 0x91);
-        o.emit_op2(Op2::Sub);
+        o.on_op2(Op2::Sub);
       }
       Token::Div if n <= 0xA0 => {
         t.next();
         parse_prec(t, o, 0xA1);
-        o.emit_op2(Op2::Div);
+        o.on_op2(Op2::Div);
       }
       Token::Mul if n <= 0xA0 => {
         t.next();
         parse_prec(t, o, 0xA1);
-        o.emit_op2(Op2::Mul);
+        o.on_op2(Op2::Mul);
       }
       Token::Rem if n <= 0xA0 => {
         t.next();
         parse_prec(t, o, 0xA1);
-        o.emit_op2(Op2::Rem);
+        o.on_op2(Op2::Rem);
       }
       Token::Field if t.token_is_attached() => {
         let symbol = &t.token_span()[1 ..];
         t.next();
-        o.emit_field(symbol);
+        o.on_field(symbol);
       }
       Token::LBracket if t.token_is_attached() => {
         t.next();
         parse_expr(t, o);
         expect(t, o, Token::RBracket);
-        o.emit_index();
+        o.on_index();
       }
       Token::LParen if t.token_is_attached() => {
         t.next();
         if t.token() == Token::RParen {
           t.next();
-          o.emit_call(0);
+          o.on_call(0);
         } else {
           let mut arity = 0;
           loop {
@@ -236,7 +236,7 @@ fn parse_prec<'a, E: Emit>(t: &mut Lexer<'a>, o: &mut E, n: usize) {
             t.next();
           }
           expect(t, o, Token::RParen);
-          o.emit_call(arity);
+          o.on_call(arity);
         }
       }
       _ => {
@@ -246,21 +246,21 @@ fn parse_prec<'a, E: Emit>(t: &mut Lexer<'a>, o: &mut E, n: usize) {
   }
 }
 
-struct EmitSexp(Vec<Sexp>);
+struct ToSexp(Vec<Sexp>);
 
 pub fn parse_expr_sexp(source: &str) -> Sexp {
-  let mut o = EmitSexp::new();
+  let mut o = ToSexp::new();
   parse_expr(&mut Lexer::new(source.as_bytes()), &mut o);
   return o.pop();
 }
 
 pub fn parse_stmt_sexp(source: &str) -> Sexp {
-  let mut o = EmitSexp::new();
+  let mut o = ToSexp::new();
   parse_stmt(&mut Lexer::new(source.as_bytes()), &mut o);
   return o.pop();
 }
 
-impl EmitSexp {
+impl ToSexp {
   fn new() -> Self {
     Self(Vec::new())
   }
@@ -278,74 +278,74 @@ impl EmitSexp {
   }
 }
 
-impl Emit for EmitSexp {
-  fn emit_variable(&mut self, x: &[u8]) {
+impl Sink for ToSexp {
+  fn on_variable(&mut self, x: &[u8]) {
     self.put(Sexp::from_bytes(x));
   }
 
-  fn emit_number(&mut self, x: &[u8]) {
+  fn on_number(&mut self, x: &[u8]) {
     self.put(Sexp::from_bytes(x));
   }
 
-  fn emit_ternary(&mut self) {
+  fn on_ternary(&mut self) {
     let y = self.pop();
     let x = self.pop();
     let p = self.pop();
     self.put(Sexp::from_array([Sexp::from_bytes(b"?:"), p, x, y]));
   }
 
-  fn emit_or(&mut self) {
+  fn on_or(&mut self) {
     let y = self.pop();
     let x = self.pop();
     self.put(Sexp::from_array([Sexp::from_bytes(b"||"), x, y]));
   }
 
-  fn emit_and(&mut self) {
+  fn on_and(&mut self) {
     let y = self.pop();
     let x = self.pop();
     self.put(Sexp::from_array([Sexp::from_bytes(b"&&"), x, y]));
   }
 
-  fn emit_op1(&mut self, op: Op1) {
+  fn on_op1(&mut self, op: Op1) {
     let x = self.pop();
     self.put(Sexp::from_array([Sexp::from_bytes(op.as_str().as_bytes()), x]));
   }
 
-  fn emit_op2(&mut self, op: Op2) {
+  fn on_op2(&mut self, op: Op2) {
     let y = self.pop();
     let x = self.pop();
     self.put(Sexp::from_array([Sexp::from_bytes(op.as_str().as_bytes()), x, y]));
   }
 
-  fn emit_field(&mut self, symbol: &[u8]) {
+  fn on_field(&mut self, symbol: &[u8]) {
     let x = self.pop();
     self.put(Sexp::from_array([Sexp::from_bytes(symbol), x]));
   }
 
-  fn emit_index(&mut self) {
+  fn on_index(&mut self) {
     let i = self.pop();
     let x = self.pop();
     self.put(Sexp::from_array([Sexp::from_bytes(b"[]"), x, i]));
   }
 
-  fn emit_call(&mut self, arity: usize) {
+  fn on_call(&mut self, arity: usize) {
     let x = self.pop_multi(1 + arity);
     self.put(Sexp::List(x));
   }
 
-  fn emit_let(&mut self, symbol: &[u8]) {
+  fn on_let(&mut self, symbol: &[u8]) {
     let x = self.pop();
     self.put(Sexp::from_array([Sexp::from_bytes(b"let"), Sexp::from_bytes(symbol), x]));
   }
 
-  fn emit_stmt_expr(&mut self) {
+  fn on_stmt_expr(&mut self) {
     // put(pop())
   }
 
-  fn emit_error_missing_expected_token(&mut self, _: Token) {
+  fn on_error_missing_expected_token(&mut self, _: Token) {
   }
 
-  fn emit_error_missing_expr(&mut self) {
+  fn on_error_missing_expr(&mut self) {
     self.put(Sexp::from_bytes(b"undefined"));
   }
 }
