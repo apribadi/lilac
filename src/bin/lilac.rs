@@ -12,7 +12,19 @@ fn compile(source: &str) {
   print!("\n");
 }
 
+fn parse_expr(source: &str) {
+  print!("{}\n", lilac::parse::parse_expr_sexp(source.as_bytes()));
+}
+
+fn parse_stmt(source: &str) {
+  print!("{}\n", lilac::parse::parse_stmt_sexp(source.as_bytes()));
+}
+
 fn main() {
+  parse_expr("1 * 2 + 3");
+  parse_expr("1 + 2 * 3");
+  parse_stmt("1 * 2 + 3");
+
   compile("1 + 2 * 3 != 4");
   compile("f(1, 2 + g(4), 3) != x");
   compile("f(1, 2 + g(4), 3)");
