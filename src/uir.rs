@@ -23,6 +23,7 @@ pub enum Inst {
   TailCall(Value),
   ConstBool(bool),
   ConstInt(i64),
+  DefLocal(Value),
   Field(Value, Symbol),
   Global(Symbol),
   Index(Value, Value),
@@ -32,7 +33,6 @@ pub enum Inst {
   SetField(Value, Symbol, Value),
   SetIndex(Value, Value, Value),
   SetLocal(Value, Value),
-  Var(Value), // InitLocal?
   Undefined,
 }
 
@@ -49,6 +49,7 @@ impl std::fmt::Display for Inst {
       Self::TailCall(x) => write!(f, "TAILCALL %{}", x),
       Self::ConstBool(p) => write!(f, "= {}", p),
       Self::ConstInt(n) => write!(f, "= {}", n),
+      Self::DefLocal(x) => write!(f, "= DEFLOCAL%{}", x),
       Self::Field(x, s) => write!(f, "= %{} .{}", x, s),
       Self::Global(s) => write!(f, "= {}", s),
       Self::Index(x, y) => write!(f, "= %{} [ %{} ]", x, y),
@@ -58,7 +59,6 @@ impl std::fmt::Display for Inst {
       Self::SetField(x, s, y) => write!(f, "%{} .{} <- %{}", x, s, y),
       Self::SetIndex(x, i, y) => write!(f, "%{} [ %{} ] <- %{}", x, i, y),
       Self::SetLocal(v, x) => write!(f, "[ %{} ] <- %{}", v, x),
-      Self::Var(x) => write!(f, "= VAR %{}", x),
       Self::Undefined => write!(f, "= UNDEFINED"),
     }
   }
