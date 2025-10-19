@@ -1,9 +1,9 @@
-use oxcart::Arena;
-use crate::parse;
-use crate::token::Token;
 use crate::lexer::Lexer;
 use crate::op1::Op1;
 use crate::op2::Op2;
+use crate::parse;
+use crate::token::Token;
+use oxcart::Arena;
 
 #[derive(Clone, Copy, Debug)]
 pub enum Expr<'a> {

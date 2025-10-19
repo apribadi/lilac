@@ -14,7 +14,6 @@ fn compile(source: &str) {
 
 fn main() {
   compile("1 + 2 * 3 != 4");
-  /*
   compile("f(1, 2 + g(4), 3) != x");
   compile("f(1, 2 + g(4), 3)");
   compile("x == y && f(1, 2, 3)");
@@ -23,7 +22,6 @@ fn main() {
   compile("(1 + 2).foofoofoofoo != 2");
   compile("1 == 1 && 2 != 2");
   compile("! (1 == 1 && 2 != 2)");
-  */
 }
 
 /*
