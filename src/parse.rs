@@ -25,9 +25,15 @@ pub trait Sink {
 
   fn on_call(&mut self, arity: usize);
 
+  fn on_stmt_expr(&mut self);
+
   fn on_let(&mut self, symbol: &[u8]);
 
-  fn on_stmt_expr(&mut self);
+  fn on_set(&mut self, symbol: &[u8]);
+
+  fn on_set_field(&mut self, symbol: &[u8]);
+
+  fn on_set_index(&mut self);
 
   fn on_error_missing_expected_token(&mut self, token: Token);
 
@@ -94,7 +100,14 @@ fn parse_prec<'a, S: Sink>(t: &mut Lexer<'a>, o: &mut S, n: usize, is_stmt: bool
     Token::Symbol => {
       let symbol = t.token_span();
       t.next();
-      o.on_variable(symbol);
+      if is_stmt && t.token() == Token::Set {
+        t.next();
+        parse_expr(t, o);
+        o.on_set(symbol);
+        return;
+      } else {
+        o.on_variable(symbol);
+      }
     }
     Token::Hyphen => {
       t.next();
@@ -213,7 +226,14 @@ fn parse_prec<'a, S: Sink>(t: &mut Lexer<'a>, o: &mut S, n: usize, is_stmt: bool
       Token::Field if t.token_is_attached() => {
         let symbol = &t.token_span()[1 ..];
         t.next();
-        o.on_field(symbol);
+        if is_stmt && t.token() == Token::Set {
+          t.next();
+          parse_expr(t, o);
+          o.on_set_field(symbol);
+          return;
+        } else {
+          o.on_field(symbol);
+        }
       }
       Token::LBracket if t.token_is_attached() => {
         t.next();
@@ -321,7 +341,7 @@ impl Sink for ToSexp {
 
   fn on_field(&mut self, symbol: &[u8]) {
     let x = self.pop();
-    self.put(Sexp::from_array([Sexp::from_bytes(symbol), x]));
+    self.put(Sexp::from_array([Sexp::from_bytes(b"field"), Sexp::from_bytes(symbol), x]));
   }
 
   fn on_index(&mut self) {
@@ -335,15 +355,33 @@ impl Sink for ToSexp {
     self.put(Sexp::List(x));
   }
 
+  fn on_stmt_expr(&mut self) {
+    let x = self.pop();
+    self.put(Sexp::from_array([Sexp::from_bytes(b"expr"), x]));
+    // put(pop())
+  }
+
   fn on_let(&mut self, symbol: &[u8]) {
     let x = self.pop();
     self.put(Sexp::from_array([Sexp::from_bytes(b"let"), Sexp::from_bytes(symbol), x]));
   }
 
-  fn on_stmt_expr(&mut self) {
+  fn on_set(&mut self, symbol: &[u8]) {
     let x = self.pop();
-    self.put(Sexp::from_array([Sexp::from_bytes(b"expr"), x]));
-    // put(pop())
+    self.put(Sexp::from_array([Sexp::from_bytes(b"set"), Sexp::from_bytes(symbol), x]));
+  }
+
+  fn on_set_field(&mut self, symbol: &[u8]) {
+    let y = self.pop();
+    let x = self.pop();
+    self.put(Sexp::from_array([Sexp::from_bytes(b"set_field"), Sexp::from_bytes(symbol), x, y]));
+  }
+
+  fn on_set_index(&mut self) {
+    let y = self.pop();
+    let i = self.pop();
+    let x = self.pop();
+    self.put(Sexp::from_array([Sexp::from_bytes(b"set_index"), x, i, y]));
   }
 
   fn on_error_missing_expected_token(&mut self, _: Token) {

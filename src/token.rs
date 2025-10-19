@@ -35,6 +35,7 @@ pub enum Token {
   CmpLe,           // <=
   CmpNe,           // !=
   Or,              // ||
+  Set,             // <-
   Shl,             // <<
   Shr,             // >>
   Underscore,      // _

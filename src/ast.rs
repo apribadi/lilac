@@ -24,6 +24,9 @@ pub enum Expr<'a> {
 pub enum Stmt<'a> {
   Expr(Expr<'a>),
   Let(&'a (&'a [u8], Expr<'a>)),
+  Set(&'a (&'a [u8], Expr<'a>)),
+  SetField(&'a (&'a [u8], Expr<'a>, Expr<'a>)),
+  SetIndex(&'a (Expr<'a>, Expr<'a>, Expr<'a>)),
 }
 
 pub fn parse_expr<'a>(source: &[u8], arena: &mut Arena<'a>) -> Expr<'a> {
@@ -157,6 +160,11 @@ impl<'a, 'b> parse::Sink for ToAst<'a, 'b> {
     self.put_expr(x);
   }
 
+  fn on_stmt_expr(&mut self) {
+    let x = self.pop_expr();
+    self.put_stmt(Stmt::Expr(x));
+  }
+
   fn on_let(&mut self, symbol: &[u8]) {
     let symbol = self.copy_symbol(symbol);
     let x = self.pop_expr();
@@ -164,9 +172,27 @@ impl<'a, 'b> parse::Sink for ToAst<'a, 'b> {
     self.put_stmt(x);
   }
 
-  fn on_stmt_expr(&mut self) {
+  fn on_set(&mut self, symbol: &[u8]) {
+    let symbol = self.copy_symbol(symbol);
     let x = self.pop_expr();
-    self.put_stmt(Stmt::Expr(x));
+    let x = Stmt::Set(self.alloc((symbol, x)));
+    self.put_stmt(x);
+  }
+
+  fn on_set_field(&mut self, symbol: &[u8]) {
+    let symbol = self.copy_symbol(symbol);
+    let y = self.pop_expr();
+    let x = self.pop_expr();
+    let x = Stmt::SetField(self.alloc((symbol, x, y)));
+    self.put_stmt(x);
+  }
+
+  fn on_set_index(&mut self) {
+    let y = self.pop_expr();
+    let i = self.pop_expr();
+    let x = self.pop_expr();
+    let x = Stmt::SetIndex(self.alloc((x, i, y)));
+    self.put_stmt(x);
   }
 
   fn on_error_missing_expected_token(&mut self, token: Token) {

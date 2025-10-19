@@ -199,6 +199,7 @@ impl<'a> Lexer<'a> {
             b"<=" => Token::CmpLe,
             b"!=" => Token::CmpNe,
             b"||" => Token::Or,
+            b"<-" => Token::Set,
             b"<<" => Token::Shl,
             b">>" => Token::Shr,
             _ => Token::Error,
