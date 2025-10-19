@@ -84,7 +84,7 @@ fn compile_expr<'a>(t: &mut Env, o: &mut Code, x: Expr<'a>) -> u32 {
     }
     Expr::Field(&(x, s)) => {
       let x = compile_expr(t, o, x);
-      return o.put(Inst::Field(Symbol::from_bytes(s), x));
+      return o.put(Inst::Field(x, Symbol::from_bytes(s)));
     }
     Expr::Index(&(x, i)) => {
       let x = compile_expr(t, o, x);
