@@ -246,88 +246,86 @@ fn parse_prec<'a, E: Emit>(t: &mut Lexer<'a>, o: &mut E, n: usize) {
   }
 }
 
-struct EmitSexp {
-  sexps: Vec<Sexp>,
-}
+struct EmitSexp(Vec<Sexp>);
 
 pub fn parse_expr_sexp(source: &str) -> Sexp {
-  let mut e = EmitSexp::new();
-  parse_expr(&mut Lexer::new(source.as_bytes()), &mut e);
-  return e.pop();
+  let mut o = EmitSexp::new();
+  parse_expr(&mut Lexer::new(source.as_bytes()), &mut o);
+  return o.pop();
 }
 
 pub fn parse_stmt_sexp(source: &str) -> Sexp {
-  let mut e = EmitSexp::new();
-  parse_stmt(&mut Lexer::new(source.as_bytes()), &mut e);
-  return e.pop();
+  let mut o = EmitSexp::new();
+  parse_stmt(&mut Lexer::new(source.as_bytes()), &mut o);
+  return o.pop();
 }
 
 impl EmitSexp {
   fn new() -> Self {
-    Self { sexps: Vec::new() }
+    Self(Vec::new())
   }
 
   fn put(&mut self, x: Sexp) {
-    self.sexps.push(x);
+    self.0.push(x);
   }
 
   fn pop(&mut self) -> Sexp {
-    return self.sexps.pop().unwrap();
+    return self.0.pop().unwrap();
   }
 
   fn pop_multi(&mut self, n: usize) -> Box<[Sexp]> {
-    return self.sexps.split_off(self.sexps.len() - n).into_boxed_slice();
+    return self.0.split_off(self.0.len() - n).into_boxed_slice();
   }
 }
 
 impl Emit for EmitSexp {
   fn emit_variable(&mut self, x: &[u8]) {
-    self.put(Sexp::atom(x));
+    self.put(Sexp::from_bytes(x));
   }
 
   fn emit_number(&mut self, x: &[u8]) {
-    self.put(Sexp::atom(x));
+    self.put(Sexp::from_bytes(x));
   }
 
   fn emit_ternary(&mut self) {
     let y = self.pop();
     let x = self.pop();
     let p = self.pop();
-    self.put(Sexp::from_array([Sexp::atom(b"?:"), p, x, y]));
+    self.put(Sexp::from_array([Sexp::from_bytes(b"?:"), p, x, y]));
   }
 
   fn emit_or(&mut self) {
     let y = self.pop();
     let x = self.pop();
-    self.put(Sexp::from_array([Sexp::atom(b"||"), x, y]));
+    self.put(Sexp::from_array([Sexp::from_bytes(b"||"), x, y]));
   }
 
   fn emit_and(&mut self) {
     let y = self.pop();
     let x = self.pop();
-    self.put(Sexp::from_array([Sexp::atom(b"&&"), x, y]));
+    self.put(Sexp::from_array([Sexp::from_bytes(b"&&"), x, y]));
   }
 
   fn emit_op1(&mut self, op: Op1) {
     let x = self.pop();
-    self.put(Sexp::from_array([Sexp::atom(op.as_str().as_bytes()), x]));
+    self.put(Sexp::from_array([Sexp::from_bytes(op.as_str().as_bytes()), x]));
   }
 
   fn emit_op2(&mut self, op: Op2) {
     let y = self.pop();
     let x = self.pop();
-    self.put(Sexp::from_array([Sexp::atom(op.as_str().as_bytes()), x, y]));
+    self.put(Sexp::from_array([Sexp::from_bytes(op.as_str().as_bytes()), x, y]));
   }
 
   fn emit_field(&mut self, symbol: &[u8]) {
     let x = self.pop();
-    self.put(Sexp::from_array([Sexp::atom(symbol), x]));
+    self.put(Sexp::from_array([Sexp::from_bytes(symbol), x]));
   }
 
   fn emit_index(&mut self) {
     let i = self.pop();
     let x = self.pop();
-    self.put(Sexp::from_array([Sexp::atom(b"[]"), x, i]));
+    self.put(Sexp::from_array([Sexp::from_bytes(b"[]"), x, i]));
   }
 
   fn emit_call(&mut self, arity: usize) {
@@ -337,7 +335,7 @@ impl Emit for EmitSexp {
 
   fn emit_let(&mut self, symbol: &[u8]) {
     let x = self.pop();
-    self.put(Sexp::from_array([Sexp::atom(b"let"), Sexp::atom(symbol), Sexp::atom(b"="), x]));
+    self.put(Sexp::from_array([Sexp::from_bytes(b"let"), Sexp::from_bytes(symbol), x]));
   }
 
   fn emit_stmt_expr(&mut self) {
@@ -348,6 +346,6 @@ impl Emit for EmitSexp {
   }
 
   fn emit_error_missing_expr(&mut self) {
-    self.put(Sexp::atom(b"undefined"));
+    self.put(Sexp::from_bytes(b"undefined"));
   }
 }

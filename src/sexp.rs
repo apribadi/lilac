@@ -4,13 +4,12 @@ pub enum Sexp {
 }
 
 impl Sexp {
-  pub fn atom(x: &[u8]) -> Self {
+  pub fn from_bytes(x: &[u8]) -> Self {
     Self::Atom(Box::from(x))
   }
 
   pub fn from_array<const N: usize>(x: [Self; N]) -> Self {
-    let x: Box<[Self]> = Box::from(x);
-    Self::List(x)
+    Self::List(Box::from(x))
   }
 }
 
