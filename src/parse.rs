@@ -337,18 +337,21 @@ impl Sink for ToSexp {
 
   fn on_op1(&mut self, op: Op1) {
     let x = self.pop();
-    self.put(Sexp::from_array([Sexp::from_bytes(op.as_str().as_bytes()), x]));
+    let op = Sexp::from_bytes(op.as_str().as_bytes());
+    self.put(Sexp::from_array([op, x]));
   }
 
   fn on_op2(&mut self, op: Op2) {
     let y = self.pop();
     let x = self.pop();
-    self.put(Sexp::from_array([Sexp::from_bytes(op.as_str().as_bytes()), x, y]));
+    let op = Sexp::from_bytes(op.as_str().as_bytes());
+    self.put(Sexp::from_array([op, x, y]));
   }
 
   fn on_field(&mut self, symbol: &[u8]) {
+    let s = Sexp::from_bytes(format!(".{}", str::from_utf8(symbol).unwrap()).as_bytes());
     let x = self.pop();
-    self.put(Sexp::from_array([Sexp::from_bytes(b"field"), Sexp::from_bytes(symbol), x]));
+    self.put(Sexp::from_array([s, x]));
   }
 
   fn on_index(&mut self) {
@@ -364,31 +367,33 @@ impl Sink for ToSexp {
 
   fn on_stmt_expr(&mut self) {
     let x = self.pop();
-    self.put(Sexp::from_array([Sexp::from_bytes(b"expr"), x]));
-    // put(pop())
+    self.put(Sexp::from_array([Sexp::from_bytes(b"$"), x]));
   }
 
   fn on_let(&mut self, symbol: &[u8]) {
     let x = self.pop();
-    self.put(Sexp::from_array([Sexp::from_bytes(b"let"), Sexp::from_bytes(symbol), x]));
+    let s = Sexp::from_bytes(symbol);
+    self.put(Sexp::from_array([Sexp::from_bytes(b"let"), s, x]));
   }
 
   fn on_set(&mut self, symbol: &[u8]) {
     let x = self.pop();
-    self.put(Sexp::from_array([Sexp::from_bytes(b"set"), Sexp::from_bytes(symbol), x]));
+    let s = Sexp::from_bytes(symbol);
+    self.put(Sexp::from_array([Sexp::from_bytes(b"<-"), s, x]));
   }
 
   fn on_set_field(&mut self, symbol: &[u8]) {
+    let s = Sexp::from_bytes(format!(".{}<-", str::from_utf8(symbol).unwrap()).as_bytes());
     let y = self.pop();
     let x = self.pop();
-    self.put(Sexp::from_array([Sexp::from_bytes(b"set_field"), Sexp::from_bytes(symbol), x, y]));
+    self.put(Sexp::from_array([s, x, y]));
   }
 
   fn on_set_index(&mut self) {
     let y = self.pop();
     let i = self.pop();
     let x = self.pop();
-    self.put(Sexp::from_array([Sexp::from_bytes(b"set_index"), x, i, y]));
+    self.put(Sexp::from_array([Sexp::from_bytes(b"[]<-"), x, i, y]));
   }
 
   fn on_error_missing_expected_token(&mut self, _: Token) {

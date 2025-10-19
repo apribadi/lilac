@@ -9,7 +9,7 @@ use oxcart::Arena;
 pub enum Expr<'a> {
   And(&'a (Expr<'a>, Expr<'a>)),
   Call(&'a (Expr<'a>, &'a [Expr<'a>])),
-  Field(&'a (&'a [u8], Expr<'a>)),
+  Field(&'a (Expr<'a>, &'a [u8])),
   Index(&'a (Expr<'a>, Expr<'a>)),
   Int(i64),
   Op1(&'a (Op1, Expr<'a>)),
@@ -25,7 +25,7 @@ pub enum Stmt<'a> {
   Expr(Expr<'a>),
   Let(&'a (&'a [u8], Expr<'a>)),
   Set(&'a (&'a [u8], Expr<'a>)),
-  SetField(&'a (&'a [u8], Expr<'a>, Expr<'a>)),
+  SetField(&'a (Expr<'a>, &'a [u8], Expr<'a>)),
   SetIndex(&'a (Expr<'a>, Expr<'a>, Expr<'a>)),
 }
 
@@ -88,7 +88,8 @@ impl<'a, 'b> ToAst<'a, 'b> {
 
 impl<'a, 'b> parse::Sink for ToAst<'a, 'b> {
   fn on_variable(&mut self, symbol: &[u8]) {
-    let x = Expr::Variable(self.copy_symbol(symbol));
+    let s = self.copy_symbol(symbol);
+    let x = Expr::Variable(s);
     self.put_expr(x);
   }
 
@@ -140,9 +141,9 @@ impl<'a, 'b> parse::Sink for ToAst<'a, 'b> {
   }
 
   fn on_field(&mut self, symbol: &[u8]) {
-    let symbol = self.copy_symbol(symbol);
+    let s = self.copy_symbol(symbol);
     let x = self.pop_expr();
-    let x = Expr::Field(self.alloc((symbol, x)));
+    let x = Expr::Field(self.alloc((x, s)));
     self.put_expr(x);
   }
 
@@ -166,24 +167,24 @@ impl<'a, 'b> parse::Sink for ToAst<'a, 'b> {
   }
 
   fn on_let(&mut self, symbol: &[u8]) {
-    let symbol = self.copy_symbol(symbol);
+    let s = self.copy_symbol(symbol);
     let x = self.pop_expr();
-    let x = Stmt::Let(self.alloc((symbol, x)));
+    let x = Stmt::Let(self.alloc((s, x)));
     self.put_stmt(x);
   }
 
   fn on_set(&mut self, symbol: &[u8]) {
-    let symbol = self.copy_symbol(symbol);
+    let s = self.copy_symbol(symbol);
     let x = self.pop_expr();
-    let x = Stmt::Set(self.alloc((symbol, x)));
+    let x = Stmt::Set(self.alloc((s, x)));
     self.put_stmt(x);
   }
 
   fn on_set_field(&mut self, symbol: &[u8]) {
-    let symbol = self.copy_symbol(symbol);
+    let s = self.copy_symbol(symbol);
     let y = self.pop_expr();
     let x = self.pop_expr();
-    let x = Stmt::SetField(self.alloc((symbol, x, y)));
+    let x = Stmt::SetField(self.alloc((x, s, y)));
     self.put_stmt(x);
   }
 
