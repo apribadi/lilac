@@ -12,6 +12,7 @@ pub enum Expr<'a> {
   Field(&'a (Expr<'a>, &'a [u8])),
   Index(&'a (Expr<'a>, Expr<'a>)),
   Int(i64),
+  Loop(&'a [Stmt<'a>]),
   Op1(&'a (Op1, Expr<'a>)),
   Op2(&'a (Op2, Expr<'a>, Expr<'a>)),
   Or(&'a (Expr<'a>, Expr<'a>)),
@@ -23,6 +24,7 @@ pub enum Expr<'a> {
 #[derive(Clone, Copy, Debug)]
 pub enum Stmt<'a> {
   Expr(Expr<'a>),
+  Break(&'a [Expr<'a>]),
   Let(&'a [u8], Expr<'a>),
   Ret(&'a [Expr<'a>]),
   Set(&'a [u8], Expr<'a>),
@@ -31,26 +33,16 @@ pub enum Stmt<'a> {
   Var(&'a [u8], Expr<'a>),
 }
 
-#[derive(Clone, Copy, Debug)]
-pub struct Block<'a>(pub &'a [Stmt<'a>]);
-
 pub fn parse_expr<'a>(source: &[u8], arena: &mut Arena<'a>) -> Expr<'a> {
   let mut e = ToAst::new(arena);
   parse::parse_expr(&mut Lexer::new(source), &mut e);
   return e.pop_expr();
 }
 
-pub fn parse_block<'a>(source: &[u8], arena: &mut Arena<'a>) -> Block<'a> {
-  let mut e = ToAst::new(arena);
-  parse::parse_block(&mut Lexer::new(source), &mut e);
-  return e.pop_block();
-}
-
 struct ToAst<'a, 'b> {
   arena: &'b mut Arena<'a>,
   exprs: Vec<Expr<'a>>,
   stmts: Vec<Stmt<'a>>,
-  blocks: Vec<Block<'a>>,
 }
 
 impl<'a, 'b> ToAst<'a, 'b> {
@@ -59,7 +51,6 @@ impl<'a, 'b> ToAst<'a, 'b> {
       arena,
       exprs: Vec::new(),
       stmts: Vec::new(),
-      blocks: Vec::new(),
     }
   }
 
@@ -88,23 +79,9 @@ impl<'a, 'b> ToAst<'a, 'b> {
     self.stmts.push(x);
   }
 
-  /*
-  fn pop_stmt(&mut self) -> Stmt<'a> {
-    return self.stmts.pop().unwrap();
-  }
-  */
-
   fn pop_stmt_multi(&mut self, n: usize) -> &'a [Stmt<'a>] {
     let x = self.stmts.drain(self.stmts.len() - n ..);
     return self.arena.slice_from_iter(x);
-  }
-
-  fn put_block(&mut self, x: Block<'a>) {
-    self.blocks.push(x);
-  }
-
-  fn pop_block(&mut self) -> Block<'a> {
-    return self.blocks.pop().unwrap();
   }
 }
 
@@ -183,9 +160,20 @@ impl<'a, 'b> parse::Sink for ToAst<'a, 'b> {
     self.put_expr(x);
   }
 
+  fn on_loop(&mut self, n_stmts: usize) {
+    let x = self.pop_stmt_multi(n_stmts);
+    let x = Expr::Loop(x);
+    self.put_expr(x);
+  }
+
   fn on_stmt_expr(&mut self) {
     let x = self.pop_expr();
     self.put_stmt(Stmt::Expr(x));
+  }
+
+  fn on_break(&mut self, arity: usize) {
+    let x = self.pop_expr_multi(arity);
+    self.put_stmt(Stmt::Break(x));
   }
 
   fn on_let(&mut self, symbol: &[u8]) {
@@ -223,11 +211,6 @@ impl<'a, 'b> parse::Sink for ToAst<'a, 'b> {
     let s = self.copy_symbol(symbol);
     let x = self.pop_expr();
     self.put_stmt(Stmt::Var(s, x));
-  }
-
-  fn on_block(&mut self, n: usize) {
-    let x = self.pop_stmt_multi(n);
-    self.put_block(Block(x));
   }
 
   fn on_error_missing_expected_token(&mut self, token: Token) {

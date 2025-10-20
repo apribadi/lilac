@@ -1,4 +1,3 @@
-use crate::ast::Block;
 use crate::ast::Expr;
 use crate::ast::Stmt;
 use crate::symbol::Symbol;
@@ -50,14 +49,6 @@ pub fn compile<'a>(x: Expr<'a>) -> Vec<Inst> {
   return o.0;
 }
 
-pub fn compile2<'a>(x: Block<'a>) -> Vec<Inst> {
-  let mut t = Env::new();
-  let mut o = Code::new();
-
-  compile_block(&mut t, &mut o, x);
-  return o.0;
-}
-
 fn compile_expr<'a>(t: &mut Env, o: &mut Code, x: Expr<'a>) -> u32 {
   match x {
     Expr::And(&(x, y)) => {
@@ -103,6 +94,9 @@ fn compile_expr<'a>(t: &mut Env, o: &mut Code, x: Expr<'a>) -> u32 {
     }
     Expr::Int(n) => {
       return o.put(Inst::ConstInt(n));
+    }
+    Expr::Loop(_) => {
+      unimplemented!()
     }
     Expr::Op1(&(op, x)) => {
       let x = compile_expr(t, o, x);
@@ -182,6 +176,9 @@ fn compile_expr_tail<'a>(t: &mut Env, o: &mut Code, x: Expr<'a>) {
       }
       let _ = o.put(Inst::TailCall(f));
     }
+    Expr::Loop(_) => {
+      unimplemented!()
+    }
     Expr::Or(&(x, y)) => {
       let x = compile_expr(t, o, x);
       let i = o.put(Inst::Undefined); // Cond(x, a, b)
@@ -218,17 +215,3 @@ fn compile_expr_tail<'a>(t: &mut Env, o: &mut Code, x: Expr<'a>) {
   }
 }
 
-fn compile_block<'a>(t: &mut Env, o: &mut Code, x: Block<'a>) {
-  let _ = t;
-  let _ = o;
-  for &stmt in x.0.iter() {
-    match stmt {
-      Stmt::Expr(_) => {
-        unimplemented!()
-      }
-      _ => {
-        unimplemented!()
-      }
-    }
-  }
-}
