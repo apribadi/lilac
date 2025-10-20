@@ -230,7 +230,7 @@ impl<'a> Lexer<'a> {
                 b"if" => Token::If,
                 b"let" => Token::Let,
                 b"loop" => Token::Loop,
-                b"return" => Token::Ret,
+                b"return" => Token::Return,
                 b"var" => Token::Var,
                 b"while" => Token::While,
                 _ => Token::Symbol,

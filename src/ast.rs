@@ -26,7 +26,7 @@ pub enum Stmt<'a> {
   Expr(Expr<'a>),
   Break(&'a [Expr<'a>]),
   Let(&'a [u8], Expr<'a>),
-  Ret(&'a [Expr<'a>]),
+  Return(&'a [Expr<'a>]),
   Set(&'a [u8], Expr<'a>),
   SetField(Expr<'a>, &'a [u8], Expr<'a>),
   SetIndex(Expr<'a>, Expr<'a>, Expr<'a>),
@@ -182,9 +182,9 @@ impl<'a, 'b> parse::Sink for ToAst<'a, 'b> {
     self.put_stmt(Stmt::Let(s, x));
   }
 
-  fn on_ret(&mut self, arity: usize) {
+  fn on_return(&mut self, arity: usize) {
     let x = self.pop_expr_multi(arity);
-    self.put_stmt(Stmt::Ret(x));
+    self.put_stmt(Stmt::Return(x));
   }
 
   fn on_set(&mut self, symbol: &[u8]) {

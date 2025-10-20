@@ -33,7 +33,7 @@ pub trait Sink {
 
   fn on_let(&mut self, symbol: &[u8]);
 
-  fn on_ret(&mut self, arity: usize);
+  fn on_return(&mut self, arity: usize);
 
   fn on_set(&mut self, symbol: &[u8]);
 
@@ -296,10 +296,10 @@ fn parse_block<'a, S: Sink>(t: &mut Lexer<'a>, o: &mut S) -> usize {
         o.on_let(symbol);
         n_stmts += 1;
       }
-      Token::Ret => {
+      Token::Return => {
         t.next();
         let arity = parse_expr_list(t, o, Token::RBrace);
-        o.on_ret(arity);
+        o.on_return(arity);
         n_stmts += 1;
         expect(t, o, Token::RBrace);
         break;
@@ -441,7 +441,7 @@ impl Sink for ToSexp {
     self.put(Sexp::from_array([Sexp::from_bytes(b"let"), s, x]));
   }
 
-  fn on_ret(&mut self, arity: usize) {
+  fn on_return(&mut self, arity: usize) {
     let mut x = Vec::new();
     x.push(Sexp::from_bytes(b"ret"));
     x.extend(self.pop_multi(arity));
