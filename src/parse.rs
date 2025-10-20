@@ -409,9 +409,8 @@ impl Sink for ToSexp {
   }
 
   fn on_call(&mut self, arity: usize) {
-    let mut x = Vec::new();
-    x.extend(self.pop_multi(1 + arity));
-    self.put(Sexp::List(x.into_boxed_slice()));
+    let x = self.pop_multi(1 + arity).collect();
+    self.put(Sexp::List(x));
   }
 
   fn on_stmt_expr(&mut self) {
