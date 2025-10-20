@@ -443,7 +443,7 @@ impl Sink for ToSexp {
 
   fn on_return(&mut self, arity: usize) {
     let mut x = Vec::new();
-    x.push(Sexp::from_bytes(b"ret"));
+    x.push(Sexp::from_bytes(b"return"));
     x.extend(self.pop_multi(arity));
     self.put(Sexp::List(x.into_boxed_slice()));
   }

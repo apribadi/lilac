@@ -27,7 +27,7 @@ fn main() {
     }
   ");
 
-  // compile("x == y && f(z + 1)");
+  compile("x == y && f(z + 1)");
 }
 
   /*
