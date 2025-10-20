@@ -1,4 +1,6 @@
+use crate::ast::Block;
 use crate::ast::Expr;
+use crate::ast::Stmt;
 use crate::symbol::Symbol;
 use crate::uir::Inst;
 
@@ -45,6 +47,14 @@ pub fn compile<'a>(x: Expr<'a>) -> Vec<Inst> {
   let mut o = Code::new();
 
   compile_expr_tail(&mut t, &mut o, x);
+  return o.0;
+}
+
+pub fn compile2<'a>(x: Block<'a>) -> Vec<Inst> {
+  let mut t = Env::new();
+  let mut o = Code::new();
+
+  compile_block(&mut t, &mut o, x);
   return o.0;
 }
 
@@ -204,6 +214,21 @@ fn compile_expr_tail<'a>(t: &mut Env, o: &mut Code, x: Expr<'a>) {
       let x = compile_expr(t, o, x);
       let _ = o.put(Inst::Put(x));
       let _ = o.put(Inst::Ret);
+    }
+  }
+}
+
+fn compile_block<'a>(t: &mut Env, o: &mut Code, x: Block<'a>) {
+  let _ = t;
+  let _ = o;
+  for &stmt in x.0.iter() {
+    match stmt {
+      Stmt::Expr(_) => {
+        unimplemented!()
+      }
+      _ => {
+        unimplemented!()
+      }
     }
   }
 }

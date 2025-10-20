@@ -20,15 +20,19 @@ pub enum Expr<'a> {
   Variable(&'a [u8]),
 }
 
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 pub enum Stmt<'a> {
   Expr(Expr<'a>),
-  Let(&'a (&'a [u8], Expr<'a>)),
-  Set(&'a (&'a [u8], Expr<'a>)),
-  SetField(&'a (Expr<'a>, &'a [u8], Expr<'a>)),
-  SetIndex(&'a (Expr<'a>, Expr<'a>, Expr<'a>)),
-  Var(&'a (&'a [u8], Expr<'a>)),
+  Let(&'a [u8], Expr<'a>),
+  Ret(&'a [Expr<'a>]),
+  Set(&'a [u8], Expr<'a>),
+  SetField(Expr<'a>, &'a [u8], Expr<'a>),
+  SetIndex(Expr<'a>, Expr<'a>, Expr<'a>),
+  Var(&'a [u8], Expr<'a>),
 }
+
+#[derive(Clone, Copy, Debug)]
+pub struct Block<'a>(pub &'a [Stmt<'a>]);
 
 pub fn parse_expr<'a>(source: &[u8], arena: &mut Arena<'a>) -> Expr<'a> {
   let mut e = ToAst::new(arena);
@@ -36,16 +40,17 @@ pub fn parse_expr<'a>(source: &[u8], arena: &mut Arena<'a>) -> Expr<'a> {
   return e.pop_expr();
 }
 
-pub fn parse_stmt<'a>(source: &[u8], arena: &mut Arena<'a>) -> Stmt<'a> {
+pub fn parse_block<'a>(source: &[u8], arena: &mut Arena<'a>) -> Block<'a> {
   let mut e = ToAst::new(arena);
-  parse::parse_stmt(&mut Lexer::new(source), &mut e);
-  return e.pop_stmt();
+  parse::parse_block(&mut Lexer::new(source), &mut e);
+  return e.pop_block();
 }
 
 struct ToAst<'a, 'b> {
   arena: &'b mut Arena<'a>,
   exprs: Vec<Expr<'a>>,
   stmts: Vec<Stmt<'a>>,
+  blocks: Vec<Block<'a>>,
 }
 
 impl<'a, 'b> ToAst<'a, 'b> {
@@ -54,6 +59,7 @@ impl<'a, 'b> ToAst<'a, 'b> {
       arena,
       exprs: Vec::new(),
       stmts: Vec::new(),
+      blocks: Vec::new(),
     }
   }
 
@@ -82,8 +88,23 @@ impl<'a, 'b> ToAst<'a, 'b> {
     self.stmts.push(x);
   }
 
+  /*
   fn pop_stmt(&mut self) -> Stmt<'a> {
     return self.stmts.pop().unwrap();
+  }
+  */
+
+  fn pop_stmt_multi(&mut self, n: usize) -> &'a [Stmt<'a>] {
+    let x = self.stmts.drain(self.stmts.len() - n ..);
+    return self.arena.slice_from_iter(x);
+  }
+
+  fn put_block(&mut self, x: Block<'a>) {
+    self.blocks.push(x);
+  }
+
+  fn pop_block(&mut self) -> Block<'a> {
+    return self.blocks.pop().unwrap();
   }
 }
 
@@ -170,38 +191,43 @@ impl<'a, 'b> parse::Sink for ToAst<'a, 'b> {
   fn on_let(&mut self, symbol: &[u8]) {
     let s = self.copy_symbol(symbol);
     let x = self.pop_expr();
-    let x = Stmt::Let(self.alloc((s, x)));
-    self.put_stmt(x);
+    self.put_stmt(Stmt::Let(s, x));
+  }
+
+  fn on_ret(&mut self, arity: usize) {
+    let x = self.pop_expr_multi(arity);
+    self.put_stmt(Stmt::Ret(x));
   }
 
   fn on_set(&mut self, symbol: &[u8]) {
     let s = self.copy_symbol(symbol);
     let x = self.pop_expr();
-    let x = Stmt::Set(self.alloc((s, x)));
-    self.put_stmt(x);
+    self.put_stmt(Stmt::Set(s, x));
   }
 
   fn on_set_field(&mut self, symbol: &[u8]) {
     let s = self.copy_symbol(symbol);
     let y = self.pop_expr();
     let x = self.pop_expr();
-    let x = Stmt::SetField(self.alloc((x, s, y)));
-    self.put_stmt(x);
+    self.put_stmt(Stmt::SetField(x, s, y));
   }
 
   fn on_set_index(&mut self) {
     let y = self.pop_expr();
     let i = self.pop_expr();
     let x = self.pop_expr();
-    let x = Stmt::SetIndex(self.alloc((x, i, y)));
-    self.put_stmt(x);
+    self.put_stmt(Stmt::SetIndex(x, i, y));
   }
 
   fn on_var(&mut self, symbol: &[u8]) {
     let s = self.copy_symbol(symbol);
     let x = self.pop_expr();
-    let x = Stmt::Var(self.alloc((s, x)));
-    self.put_stmt(x);
+    self.put_stmt(Stmt::Var(s, x));
+  }
+
+  fn on_block(&mut self, n: usize) {
+    let x = self.pop_stmt_multi(n);
+    self.put_block(Block(x));
   }
 
   fn on_error_missing_expected_token(&mut self, token: Token) {

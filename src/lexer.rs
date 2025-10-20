@@ -125,6 +125,16 @@ impl<'a> Lexer<'a> {
     t
   }
 
+  pub fn fast_forward(&mut self) {
+    let n = self.source.len();
+    self.index = n;
+    self.start = n;
+    self.stop = n;
+    self.state = 0;
+    self.is_attached = false;
+    self.token = Token::Eof;
+  }
+
   pub fn token_start(&self) -> usize {
     return self.start;
   }
@@ -220,7 +230,7 @@ impl<'a> Lexer<'a> {
                 b"if" => Token::If,
                 b"let" => Token::Let,
                 b"loop" => Token::Loop,
-                b"return" => Token::Return,
+                b"return" => Token::Ret,
                 b"var" => Token::Var,
                 b"while" => Token::While,
                 _ => Token::Symbol,

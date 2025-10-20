@@ -51,7 +51,7 @@ pub enum Token {
   If,
   Let,
   Loop,
-  Return,
+  Ret,
   Var,
   While,
   Symbol,

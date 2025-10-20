@@ -29,6 +29,8 @@ pub trait Sink {
 
   fn on_let(&mut self, symbol: &[u8]);
 
+  fn on_ret(&mut self, arity: usize);
+
   fn on_set(&mut self, symbol: &[u8]);
 
   fn on_set_field(&mut self, symbol: &[u8]);
@@ -36,6 +38,8 @@ pub trait Sink {
   fn on_set_index(&mut self);
 
   fn on_var(&mut self, symbol: &[u8]);
+
+  fn on_block(&mut self, n: usize);
 
   fn on_error_missing_expected_token(&mut self, token: Token);
 
@@ -46,27 +50,62 @@ pub fn parse_expr<'a, S: Sink>(t: &mut Lexer<'a>, o: &mut S) {
   return parse_prec(t, o, 0x00, false);
 }
 
-pub fn parse_stmt<'a, S: Sink>(t: &mut Lexer<'a>, o: &mut S) {
-  match t.token() {
-    Token::Let => {
-      // TODO: multiple value bind
-      t.next();
-      let symbol = expect_symbol(t, o);
-      expect(t, o, Token::Equal);
-      parse_expr(t, o);
-      o.on_let(symbol);
-    }
-    Token::Var => {
-      t.next();
-      let symbol = expect_symbol(t, o);
-      expect(t, o, Token::Equal);
-      parse_expr(t, o);
-      o.on_var(symbol);
-    }
-    _ => {
-      parse_prec(t, o, 0x00, true);
+pub fn parse_block<'a, S: Sink>(t: &mut Lexer<'a>, o: &mut S) {
+  expect(t, o, Token::LBrace);
+
+  let mut n = 0;
+
+  loop {
+    match t.token() {
+      Token::Eof => {
+        // TODO: error
+        break;
+      }
+      Token::RBrace => {
+        t.next();
+        break;
+      }
+      Token::Let => {
+        // TODO: multiple value bind
+        t.next();
+        let symbol = expect_symbol(t, o);
+        expect(t, o, Token::Equal);
+        parse_expr(t, o);
+        o.on_let(symbol);
+        n += 1;
+      }
+      Token::Var => {
+        t.next();
+        let symbol = expect_symbol(t, o);
+        expect(t, o, Token::Equal);
+        parse_expr(t, o);
+        o.on_var(symbol);
+        n += 1;
+      }
+      Token::Ret => {
+        t.next();
+        let mut arity = 0;
+        if t.token() != Token::RBrace {
+          loop {
+            parse_expr(t, o);
+            arity += 1;
+            if t.token() != Token::Comma { break; }
+            t.next();
+          }
+        }
+        o.on_ret(arity);
+        n += 1;
+        expect(t, o, Token::RBrace);
+        break;
+      }
+      _ => {
+        parse_prec(t, o, 0x00, true);
+        n += 1;
+      }
     }
   }
+
+  o.on_block(n);
 }
 
 fn expect<'a, S: Sink>(t: &mut Lexer<'a>, o: &mut S, token: Token) {
@@ -130,6 +169,7 @@ fn parse_prec<'a, S: Sink>(t: &mut Lexer<'a>, o: &mut S, n: usize, is_stmt: bool
     }
     _ => {
       o.on_error_missing_expr();
+      t.fast_forward();
     }
   }
 
@@ -259,11 +299,10 @@ fn parse_prec<'a, S: Sink>(t: &mut Lexer<'a>, o: &mut S, n: usize, is_stmt: bool
       }
       Token::LParen if t.token_is_attached() => {
         t.next();
+        let mut arity = 0;
         if t.token() == Token::RParen {
           t.next();
-          o.on_call(0);
         } else {
-          let mut arity = 0;
           loop {
             parse_expr(t, o);
             arity += 1;
@@ -271,8 +310,8 @@ fn parse_prec<'a, S: Sink>(t: &mut Lexer<'a>, o: &mut S, n: usize, is_stmt: bool
             t.next();
           }
           expect(t, o, Token::RParen);
-          o.on_call(arity);
         }
+        o.on_call(arity);
       }
       _ => {
         if is_stmt {
@@ -292,9 +331,9 @@ pub fn parse_expr_sexp(source: &[u8]) -> Sexp {
   return o.pop();
 }
 
-pub fn parse_stmt_sexp(source: &[u8]) -> Sexp {
+pub fn parse_block_sexp(source: &[u8]) -> Sexp {
   let mut o = ToSexp::new();
-  parse_stmt(&mut Lexer::new(source), &mut o);
+  parse_block(&mut Lexer::new(source), &mut o);
   return o.pop();
 }
 
@@ -311,8 +350,8 @@ impl ToSexp {
     return self.0.pop().unwrap();
   }
 
-  fn pop_multi(&mut self, n: usize) -> Box<[Sexp]> {
-    return self.0.split_off(self.0.len() - n).into_boxed_slice();
+  fn pop_multi(&mut self, n: usize) -> impl Iterator<Item = Sexp> {
+    return self.0.drain(self.0.len() - n ..);
   }
 }
 
@@ -370,8 +409,9 @@ impl Sink for ToSexp {
   }
 
   fn on_call(&mut self, arity: usize) {
-    let x = self.pop_multi(1 + arity);
-    self.put(Sexp::List(x));
+    let mut x = Vec::new();
+    x.extend(self.pop_multi(1 + arity));
+    self.put(Sexp::List(x.into_boxed_slice()));
   }
 
   fn on_stmt_expr(&mut self) {
@@ -383,6 +423,14 @@ impl Sink for ToSexp {
     let x = self.pop();
     let s = Sexp::from_bytes(symbol);
     self.put(Sexp::from_array([Sexp::from_bytes(b"let"), s, x]));
+  }
+
+  fn on_ret(&mut self, arity: usize) {
+    let mut x = Vec::new();
+    x.push(Sexp::from_bytes(b"ret"));
+    x.extend(self.pop_multi(arity));
+    let x = x.into_boxed_slice();
+    self.put(Sexp::List(x));
   }
 
   fn on_set(&mut self, symbol: &[u8]) {
@@ -409,6 +457,11 @@ impl Sink for ToSexp {
     let x = self.pop();
     let s = Sexp::from_bytes(symbol);
     self.put(Sexp::from_array([Sexp::from_bytes(b"var"), s, x]));
+  }
+
+  fn on_block(&mut self, n: usize) {
+    let x = self.pop_multi(n).collect();
+    self.put(Sexp::List(x));
   }
 
   fn on_error_missing_expected_token(&mut self, _: Token) {
