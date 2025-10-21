@@ -1,5 +1,5 @@
 use crate::ast::Expr;
-// use crate::ast::Stmt;
+use crate::ast::Stmt;
 use crate::symbol::Symbol;
 use crate::uir::Inst;
 
@@ -50,16 +50,19 @@ impl Env {
     self.points.push(x)
   }
 
-  /*
   fn pop_point(&mut self) -> u32 {
     return self.points.pop().unwrap();
   }
-  */
 
   fn pop_point_multi(&mut self, arity: usize) -> impl Iterator<Item = u32> {
     return self.points.drain(self.points.len() - arity ..);
   }
 }
+
+
+// compile_expr
+//
+// return either (N_VALUES usize | N_POINTS label)
 
 pub fn compile<'a>(x: Expr<'a>) -> Vec<Inst> {
   let mut t = Env::new();
@@ -273,6 +276,9 @@ fn compile_expr_tail<'a>(t: &mut Env, o: &mut Code, x: Expr<'a>) {
       compile_put_seq(t, o, n);
       let _ = o.put(Inst::TailCall(f));
     }
+    Expr::Loop(_) => {
+      unimplemented!()
+    }
     Expr::Or(&(x, y)) => {
       let x = compile_expr(t, o, x);
       let _ = o.put(Inst::Cond(x));
@@ -301,7 +307,6 @@ fn compile_expr_tail<'a>(t: &mut Env, o: &mut Code, x: Expr<'a>) {
       | Expr::Field(_)
       | Expr::Index(_)
       | Expr::Int(_)
-      | Expr::Loop(_)
       | Expr::Op1(_)
       | Expr::Op2(_)
       | Expr::Undefined
