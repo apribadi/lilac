@@ -8,6 +8,7 @@ use oxcart::Arena;
 #[derive(Clone, Copy, Debug)]
 pub enum Expr<'a> {
   And(&'a (Expr<'a>, Expr<'a>)),
+  Bool(bool),
   Call(&'a (Expr<'a>, &'a [Expr<'a>])),
   Field(&'a (Expr<'a>, &'a [u8])),
   Index(&'a (Expr<'a>, Expr<'a>)),
@@ -90,6 +91,10 @@ impl<'a, 'b> parse::Out for ToAst<'a, 'b> {
     let s = self.copy_symbol(symbol);
     let x = Expr::Variable(s);
     self.put_expr(x);
+  }
+
+  fn on_bool(&mut self, x: bool) {
+    self.put_expr(Expr::Bool(x));
   }
 
   fn on_number(&mut self, x: &[u8]) {

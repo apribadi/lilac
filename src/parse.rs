@@ -9,6 +9,8 @@ pub trait Out {
 
   fn on_variable(&mut self, symbol: &[u8]);
 
+  fn on_bool(&mut self, x: bool);
+
   fn on_number(&mut self, number: &[u8]);
 
   fn on_ternary(&mut self);
@@ -92,6 +94,14 @@ fn parse_prec<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O, n: usize, is_stmt: bool)
       t.next();
       parse_expr(t, o);
       expect(t, o, Token::RParen);
+    }
+    Token::True => {
+      t.next();
+      o.on_bool(true);
+    }
+    Token::False => {
+      t.next();
+      o.on_bool(false);
     }
     Token::Number => {
       let number = t.token_span();
@@ -367,6 +377,10 @@ impl ToSexp {
 impl Out for ToSexp {
   fn on_variable(&mut self, x: &[u8]) {
     self.put(Sexp::from_bytes(x));
+  }
+
+  fn on_bool(&mut self, x: bool) {
+    self.put(Sexp::from_bytes(if x { b"true" } else { b"false" }));
   }
 
   fn on_number(&mut self, x: &[u8]) {

@@ -68,7 +68,6 @@ impl Out {
   }
 }
 
-
 pub fn compile<'a>(x: Expr<'a>) -> Vec<Inst> {
   let mut e = Env::new();
   let mut o = Out::new();
@@ -77,6 +76,7 @@ pub fn compile<'a>(x: Expr<'a>) -> Vec<Inst> {
   return o.0;
 }
 
+// TODO: add `never` variant?
 enum What {
   NumPoints(usize),
   NumValues(usize),
@@ -152,6 +152,10 @@ fn compile_expr<'a>(x: Expr<'a>, e: &mut Env, o: &mut Out) -> What {
       o.edit_patch_point(i, a);
       o.edit_patch_point(j, b);
       return What::NumPoints(1 + n);
+    }
+    Expr::Bool(x) => {
+      put_value(o.emit(Inst::ConstBool(x)), e);
+      return What::NumValues(1);
     }
     Expr::Call(&(f, x)) => {
       let n = x.len();
@@ -306,6 +310,7 @@ fn compile_expr_tail<'a>(x: Expr<'a>, e: &mut Env, o: &mut Out) {
       o.edit_patch_point(j, b);
     }
     x @ (
+      | Expr::Bool(_)
       | Expr::Field(_)
       | Expr::Index(_)
       | Expr::Int(_)
