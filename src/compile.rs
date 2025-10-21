@@ -53,6 +53,10 @@ impl Env {
   fn pop_point(&mut self) -> u32 {
     return self.points.pop().unwrap();
   }
+
+  fn pop_point_multi(&mut self, arity: usize) -> impl Iterator<Item = u32> {
+    return self.points.drain(self.points.len() - arity ..);
+  }
 }
 
 pub fn compile<'a>(x: Expr<'a>) -> Vec<Inst> {
@@ -75,7 +79,7 @@ fn compile_pop_seq(t: &mut Env, o: &mut Code, n: usize) {
   }
 }
 
-fn compile_values_from_value(t: &mut Env, o: &mut Code, x: u32, k: usize) {
+fn into_values(t: &mut Env, o: &mut Code, x: u32, k: usize) {
   match k {
     0 => {
       // TODO: error dropped value
@@ -93,8 +97,14 @@ fn compile_values_from_value(t: &mut Env, o: &mut Code, x: u32, k: usize) {
   }
 }
 
-fn compile_patch_point(t: &mut Env, o: &mut Code) {
+fn patch_point(t: &mut Env, o: &mut Code) {
   t.put_point(o.put(Inst::Jump(u32::MAX)));
+}
+
+fn resolve_patch_points<const N: usize>(t: &mut Env, o: &mut Code, labels: [u32; N]) {
+  for (i, k) in t.pop_point_multi(N).enumerate() {
+    o.set(k, Inst::Jump(labels[i]));
+  }
 }
 
 fn resolve_patch_point(t: &mut Env, o: &mut Code, a: u32) {
@@ -111,21 +121,18 @@ fn compile_expr_values<'a>(t: &mut Env, o: &mut Code, x: Expr<'a>, k: usize) {
     Expr::And(&(x, y)) => {
       let x = compile_expr(t, o, x);
       let _ = o.put(Inst::Cond(x));
-      compile_patch_point(t, o);
-      compile_patch_point(t, o);
+      patch_point(t, o);
+      patch_point(t, o);
       let a = o.put(Inst::Label);
-      let z = o.put(Inst::ConstBool(false));
-      let _ = o.put(Inst::Put(z));
-      compile_patch_point(t, o);
+      let x = o.put(Inst::ConstBool(false));
+      let _ = o.put(Inst::Put(x));
+      patch_point(t, o);
       let b = o.put(Inst::Label);
       compile_expr_values_kont(t, o, y, 1);
       let c = o.put(Inst::Label);
-      resolve_patch_point(t, o, c);
-      resolve_patch_point(t, o, c);
-      resolve_patch_point(t, o, b);
-      resolve_patch_point(t, o, a);
       let x = o.put(Inst::Pop);
-      compile_values_from_value(t, o, x, k);
+      resolve_patch_points(t, o, [a, b, c, c]);
+      into_values(t, o, x, k);
     }
     Expr::Call(&(f, x)) => {
       let n = x.len();
@@ -135,7 +142,7 @@ fn compile_expr_values<'a>(t: &mut Env, o: &mut Code, x: Expr<'a>, k: usize) {
       }
       compile_put_seq(t, o, n);
       let _ = o.put(Inst::Call(f));
-      compile_patch_point(t, o);
+      patch_point(t, o);
       let a = o.put(Inst::Label);
       resolve_patch_point(t, o, a);
       compile_pop_seq(t, o, k);
@@ -143,17 +150,17 @@ fn compile_expr_values<'a>(t: &mut Env, o: &mut Code, x: Expr<'a>, k: usize) {
     Expr::Field(&(x, s)) => {
       let x = compile_expr(t, o, x);
       let x = o.put(Inst::Field(x, Symbol::from_bytes(s)));
-      compile_values_from_value(t, o, x, k);
+      into_values(t, o, x, k);
     }
     Expr::Index(&(x, i)) => {
       let x = compile_expr(t, o, x);
       let i = compile_expr(t, o, i);
       let x = o.put(Inst::Index(x, i));
-      compile_values_from_value(t, o, x, k);
+      into_values(t, o, x, k);
     }
     Expr::Int(n) => {
       let x = o.put(Inst::ConstInt(n));
-      compile_values_from_value(t, o, x, k);
+      into_values(t, o, x, k);
     }
     Expr::Loop(_) => {
       unimplemented!()
@@ -161,46 +168,39 @@ fn compile_expr_values<'a>(t: &mut Env, o: &mut Code, x: Expr<'a>, k: usize) {
     Expr::Op1(&(op, x)) => {
       let x = compile_expr(t, o, x);
       let x = o.put(Inst::Op1(op, x));
-      compile_values_from_value(t, o, x, k);
+      into_values(t, o, x, k);
     }
     Expr::Op2(&(op, x, y)) => {
       let x = compile_expr(t, o, x);
       let y = compile_expr(t, o, y);
       let x = o.put(Inst::Op2(op, x, y));
-      compile_values_from_value(t, o, x, k);
+      into_values(t, o, x, k);
     }
     Expr::Or(&(x, y)) => {
       let x = compile_expr(t, o, x);
       let _ = o.put(Inst::Cond(x));
-      compile_patch_point(t, o);
-      compile_patch_point(t, o);
+      patch_point(t, o);
+      patch_point(t, o);
       let a = o.put(Inst::Label);
       compile_expr_values_kont(t, o, y, 1);
       let b = o.put(Inst::Label);
-      let z = o.put(Inst::ConstBool(true));
-      let _ = o.put(Inst::Put(z));
-      compile_patch_point(t, o);
+      let x = o.put(Inst::ConstBool(true));
+      let _ = o.put(Inst::Put(x));
+      patch_point(t, o);
       let c = o.put(Inst::Label);
-      resolve_patch_point(t, o, c);
-      resolve_patch_point(t, o, c);
-      resolve_patch_point(t, o, b);
-      resolve_patch_point(t, o, a);
       let x = o.put(Inst::Pop);
-      compile_values_from_value(t, o, x, k);
+      resolve_patch_points(t, o, [a, b, c, c]);
+      into_values(t, o, x, k);
     }
     Expr::Ternary(&(p, x, y)) => {
       let p = compile_expr(t, o, p);
       let _ = o.put(Inst::Cond(p));
-      compile_patch_point(t, o);
-      compile_patch_point(t, o);
+      patch_point(t, o);
+      patch_point(t, o);
       let a = o.put(Inst::Label);
-      compile_expr_values(t, o, x, k); // compile_expr_kont
-      compile_put_seq(t, o, k);
-      compile_patch_point(t, o);
+      compile_expr_values_kont(t, o, x, k);
       let b = o.put(Inst::Label);
-      compile_expr_values(t, o, y, k); // compile_expr_kont
-      compile_put_seq(t, o, k);
-      compile_patch_point(t, o);
+      compile_expr_values_kont(t, o, y, k);
       let c = o.put(Inst::Label);
       resolve_patch_point(t, o, c);
       resolve_patch_point(t, o, c);
@@ -217,7 +217,7 @@ fn compile_expr_values<'a>(t: &mut Env, o: &mut Code, x: Expr<'a>, k: usize) {
     Expr::Variable(symbol) => {
       // TODO: local scope
       let x = o.put(Inst::Global(Symbol::from_bytes(symbol)));
-      compile_values_from_value(t, o, x, k);
+      into_values(t, o, x, k);
     }
   }
 }
@@ -232,7 +232,7 @@ fn compile_expr_values_kont<'a>(t: &mut Env, o: &mut Code, x: Expr<'a>, k: usize
       }
       compile_put_seq(t, o, n);
       let _ = o.put(Inst::Call(f));
-      compile_patch_point(t, o);
+      patch_point(t, o);
     }
     x @ (
       | Expr::Field(_)
@@ -246,7 +246,7 @@ fn compile_expr_values_kont<'a>(t: &mut Env, o: &mut Code, x: Expr<'a>, k: usize
     ) => {
       compile_expr_values(t, o, x, k);
       compile_put_seq(t, o, k);
-      compile_patch_point(t, o);
+      patch_point(t, o);
     }
   }
 }
@@ -256,8 +256,8 @@ fn compile_expr_tail<'a>(t: &mut Env, o: &mut Code, x: Expr<'a>) {
     Expr::And(&(x, y)) => {
       let x = compile_expr(t, o, x);
       let _ = o.put(Inst::Cond(x));
-      compile_patch_point(t, o);
-      compile_patch_point(t, o);
+      patch_point(t, o);
+      patch_point(t, o);
       let a = o.put(Inst::Label);
       let z = o.put(Inst::ConstBool(false));
       let _ = o.put(Inst::Put(z));
@@ -283,8 +283,8 @@ fn compile_expr_tail<'a>(t: &mut Env, o: &mut Code, x: Expr<'a>) {
     Expr::Or(&(x, y)) => {
       let x = compile_expr(t, o, x);
       let _ = o.put(Inst::Cond(x));
-      compile_patch_point(t, o);
-      compile_patch_point(t, o);
+      patch_point(t, o);
+      patch_point(t, o);
       let a = o.put(Inst::Label);
       compile_expr_tail(t, o, y);
       let b = o.put(Inst::Label);
@@ -297,8 +297,8 @@ fn compile_expr_tail<'a>(t: &mut Env, o: &mut Code, x: Expr<'a>) {
     Expr::Ternary(&(p, x, y)) => {
       let p = compile_expr(t, o, p);
       let _ = o.put(Inst::Cond(p));
-      compile_patch_point(t, o);
-      compile_patch_point(t, o);
+      patch_point(t, o);
+      patch_point(t, o);
       let a = o.put(Inst::Label);
       compile_expr_tail(t, o, x);
       let b = o.put(Inst::Label);
