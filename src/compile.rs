@@ -1,9 +1,10 @@
 use crate::ast::Expr;
 use crate::ast::Stmt;
-use crate::symbol::Symbol;
+use crate::symbol_table::SymbolTable;
 use crate::uir::Inst;
 
 struct Env {
+  symbol_table: SymbolTable<u32>,
   values: Vec<u32>,
   points: Vec<u32>,
   // breaks: Vec<usize>,
@@ -12,6 +13,7 @@ struct Env {
 impl Env {
   fn new() -> Self {
     Self {
+      symbol_table: SymbolTable::new(),
       values: Vec::new(),
       points: Vec::new(),
       // breaks: Vec::new(),
@@ -189,7 +191,7 @@ fn compile_expr<'a>(x: Expr<'a>, e: &mut Env, o: &mut Out) -> What {
     }
     Expr::Field(&(x, s)) => {
       let x = compile_expr(x, e, o).into_value(e, o);
-      put_value(o.emit(Inst::Field(x, Symbol::from_bytes(s))), e);
+      put_value(o.emit(Inst::Field(x, s)), e);
       return What::NumValues(1);
     }
     Expr::Index(&(x, y)) => {
@@ -264,8 +266,14 @@ fn compile_expr<'a>(x: Expr<'a>, e: &mut Env, o: &mut Out) -> What {
       return What::NumValues(1);
     }
     Expr::Variable(s) => {
-      // TODO: look in symbol table for local variables
-      put_value(o.emit(Inst::Global(Symbol::from_bytes(s))), e);
+      match e.symbol_table.get(s) {
+        None => {
+          put_value(o.emit(Inst::Global(s)), e);
+        }
+        Some(&x) => {
+          put_value(x, e);
+        }
+      }
       return What::NumValues(1);
     }
   }
@@ -355,6 +363,26 @@ fn compile_stmt<'a>(x: Stmt<'a>, e: &mut Env, o: &mut Out) -> What {
     Stmt::Expr(x) => {
       return compile_expr(x, e, o);
     }
-    _ => unimplemented!(),
+    Stmt::Break(..) => {
+      unimplemented!()
+    }
+    Stmt::Let(..) => {
+      unimplemented!()
+    }
+    Stmt::Return(..) => {
+      unimplemented!()
+    }
+    Stmt::Set(..) => {
+      unimplemented!()
+    }
+    Stmt::SetField(..) => {
+      unimplemented!()
+    }
+    Stmt::SetIndex(..) => {
+      unimplemented!()
+    }
+    Stmt::Var(..) => {
+      unimplemented!()
+    }
   }
 }

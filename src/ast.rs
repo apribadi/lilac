@@ -2,6 +2,7 @@ use crate::lexer::Lexer;
 use crate::op1::Op1;
 use crate::op2::Op2;
 use crate::parse;
+use crate::symbol::Symbol;
 use crate::token::Token;
 use oxcart::Arena;
 
@@ -10,7 +11,7 @@ pub enum Expr<'a> {
   And(&'a (Expr<'a>, Expr<'a>)),
   Bool(bool),
   Call(&'a (Expr<'a>, &'a [Expr<'a>])),
-  Field(&'a (Expr<'a>, &'a [u8])),
+  Field(&'a (Expr<'a>, Symbol)),
   Index(&'a (Expr<'a>, Expr<'a>)),
   Int(i64),
   Loop(&'a [Stmt<'a>]),
@@ -19,19 +20,19 @@ pub enum Expr<'a> {
   Or(&'a (Expr<'a>, Expr<'a>)),
   Ternary(&'a (Expr<'a>, Expr<'a>, Expr<'a>)),
   Undefined,
-  Variable(&'a [u8]),
+  Variable(Symbol),
 }
 
 #[derive(Clone, Copy, Debug)]
 pub enum Stmt<'a> {
   Expr(Expr<'a>),
   Break(&'a [Expr<'a>]),
-  Let(&'a [u8], Expr<'a>),
+  Let(Symbol, Expr<'a>),
   Return(&'a [Expr<'a>]),
-  Set(&'a [u8], Expr<'a>),
-  SetField(Expr<'a>, &'a [u8], Expr<'a>),
+  Set(Symbol, Expr<'a>),
+  SetField(Expr<'a>, Symbol, Expr<'a>),
   SetIndex(Expr<'a>, Expr<'a>, Expr<'a>),
-  Var(&'a [u8], Expr<'a>),
+  Var(Symbol, Expr<'a>),
 }
 
 pub fn parse_expr<'a>(source: &[u8], arena: &mut Arena<'a>) -> Expr<'a> {
@@ -59,10 +60,6 @@ impl<'a, 'b> ToAst<'a, 'b> {
     return self.arena.alloc().init(x);
   }
 
-  fn copy_symbol(&mut self, symbol: &[u8]) -> &'a [u8] {
-    return self.arena.copy_slice(symbol);
-  }
-
   fn put_expr(&mut self, x: Expr<'a>) {
     self.exprs.push(x);
   }
@@ -88,9 +85,8 @@ impl<'a, 'b> ToAst<'a, 'b> {
 
 impl<'a, 'b> parse::Out for ToAst<'a, 'b> {
   fn on_variable(&mut self, symbol: &[u8]) {
-    let s = self.copy_symbol(symbol);
-    let x = Expr::Variable(s);
-    self.put_expr(x);
+    let s = Symbol::from_bytes(symbol);
+    self.put_expr(Expr::Variable(s));
   }
 
   fn on_bool(&mut self, x: bool) {
@@ -145,7 +141,7 @@ impl<'a, 'b> parse::Out for ToAst<'a, 'b> {
   }
 
   fn on_field(&mut self, symbol: &[u8]) {
-    let s = self.copy_symbol(symbol);
+    let s = Symbol::from_bytes(symbol);
     let x = self.pop_expr();
     let x = Expr::Field(self.alloc((x, s)));
     self.put_expr(x);
@@ -181,7 +177,7 @@ impl<'a, 'b> parse::Out for ToAst<'a, 'b> {
   }
 
   fn on_let(&mut self, symbol: &[u8]) {
-    let s = self.copy_symbol(symbol);
+    let s = Symbol::from_bytes(symbol);
     let x = self.pop_expr();
     self.put_stmt(Stmt::Let(s, x));
   }
@@ -192,13 +188,13 @@ impl<'a, 'b> parse::Out for ToAst<'a, 'b> {
   }
 
   fn on_set(&mut self, symbol: &[u8]) {
-    let s = self.copy_symbol(symbol);
+    let s = Symbol::from_bytes(symbol);
     let x = self.pop_expr();
     self.put_stmt(Stmt::Set(s, x));
   }
 
   fn on_set_field(&mut self, symbol: &[u8]) {
-    let s = self.copy_symbol(symbol);
+    let s = Symbol::from_bytes(symbol);
     let y = self.pop_expr();
     let x = self.pop_expr();
     self.put_stmt(Stmt::SetField(x, s, y));
@@ -212,7 +208,7 @@ impl<'a, 'b> parse::Out for ToAst<'a, 'b> {
   }
 
   fn on_var(&mut self, symbol: &[u8]) {
-    let s = self.copy_symbol(symbol);
+    let s = Symbol::from_bytes(symbol);
     let x = self.pop_expr();
     self.put_stmt(Stmt::Var(s, x));
   }
