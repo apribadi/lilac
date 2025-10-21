@@ -4,7 +4,7 @@ use crate::symbol_table::SymbolTable;
 use crate::uir::Inst;
 
 struct Env {
-  symbol_table: SymbolTable<u32>,
+  symbol_table: SymbolTable<Binding>,
   values: Vec<u32>,
   points: Vec<u32>,
   // breaks: Vec<usize>,
@@ -61,6 +61,11 @@ fn put_break(a: u32, e: &mut Env) {
   e.points.push(a);
 }
 */
+
+enum Binding {
+  Let(u32),
+  Var(u32),
+}
 
 struct Out(Vec<Inst>);
 
@@ -215,11 +220,15 @@ fn compile_expr<'a>(x: Expr<'a>, e: &mut Env, o: &mut Out) -> What {
       //
       // try to just handle returns first
 
-      let mut n_breaks = 0;
       let a = o.emit(Inst::Label);
-      for &y in x.iter() { compile_stmt(y, e, o).into_nil(e, o); }
+      e.symbol_table.put_scope();
+      for &y in x.iter() {
+        compile_stmt(y, e, o).into_nil(e, o);
+      }
+      e.symbol_table.pop_scope();
       let _ = o.emit(Inst::Jump(a));
 
+      let n_breaks = 0;
       return What::NumPoints(n_breaks);
     }
     Expr::Op1(&(f, x)) => {
@@ -270,8 +279,11 @@ fn compile_expr<'a>(x: Expr<'a>, e: &mut Env, o: &mut Out) -> What {
         None => {
           put_value(o.emit(Inst::Global(s)), e);
         }
-        Some(&x) => {
+        Some(&Binding::Let(x)) => {
           put_value(x, e);
+        }
+        Some(&Binding::Var(x)) => {
+          put_value(o.emit(Inst::Local(x)), e);
         }
       }
       return What::NumValues(1);
@@ -357,8 +369,6 @@ fn compile_expr_tail<'a>(x: Expr<'a>, e: &mut Env, o: &mut Out) {
 }
 
 fn compile_stmt<'a>(x: Stmt<'a>, e: &mut Env, o: &mut Out) -> What {
-  let _ = e;
-  let _ = o;
   match x {
     Stmt::Expr(x) => {
       return compile_expr(x, e, o);
@@ -366,14 +376,26 @@ fn compile_stmt<'a>(x: Stmt<'a>, e: &mut Env, o: &mut Out) -> What {
     Stmt::Break(..) => {
       unimplemented!()
     }
-    Stmt::Let(..) => {
-      unimplemented!()
+    Stmt::Let(s, x) => {
+      let x = compile_expr(x, e, o).into_value(e, o);
+      e.symbol_table.insert(s, Binding::Let(x));
+      return What::NumValues(0);
     }
     Stmt::Return(..) => {
       unimplemented!()
     }
-    Stmt::Set(..) => {
-      unimplemented!()
+    Stmt::Set(s, x) => {
+      let x = compile_expr(x, e, o).into_value(e, o);
+      match e.symbol_table.get(s) {
+        Some(&Binding::Var(y)) => {
+          let _ = o.emit(Inst::SetLocal(y, x));
+          return What::NumValues(0);
+        }
+        _ => {
+          // error
+          unimplemented!()
+        }
+      }
     }
     Stmt::SetField(..) => {
       unimplemented!()
@@ -381,8 +403,11 @@ fn compile_stmt<'a>(x: Stmt<'a>, e: &mut Env, o: &mut Out) -> What {
     Stmt::SetIndex(..) => {
       unimplemented!()
     }
-    Stmt::Var(..) => {
-      unimplemented!()
+    Stmt::Var(s, x) => {
+      let x = compile_expr(x, e, o).into_value(e, o);
+      let x = o.emit(Inst::DefLocal(x));
+      e.symbol_table.insert(s, Binding::Var(x));
+      return What::NumValues(0);
     }
   }
 }

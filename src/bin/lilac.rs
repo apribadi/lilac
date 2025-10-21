@@ -22,9 +22,13 @@ fn main() {
   compile("
     1 +
       loop {
-        f(1)
+        let x = foo.bar
+        let y = x + 1
+        var z = 1
+        f(z)
         g(x + y)
-        h()
+        z <- 2
+        h(z)
       }
   ");
 
