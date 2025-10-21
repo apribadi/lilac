@@ -4,7 +4,7 @@ use crate::op2::Op2;
 use crate::sexp::Sexp;
 use crate::token::Token;
 
-pub trait Sink {
+pub trait Out {
   fn on_variable(&mut self, symbol: &[u8]);
 
   fn on_number(&mut self, number: &[u8]);
@@ -48,11 +48,11 @@ pub trait Sink {
   fn on_error_missing_expr(&mut self);
 }
 
-pub fn parse_expr<'a, S: Sink>(t: &mut Lexer<'a>, o: &mut S) {
+pub fn parse_expr<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O) {
   return parse_prec(t, o, 0x00, false);
 }
 
-fn expect<'a, S: Sink>(t: &mut Lexer<'a>, o: &mut S, token: Token) {
+fn expect<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O, token: Token) {
   if t.token() != token {
     o.on_error_missing_expected_token(token);
   } else {
@@ -60,7 +60,7 @@ fn expect<'a, S: Sink>(t: &mut Lexer<'a>, o: &mut S, token: Token) {
   }
 }
 
-fn expect_symbol<'a, S: Sink>(t: &mut Lexer<'a>, o: &mut S) -> &'a [u8] {
+fn expect_symbol<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O) -> &'a [u8] {
   if t.token() != Token::Symbol {
     o.on_error_missing_expected_token(Token::Symbol);
     return b"!!!";
@@ -71,7 +71,7 @@ fn expect_symbol<'a, S: Sink>(t: &mut Lexer<'a>, o: &mut S) -> &'a [u8] {
   }
 }
 
-fn parse_expr_list<'a, S: Sink>(t: &mut Lexer<'a>, o: &mut S, stop: Token) -> usize {
+fn parse_expr_list<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O, stop: Token) -> usize {
   let mut n_exprs = 0;
   if t.token() != stop {
     loop {
@@ -84,7 +84,7 @@ fn parse_expr_list<'a, S: Sink>(t: &mut Lexer<'a>, o: &mut S, stop: Token) -> us
   return n_exprs;
 }
 
-fn parse_prec<'a, S: Sink>(t: &mut Lexer<'a>, o: &mut S, n: usize, is_stmt: bool) {
+fn parse_prec<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O, n: usize, is_stmt: bool) {
   match t.token() {
     Token::LParen => {
       t.next();
@@ -268,7 +268,7 @@ fn parse_prec<'a, S: Sink>(t: &mut Lexer<'a>, o: &mut S, n: usize, is_stmt: bool
   }
 }
 
-fn parse_block<'a, S: Sink>(t: &mut Lexer<'a>, o: &mut S) -> usize {
+fn parse_block<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O) -> usize {
   expect(t, o, Token::LBrace);
 
   let mut n_stmts = 0;
@@ -358,7 +358,7 @@ impl ToSexp {
   }
 }
 
-impl Sink for ToSexp {
+impl Out for ToSexp {
   fn on_variable(&mut self, x: &[u8]) {
     self.put(Sexp::from_bytes(x));
   }

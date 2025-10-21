@@ -85,7 +85,7 @@ impl<'a, 'b> ToAst<'a, 'b> {
   }
 }
 
-impl<'a, 'b> parse::Sink for ToAst<'a, 'b> {
+impl<'a, 'b> parse::Out for ToAst<'a, 'b> {
   fn on_variable(&mut self, symbol: &[u8]) {
     let s = self.copy_symbol(symbol);
     let x = Expr::Variable(s);
