@@ -31,6 +31,8 @@ fn main() {
 
   compile("x == y && f(z + 1)");
   compile("g(x == y && f(z + 1))");
+  compile("x != y ? 1 : a != b ? 2 : 3");
+  compile("1 + (x != y ? 1 : a != b ? 2 : 3)");
 }
 
   /*

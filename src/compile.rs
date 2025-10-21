@@ -1,7 +1,45 @@
 use crate::ast::Expr;
-use crate::ast::Stmt;
 use crate::symbol::Symbol;
 use crate::uir::Inst;
+
+struct Env {
+  values: Vec<u32>,
+  points: Vec<u32>,
+}
+
+impl Env {
+  fn new() -> Self {
+    Self {
+      values: Vec::new(),
+      points: Vec::new(),
+    }
+  }
+}
+
+fn put_value(x: u32, e: &mut Env) {
+  e.values.push(x);
+}
+
+fn pop_value(e: &mut Env) -> u32 {
+  return e.values.pop().unwrap();
+}
+
+fn pop_value_multi(n: usize, e: &mut Env) -> impl Iterator<Item = u32> {
+  return e.values.drain(e.values.len() - n ..);
+}
+
+fn put_point(x: u32, e: &mut Env) {
+  e.points.push(x);
+}
+
+#[allow(dead_code)]
+fn pop_point(e: &mut Env) -> u32 {
+  return e.points.pop().unwrap();
+}
+
+fn pop_point_multi(n: usize, e: &mut Env) -> impl Iterator<Item = u32> {
+  return e.points.drain(e.points.len() - n ..);
+}
 
 struct Out(Vec<Inst>);
 
@@ -29,67 +67,6 @@ impl Out {
   }
 }
 
-struct Env {
-  values: Vec<u32>,
-  points: Vec<u32>,
-}
-
-impl Env {
-  fn new() -> Self {
-    Self {
-      values: Vec::new(),
-      points: Vec::new(),
-    }
-  }
-
-  fn put_value(&mut self, x: u32) {
-    self.values.push(x)
-  }
-
-  fn pop_value(&mut self) -> u32 {
-    return self.values.pop().unwrap();
-  }
-
-  fn pop_value_multi(&mut self, arity: usize) -> impl Iterator<Item = u32> {
-    return self.values.drain(self.values.len() - arity ..);
-  }
-
-  fn put_point(&mut self, x: u32) {
-    self.points.push(x)
-  }
-
-  fn pop_point(&mut self) -> u32 {
-    return self.points.pop().unwrap();
-  }
-
-  fn pop_point_multi(&mut self, arity: usize) -> impl Iterator<Item = u32> {
-    return self.points.drain(self.points.len() - arity ..);
-  }
-}
-
-fn put_value(x: u32, e: &mut Env) {
-  e.put_value(x);
-}
-
-fn pop_value(e: &mut Env) -> u32 {
-  return e.pop_value();
-}
-
-fn pop_value_multi(n: usize, e: &mut Env) -> impl Iterator<Item = u32> {
-  return e.pop_value_multi(n);
-}
-
-fn put_point(x: u32, e: &mut Env) {
-  e.put_point(x);
-}
-
-fn pop_point(e: &mut Env) -> u32 {
-  return e.pop_point();
-}
-
-fn pop_point_multi(n: usize, e: &mut Env) -> impl Iterator<Item = u32> {
-  return e.pop_point_multi(n);
-}
 
 pub fn compile<'a>(x: Expr<'a>) -> Vec<Inst> {
   let mut e = Env::new();
