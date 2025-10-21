@@ -1,7 +1,9 @@
+#[allow(dead_code)]
 fn parse(source: &str) {
   print!("{}\n", lilac::parse::parse_expr_sexp(source.as_bytes()));
 }
 
+#[allow(dead_code)]
 fn compile(source: &str) {
   let mut store = oxcart::Store::new();
   let mut arena = store.arena();
@@ -17,38 +19,19 @@ fn compile(source: &str) {
 }
 
 fn main() {
-  parse("
-    loop {
-      1 * 2 + 3
-      1 + 2 * 3
-      foo().bar.baz <- 1 + qux()
-      a <- 1 * 2 + 3
-      foo(0).bar[1 + 2] <- 3 + 4
-      break x
-      f()
-    }
+  compile("
+    1 +
+      loop {
+        f(1)
+        g(x + y)
+        h()
+      }
   ");
 
+  /*
   compile("x == y && f(z + 1)");
   compile("g(x == y && f(z + 1))");
   compile("x != y ? 1 : a != b ? 2 : 3");
   compile("1 + (x != y ? 1 : a != b ? 2 : 3)");
-}
-
-  /*
-  parse("1 * 2 + 3");
-  parse("1 + 2 * 3");
-  parse("foo().bar.baz <- 1 + qux()");
-  parse("a <- 1 * 2 + 3");
-  parse("foo(0).bar[1 + 2] <- 3 + 4");
-
-  compile("1 + 2 * 3 != 4");
-  compile("f(1, 2 + g(4), 3) != x");
-  compile("f(1, 2 + g(4), 3)");
-  compile("x == y && f(1, 2, 3)");
-  compile("x != y ? 1 : a != b ? 2 : 3");
-  compile("(1 + 2).foo != 2");
-  compile("(1 + 2).foofoofoofoo != 2");
-  compile("1 == 1 && 2 != 2");
-  compile("! (1 == 1 && 2 != 2)");
   */
+}

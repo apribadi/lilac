@@ -6,6 +6,7 @@ use crate::uir::Inst;
 struct Env {
   values: Vec<u32>,
   points: Vec<u32>,
+  // breaks: Vec<usize>,
 }
 
 impl Env {
@@ -13,6 +14,7 @@ impl Env {
     Self {
       values: Vec::new(),
       points: Vec::new(),
+      // breaks: Vec::new(),
     }
   }
 }
@@ -41,6 +43,22 @@ fn pop_point(e: &mut Env) -> u32 {
 fn pop_points(n: usize, e: &mut Env) -> impl Iterator<Item = u32> {
   return e.points.drain(e.points.len() - n ..);
 }
+
+/*
+fn put_break_scope(e: &mut Env) {
+  e.breaks.push(0);
+}
+
+fn pop_break_scope(e: &mut Env) -> impl Iterator<Item = u32> {
+  let n = e.breaks.pop().unwrap();
+  return e.points.drain(e.points.len() - n ..);
+}
+
+fn put_break(a: u32, e: &mut Env) {
+  e.breaks.last_mut().unwrap() += 1;
+  e.points.push(a);
+}
+*/
 
 struct Out(Vec<Inst>);
 
@@ -76,7 +94,6 @@ pub fn compile<'a>(x: Expr<'a>) -> Vec<Inst> {
   return o.0;
 }
 
-// TODO: add `never` variant?
 enum What {
   NumPoints(usize),
   NumValues(usize),
@@ -197,9 +214,10 @@ fn compile_expr<'a>(x: Expr<'a>, e: &mut Env, o: &mut Out) -> What {
       // try to just handle returns first
 
       let mut n_breaks = 0;
-      for &y in x.iter() {
-        compile_stmt(y, e, o).into_nil(e, o);
-      }
+      let a = o.emit(Inst::Label);
+      for &y in x.iter() { compile_stmt(y, e, o).into_nil(e, o); }
+      let _ = o.emit(Inst::Jump(a));
+
       return What::NumPoints(n_breaks);
     }
     Expr::Op1(&(f, x)) => {
@@ -334,6 +352,9 @@ fn compile_stmt<'a>(x: Stmt<'a>, e: &mut Env, o: &mut Out) -> What {
   let _ = e;
   let _ = o;
   match x {
+    Stmt::Expr(x) => {
+      return compile_expr(x, e, o);
+    }
     _ => unimplemented!(),
   }
 }

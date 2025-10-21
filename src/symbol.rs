@@ -1,3 +1,4 @@
+#[derive(Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct Symbol(pub u64);
 
 const HASHER: foldhash::quality::FixedState =

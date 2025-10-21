@@ -6,6 +6,7 @@ pub mod op2;
 pub mod parse;
 pub mod primop2;
 pub mod sexp;
+pub mod symbol;
+pub mod symbol_table;
 pub mod token;
 pub mod uir;
-pub mod symbol;
