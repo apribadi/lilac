@@ -147,9 +147,9 @@ impl<'a, 'b> parse::Sink for ToAst<'a, 'b> {
   }
 
   fn on_index(&mut self) {
-    let i = self.pop_expr();
+    let y = self.pop_expr();
     let x = self.pop_expr();
-    let x = Expr::Index(self.alloc((x, i)));
+    let x = Expr::Index(self.alloc((x, y)));
     self.put_expr(x);
   }
 
@@ -201,10 +201,10 @@ impl<'a, 'b> parse::Sink for ToAst<'a, 'b> {
   }
 
   fn on_set_index(&mut self) {
+    let z = self.pop_expr();
     let y = self.pop_expr();
-    let i = self.pop_expr();
     let x = self.pop_expr();
-    self.put_stmt(Stmt::SetIndex(x, i, y));
+    self.put_stmt(Stmt::SetIndex(x, y, z));
   }
 
   fn on_var(&mut self, symbol: &[u8]) {

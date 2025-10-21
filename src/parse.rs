@@ -406,9 +406,9 @@ impl Sink for ToSexp {
   }
 
   fn on_index(&mut self) {
-    let i = self.pop();
+    let y = self.pop();
     let x = self.pop();
-    self.put(Sexp::from_array([Sexp::from_bytes(b"[]"), x, i]));
+    self.put(Sexp::from_array([Sexp::from_bytes(b"[]"), x, y]));
   }
 
   fn on_call(&mut self, arity: usize) {
@@ -462,10 +462,10 @@ impl Sink for ToSexp {
   }
 
   fn on_set_index(&mut self) {
+    let z = self.pop();
     let y = self.pop();
-    let i = self.pop();
     let x = self.pop();
-    self.put(Sexp::from_array([Sexp::from_bytes(b"[]<-"), x, i, y]));
+    self.put(Sexp::from_array([Sexp::from_bytes(b"[]<-"), x, y, z]));
   }
 
   fn on_var(&mut self, symbol: &[u8]) {
