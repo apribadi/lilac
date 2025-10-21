@@ -30,6 +30,7 @@ fn main() {
   ");
 
   compile("x == y && f(z + 1)");
+  compile("g(x == y && f(z + 1))");
 }
 
   /*

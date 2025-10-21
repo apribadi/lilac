@@ -198,11 +198,11 @@ fn compile_expr_values<'a>(t: &mut Env, o: &mut Code, x: Expr<'a>, k: usize) {
       compile_patch_point(t, o);
       compile_patch_point(t, o);
       let a = o.put(Inst::Label);
-      compile_expr_values(t, o, x, k);
+      compile_expr_values(t, o, x, k); // compile_expr_kont
       compile_put_seq(t, o, k);
       compile_patch_point(t, o);
       let b = o.put(Inst::Label);
-      compile_expr_values(t, o, y, k);
+      compile_expr_values(t, o, y, k); // compile_expr_kont
       compile_put_seq(t, o, k);
       compile_patch_point(t, o);
       let c = o.put(Inst::Label);
