@@ -118,9 +118,7 @@ fn compile_expr_values<'a>(t: &mut Env, o: &mut Code, x: Expr<'a>, k: usize) {
       let _ = o.put(Inst::Put(z));
       compile_patch_point(t, o);
       let b = o.put(Inst::Label);
-      let y = compile_expr(t, o, y); // compile_expr_kont ??
-      let _ = o.put(Inst::Put(y));
-      compile_patch_point(t, o);
+      compile_expr_values_kont(t, o, y, 1);
       let c = o.put(Inst::Label);
       resolve_patch_point(t, o, c);
       resolve_patch_point(t, o, c);
@@ -177,9 +175,7 @@ fn compile_expr_values<'a>(t: &mut Env, o: &mut Code, x: Expr<'a>, k: usize) {
       compile_patch_point(t, o);
       compile_patch_point(t, o);
       let a = o.put(Inst::Label);
-      let y = compile_expr(t, o, y); // compile_expr_kont??
-      let _ = o.put(Inst::Put(y));
-      compile_patch_point(t, o);
+      compile_expr_values_kont(t, o, y, 1);
       let b = o.put(Inst::Label);
       let z = o.put(Inst::ConstBool(true));
       let _ = o.put(Inst::Put(z));
@@ -222,6 +218,35 @@ fn compile_expr_values<'a>(t: &mut Env, o: &mut Code, x: Expr<'a>, k: usize) {
       // TODO: local scope
       let x = o.put(Inst::Global(Symbol::from_bytes(symbol)));
       compile_values_from_value(t, o, x, k);
+    }
+  }
+}
+
+fn compile_expr_values_kont<'a>(t: &mut Env, o: &mut Code, x: Expr<'a>, k: usize) {
+  match x {
+    Expr::Call(&(f, x)) => {
+      let n = x.len();
+      let f = compile_expr(t, o, f);
+      for &x in x {
+        compile_expr_values(t, o, x, 1);
+      }
+      compile_put_seq(t, o, n);
+      let _ = o.put(Inst::Call(f));
+      compile_patch_point(t, o);
+    }
+    x @ (
+      | Expr::Field(_)
+      | Expr::Index(_)
+      | Expr::Int(_)
+      | Expr::Op1(_)
+      | Expr::Op2(_)
+      | Expr::Undefined
+      | Expr::Variable(_)
+      | _
+    ) => {
+      compile_expr_values(t, o, x, k);
+      compile_put_seq(t, o, k);
+      compile_patch_point(t, o);
     }
   }
 }
