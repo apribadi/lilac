@@ -24,6 +24,8 @@ fn main() {
       foo().bar.baz <- 1 + qux()
       a <- 1 * 2 + 3
       foo(0).bar[1 + 2] <- 3 + 4
+      break x
+      f()
     }
   ");
 
