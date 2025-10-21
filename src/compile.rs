@@ -108,7 +108,7 @@ impl What {
         let a = o.emit(Inst::Label);
         let x = o.emit(Inst::Pop);
         for k in pop_point_multi(n, e) {
-          o.edit(k, Inst::Jump(a));
+          edit_patch_point(k, a, o);
         }
         return x;
       }
@@ -116,7 +116,7 @@ impl What {
         return pop_value(e);
       }
       _ => {
-        // error
+        // arity error
         unimplemented!()
       }
     }
@@ -235,6 +235,23 @@ fn compile_expr_tail<'a>(x: Expr<'a>, e: &mut Env, o: &mut Out) {
       }
       let _ = o.emit(Inst::TailCall(f));
     }
+    Expr::Loop(_) => {
+      unimplemented!()
+    }
+    Expr::Or(&(x, y)) => {
+      let x = compile_expr(x, e, o).into_value(e, o);
+      let _ = o.emit(Inst::Cond(x));
+      let i = patch_point(o);
+      let j = patch_point(o);
+      let a = o.emit(Inst::Label);
+      compile_expr_tail(y, e, o);
+      let b = o.emit(Inst::Label);
+      let x = o.emit(Inst::ConstBool(true));
+      let _ = o.emit(Inst::Put(x));
+      let _ = o.emit(Inst::Ret);
+      edit_patch_point(i, a, o);
+      edit_patch_point(j, b, o);
+    }
     Expr::Ternary(&(p, x, y)) => {
       let p = compile_expr(p, e, o).into_value(e, o);
       let _ = o.emit(Inst::Cond(p));
@@ -247,7 +264,15 @@ fn compile_expr_tail<'a>(x: Expr<'a>, e: &mut Env, o: &mut Out) {
       edit_patch_point(i, a, o);
       edit_patch_point(j, b, o);
     }
-    x => {
+    x @ (
+      | Expr::Field(_)
+      | Expr::Index(_)
+      | Expr::Int(_)
+      | Expr::Op1(_)
+      | Expr::Op2(_)
+      | Expr::Undefined
+      | Expr::Variable(_)
+    ) => {
       match compile_expr(x, e, o) {
         What::NumPoints(_) => {
           unreachable!()
@@ -264,50 +289,6 @@ fn compile_expr_tail<'a>(x: Expr<'a>, e: &mut Env, o: &mut Out) {
 }
 
 /*
-fn compile_put_seq(t: &mut Env, o: &mut Code, n: usize) {
-  for x in t.pop_value_multi(n) {
-    let _ = o.emit(Inst::Put(x));
-  }
-}
-
-fn compile_pop_seq(t: &mut Env, o: &mut Code, n: usize) {
-  for _ in 0 .. n {
-    t.put_value(o.emit(Inst::Pop));
-  }
-}
-
-fn into_values(t: &mut Env, o: &mut Code, x: u32, k: usize) {
-  match k {
-    0 => {
-      // TODO: error dropped value
-    }
-    1 => {
-      t.put_value(x);
-    }
-    _ => {
-      // TODO: error arity mismatch
-      let x = o.emit(Inst::Undefined);
-      for _ in 0 .. k {
-        t.put_value(x);
-      }
-    }
-  }
-}
-
-fn patch_point(t: &mut Env, o: &mut Code) {
-  t.put_point(o.emit(Inst::Jump(u32::MAX)));
-}
-
-fn update_patch_points<const N: usize>(t: &mut Env, o: &mut Code, labels: [u32; N]) {
-  for (i, k) in t.pop_point_multi(N).enumerate() {
-    o.edit(k, Inst::Jump(labels[i]));
-  }
-}
-
-fn compile_expr<'a>(t: &mut Env, o: &mut Code, x: Expr<'a>) -> u32 {
-  compile_expr_values(t, o, x, 1);
-  return t.pop_value();
-}
 
 fn compile_expr_values<'a>(t: &mut Env, o: &mut Code, x: Expr<'a>, k: usize) {
   match x {
@@ -412,38 +393,6 @@ fn compile_expr_values<'a>(t: &mut Env, o: &mut Code, x: Expr<'a>, k: usize) {
   }
 }
 
-fn compile_expr_values_kont<'a>(t: &mut Env, o: &mut Code, x: Expr<'a>, k: usize) {
-  match x {
-    Expr::Call(&(f, x)) => {
-      let n = x.len();
-      let f = compile_expr(t, o, f);
-      for &x in x {
-        compile_expr_values(t, o, x, 1);
-      }
-      compile_put_seq(t, o, n);
-      let _ = o.emit(Inst::Call(f));
-      patch_point(t, o);
-    }
-    x @ (
-      | Expr::And(_)
-      | Expr::Field(_)
-      | Expr::Index(_)
-      | Expr::Int(_)
-      | Expr::Loop(_)
-      | Expr::Op1(_)
-      | Expr::Op2(_)
-      | Expr::Or(_)
-      | Expr::Ternary(_)
-      | Expr::Undefined
-      | Expr::Variable(_)
-    ) => {
-      compile_expr_values(t, o, x, k);
-      compile_put_seq(t, o, k);
-      patch_point(t, o);
-    }
-  }
-}
-
 fn compile_expr_tail<'a>(t: &mut Env, o: &mut Code, x: Expr<'a>) {
   match x {
     Expr::And(&(x, y)) => {
@@ -511,11 +460,4 @@ fn compile_expr_tail<'a>(t: &mut Env, o: &mut Code, x: Expr<'a>) {
   }
 }
 
-/*
-fn compile_stmt_tail<'a>(t: &mut Env, o: &mut Code, x: Stmt<'a>) {
-  let _ = t;
-  let _ = o;
-  let _ = x;
-}
-*/
 */
