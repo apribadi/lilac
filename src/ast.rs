@@ -162,8 +162,7 @@ impl<'a, 'b> parse::Out for ToAst<'a, 'b> {
 
   fn on_loop(&mut self, n_stmts: usize) {
     let x = self.pop_stmt_multi(n_stmts);
-    let x = Expr::Loop(x);
-    self.put_expr(x);
+    self.put_expr(Expr::Loop(x));
   }
 
   fn on_stmt_expr(&mut self) {

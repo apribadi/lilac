@@ -5,6 +5,8 @@ use crate::sexp::Sexp;
 use crate::token::Token;
 
 pub trait Out {
+  // TODO: sort exprs, sort stmts
+
   fn on_variable(&mut self, symbol: &[u8]);
 
   fn on_number(&mut self, number: &[u8]);
@@ -313,9 +315,13 @@ fn parse_block<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O) -> usize {
         n_stmts += 1;
       }
       _ => {
-        // If we couldn't parse anything at all, then we end the block so that
-        // we don't get stuck. Note that we already know that there ISN'T
-        // an RBrace here, so the expect will fail.
+        // NB: If we couldn't parse anything at all, then we immediately close
+        // the block so that we don't get stuck in an infinite loop.
+        //
+        // Note that we already know that there ISN'T an RBrace here, so the
+        // expect will fail.
+        //
+        // Also, note that in this case we still emit an `undefined` expr/stmt.
 
         let pos = t.token_start();
         parse_prec(t, o, 0x00, true);

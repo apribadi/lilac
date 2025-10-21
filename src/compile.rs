@@ -1,4 +1,5 @@
 use crate::ast::Expr;
+use crate::ast::Stmt;
 use crate::symbol::Symbol;
 use crate::uir::Inst;
 
@@ -24,7 +25,7 @@ fn pop_value(e: &mut Env) -> u32 {
   return e.values.pop().unwrap();
 }
 
-fn pop_value_multi(n: usize, e: &mut Env) -> impl Iterator<Item = u32> {
+fn pop_values(n: usize, e: &mut Env) -> impl Iterator<Item = u32> {
   return e.values.drain(e.values.len() - n ..);
 }
 
@@ -37,7 +38,7 @@ fn pop_point(e: &mut Env) -> u32 {
   return e.points.pop().unwrap();
 }
 
-fn pop_point_multi(n: usize, e: &mut Env) -> impl Iterator<Item = u32> {
+fn pop_points(n: usize, e: &mut Env) -> impl Iterator<Item = u32> {
   return e.points.drain(e.points.len() - n ..);
 }
 
@@ -72,14 +73,9 @@ pub fn compile<'a>(x: Expr<'a>) -> Vec<Inst> {
   let mut e = Env::new();
   let mut o = Out::new();
 
-  // let _ = compile_expr(x, &mut e, &mut o).into_value(&mut e, &mut o);
   compile_expr_tail(x, &mut e, &mut o);
   return o.0;
 }
-
-// compile_expr
-//
-// return either (N_VALUES usize | N_POINTS label)
 
 enum What {
   NumPoints(usize),
@@ -87,12 +83,29 @@ enum What {
 }
 
 impl What {
+  fn into_nil(self, e: &mut Env, o: &mut Out) {
+    match self {
+      What::NumPoints(n) => {
+        let a = o.emit(Inst::Label);
+        for k in pop_points(n, e) {
+          o.edit_patch_point(k, a);
+        }
+      }
+      What::NumValues(0) => {
+      }
+      _ => {
+        // arity error
+        unimplemented!()
+      }
+    }
+  }
+
   fn into_value(self, e: &mut Env, o: &mut Out) -> u32 {
     match self {
       What::NumPoints(n) => {
         let a = o.emit(Inst::Label);
         let x = o.emit(Inst::Pop);
-        for k in pop_point_multi(n, e) {
+        for k in pop_points(n, e) {
           o.edit_patch_point(k, a);
         }
         return x;
@@ -113,7 +126,7 @@ impl What {
         return n;
       }
       What::NumValues(n) => {
-        for x in pop_value_multi(n, e) {
+        for x in pop_values(n, e) {
           let _ = o.emit(Inst::Put(x));
         }
         put_point(o.emit_patch_point(), e);
@@ -143,10 +156,10 @@ fn compile_expr<'a>(x: Expr<'a>, e: &mut Env, o: &mut Out) -> What {
     Expr::Call(&(f, x)) => {
       let n = x.len();
       let f = compile_expr(f, e, o).into_value(e, o);
-      for y in x {
-        put_value(compile_expr(*y, e, o).into_value(e, o), e);
+      for &y in x.iter() {
+        put_value(compile_expr(y, e, o).into_value(e, o), e);
       }
-      for y in pop_value_multi(n, e) {
+      for y in pop_values(n, e) {
         let _ = o.emit(Inst::Put(y));
       }
       let _ = o.emit(Inst::Call(f));
@@ -168,8 +181,22 @@ fn compile_expr<'a>(x: Expr<'a>, e: &mut Env, o: &mut Out) -> What {
       put_value(o.emit(Inst::ConstInt(n)), e);
       return What::NumValues(1);
     }
-    Expr::Loop(_) => {
-      unimplemented!()
+    Expr::Loop(x) => {
+      // TODO:
+      //
+      // while compiling break statements, we need to push their patch point to
+      // the stack and increment n_breaks
+      //
+      // the break target needs to be scoped lexically, and in particular be
+      // available in sub-trees
+      //
+      // try to just handle returns first
+
+      let mut n_breaks = 0;
+      for &y in x.iter() {
+        compile_stmt(y, e, o).into_nil(e, o);
+      }
+      return What::NumPoints(n_breaks);
     }
     Expr::Op1(&(f, x)) => {
       let x = compile_expr(x, e, o).into_value(e, o);
@@ -241,10 +268,10 @@ fn compile_expr_tail<'a>(x: Expr<'a>, e: &mut Env, o: &mut Out) {
     Expr::Call(&(f, x)) => {
       let n = x.len();
       let f = compile_expr(f, e, o).into_value(e, o);
-      for y in x {
-        put_value(compile_expr(*y, e, o).into_value(e, o), e);
+      for &y in x.iter() {
+        put_value(compile_expr(y, e, o).into_value(e, o), e);
       }
-      for y in pop_value_multi(n, e) {
+      for y in pop_values(n, e) {
         let _ = o.emit(Inst::Put(y));
       }
       let _ = o.emit(Inst::TailCall(f));
@@ -295,5 +322,13 @@ fn compile_expr_tail<'a>(x: Expr<'a>, e: &mut Env, o: &mut Out) {
         _ => unreachable!()
       }
     }
+  }
+}
+
+fn compile_stmt<'a>(x: Stmt<'a>, e: &mut Env, o: &mut Out) -> What {
+  let _ = e;
+  let _ = o;
+  match x {
+    _ => unimplemented!(),
   }
 }
