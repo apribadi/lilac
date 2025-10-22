@@ -433,16 +433,23 @@ fn compile_stmt<'a>(x: Stmt<'a>, e: &mut Env, o: &mut Out) -> What {
           return What::NumValues(0);
         }
         _ => {
-          // error
-          unimplemented!()
+          // TODO: error not local variable
+          return What::NumValues(0);
         }
       }
     }
-    Stmt::SetField(..) => {
-      unimplemented!()
+    Stmt::SetField(x, s, y) => {
+      let x = compile_expr(x, e, o).into_value(e, o);
+      let y = compile_expr(y, e, o).into_value(e, o);
+      let _ = o.emit(Inst::SetField(x, s, y));
+      return What::NumValues(0);
     }
-    Stmt::SetIndex(..) => {
-      unimplemented!()
+    Stmt::SetIndex(x, y, z) => {
+      let x = compile_expr(x, e, o).into_value(e, o);
+      let y = compile_expr(y, e, o).into_value(e, o);
+      let z = compile_expr(z, e, o).into_value(e, o);
+      let _ = o.emit(Inst::SetIndex(x, y, z));
+      return What::NumValues(0);
     }
     Stmt::Var(s, x) => {
       let x = compile_expr(x, e, o).into_value(e, o);
