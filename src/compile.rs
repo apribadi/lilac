@@ -239,6 +239,7 @@ fn compile_expr<'a>(x: Expr<'a>, e: &mut Env, o: &mut Out) -> What {
       //
       // try to just handle returns first
 
+      let i = o.emit_patch_point();
       let a = o.emit(Inst::Label);
       put_loop(e, a);
       put_scope(e);
@@ -248,6 +249,7 @@ fn compile_expr<'a>(x: Expr<'a>, e: &mut Env, o: &mut Out) -> What {
       let _ = o.emit(Inst::Jump(a));
       pop_scope(e);
       pop_loop(e);
+      o.edit_patch_point(i, a);
       let n_breaks = 0;
       return What::NumPoints(n_breaks);
     }
@@ -397,7 +399,8 @@ fn compile_stmt<'a>(x: Stmt<'a>, e: &mut Env, o: &mut Out) -> What {
       unimplemented!()
     }
     Stmt::Continue => {
-      unimplemented!()
+      let _ = o.emit(Inst::Jump(*e.continue_labels.last().unwrap()));
+      return What::NumPoints(0); // no continuation
     }
     Stmt::Let(s, x) => {
       let x = compile_expr(x, e, o).into_value(e, o);

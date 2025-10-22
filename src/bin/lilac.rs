@@ -23,12 +23,15 @@ fn main() {
     1 +
       loop {
         let x = foo.bar
-        let y = x + 1
-        var z = 1
-        f(z)
-        g(x + y)
-        z <- 2
-        h(z)
+        var y = 1
+        f(x)
+        h(y)
+        y <- y + 1
+        loop {
+          let z = 4
+          continue
+        }
+        let a = 13
       }
   ");
 
