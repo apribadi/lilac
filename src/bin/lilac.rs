@@ -20,6 +20,12 @@ fn compile(source: &str) {
 
 fn main() {
   compile("
+    0 +
+      loop {
+        return 0, f(1)
+      }");
+  /*
+  compile("
     1 +
       loop {
         let x = foo.bar
@@ -34,6 +40,7 @@ fn main() {
         let a = 13
       }
   ");
+  */
 
   /*
   compile("x == y && f(z + 1)");

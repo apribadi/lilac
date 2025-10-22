@@ -407,8 +407,23 @@ fn compile_stmt<'a>(x: Stmt<'a>, e: &mut Env, o: &mut Out) -> What {
       e.symbol_table.insert(s, Binding::Let(x));
       return What::NumValues(0);
     }
-    Stmt::Return(..) => {
-      unimplemented!()
+    Stmt::Return(x) => {
+      match x {
+        &[x] => {
+          compile_expr_tail(x, e, o);
+        }
+        x => {
+          let n = x.len();
+          for &y in x.iter() {
+            put_value(compile_expr(y, e, o).into_value(e, o), e);
+          }
+          for y in pop_values(n, e) {
+            let _ = o.emit(Inst::Put(y));
+          }
+          let _ = o.emit(Inst::Ret);
+        }
+      }
+      return What::NumPoints(0); // no continuation
     }
     Stmt::Set(s, x) => {
       let x = compile_expr(x, e, o).into_value(e, o);
