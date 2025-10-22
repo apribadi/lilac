@@ -27,6 +27,7 @@ pub enum Expr<'a> {
 pub enum Stmt<'a> {
   Expr(Expr<'a>),
   Break(&'a [Expr<'a>]),
+  Continue,
   Let(Symbol, Expr<'a>),
   Return(&'a [Expr<'a>]),
   Set(Symbol, Expr<'a>),
@@ -174,6 +175,10 @@ impl<'a, 'b> parse::Out for ToAst<'a, 'b> {
   fn on_break(&mut self, arity: usize) {
     let x = self.pop_expr_multi(arity);
     self.put_stmt(Stmt::Break(x));
+  }
+
+  fn on_continue(&mut self) {
+    self.put_stmt(Stmt::Continue);
   }
 
   fn on_let(&mut self, symbol: &[u8]) {

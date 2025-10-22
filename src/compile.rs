@@ -5,6 +5,7 @@ use crate::uir::Inst;
 
 struct Env {
   symbol_table: SymbolTable<Binding>,
+  continue_labels: Vec<u32>,
   values: Vec<u32>,
   points: Vec<u32>,
   // breaks: Vec<usize>,
@@ -14,11 +15,28 @@ impl Env {
   fn new() -> Self {
     Self {
       symbol_table: SymbolTable::new(),
+      continue_labels: Vec::new(),
       values: Vec::new(),
       points: Vec::new(),
       // breaks: Vec::new(),
     }
   }
+}
+
+fn put_loop(e: &mut Env, a: u32) {
+  e.continue_labels.push(a);
+}
+
+fn pop_loop(e: &mut Env) {
+  let _ = e.continue_labels.pop().unwrap();
+}
+
+fn put_scope(e: &mut Env) {
+  e.symbol_table.put_scope();
+}
+
+fn pop_scope(e: &mut Env) {
+  e.symbol_table.pop_scope();
 }
 
 fn put_value(x: u32, e: &mut Env) {
@@ -117,9 +135,9 @@ impl What {
       }
       What::NumValues(0) => {
       }
-      _ => {
-        // arity error
-        unimplemented!()
+      What::NumValues(n) => {
+        // TODO: arity error
+        let _ = pop_values(n, e);
       }
     }
   }
@@ -137,9 +155,10 @@ impl What {
       What::NumValues(1) => {
         return pop_value(e);
       }
-      _ => {
-        // arity error
-        unimplemented!()
+      What::NumValues(n) => {
+        // TODO: arity error
+        let _ = pop_values(n, e);
+        return o.emit(Inst::Undefined);
       }
     }
   }
@@ -221,13 +240,14 @@ fn compile_expr<'a>(x: Expr<'a>, e: &mut Env, o: &mut Out) -> What {
       // try to just handle returns first
 
       let a = o.emit(Inst::Label);
-      e.symbol_table.put_scope();
+      put_loop(e, a);
+      put_scope(e);
       for &y in x.iter() {
         compile_stmt(y, e, o).into_nil(e, o);
       }
-      e.symbol_table.pop_scope();
       let _ = o.emit(Inst::Jump(a));
-
+      pop_scope(e);
+      pop_loop(e);
       let n_breaks = 0;
       return What::NumPoints(n_breaks);
     }
@@ -374,6 +394,9 @@ fn compile_stmt<'a>(x: Stmt<'a>, e: &mut Env, o: &mut Out) -> What {
       return compile_expr(x, e, o);
     }
     Stmt::Break(..) => {
+      unimplemented!()
+    }
+    Stmt::Continue => {
       unimplemented!()
     }
     Stmt::Let(s, x) => {

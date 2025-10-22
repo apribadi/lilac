@@ -35,6 +35,8 @@ pub trait Out {
 
   fn on_break(&mut self, arity: usize);
 
+  fn on_continue(&mut self);
+
   fn on_let(&mut self, symbol: &[u8]);
 
   fn on_return(&mut self, arity: usize);
@@ -299,6 +301,13 @@ fn parse_block<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O) -> usize {
         expect(t, o, Token::RBrace);
         break;
       }
+      Token::Continue => {
+        t.next();
+        o.on_continue();
+        n_stmts += 1;
+        expect(t, o, Token::RBrace);
+        break;
+      }
       Token::Let => {
         // TODO: multiple value bind
         t.next();
@@ -453,6 +462,10 @@ impl Out for ToSexp {
     x.push(Sexp::from_bytes(b"break"));
     x.extend(self.pop_multi(arity));
     self.put(Sexp::List(x.into_boxed_slice()));
+  }
+
+  fn on_continue(&mut self) {
+    self.put(Sexp::from_bytes(b"continue"));
   }
 
   fn on_let(&mut self, symbol: &[u8]) {
