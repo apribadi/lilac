@@ -3,6 +3,11 @@ use crate::ast::Stmt;
 use crate::symbol_table::SymbolTable;
 use crate::uir::Inst;
 
+enum Binding {
+  Let(u32),
+  Var(u32),
+}
+
 struct Env {
   symbol_table: SymbolTable<Binding>,
   continue_labels: Vec<u32>,
@@ -79,11 +84,6 @@ fn put_break(a: u32, e: &mut Env) {
   e.points.push(a);
 }
 */
-
-enum Binding {
-  Let(u32),
-  Var(u32),
-}
 
 struct Out(Vec<Inst>);
 
@@ -208,15 +208,15 @@ fn compile_expr<'a>(x: Expr<'a>, e: &mut Env, o: &mut Out) -> What {
       put_value(x, e);
       return What::NumValues(1);
     }
-    Expr::Call(&(f, x)) => {
-      let n = x.len();
+    Expr::Call(&(f, xs)) => {
+      let n = xs.len();
       let f = compile_expr(f, e, o).into_value(e, o);
-      for &y in x.iter() {
-        let y = compile_expr(y, e, o).into_value(e, o);
-        put_value(y, e);
+      for &x in xs.iter() {
+        let x = compile_expr(x, e, o).into_value(e, o);
+        put_value(x, e);
       }
-      for y in pop_values(n, e) {
-        let _ = o.emit(Inst::Put(y));
+      for x in pop_values(n, e) {
+        let _ = o.emit(Inst::Put(x));
       }
       let _ = o.emit(Inst::Call(f));
       put_point(o.emit_patch_point(), e);
@@ -344,14 +344,14 @@ fn compile_expr_tail<'a>(x: Expr<'a>, e: &mut Env, o: &mut Out) {
       o.edit_patch_point(i, a);
       o.edit_patch_point(j, b);
     }
-    Expr::Call(&(f, x)) => {
-      let n = x.len();
+    Expr::Call(&(f, xs)) => {
+      let n = xs.len();
       let f = compile_expr(f, e, o).into_value(e, o);
-      for &y in x.iter() {
-        put_value(compile_expr(y, e, o).into_value(e, o), e);
+      for &x in xs.iter() {
+        put_value(compile_expr(x, e, o).into_value(e, o), e);
       }
-      for y in pop_values(n, e) {
-        let _ = o.emit(Inst::Put(y));
+      for x in pop_values(n, e) {
+        let _ = o.emit(Inst::Put(x));
       }
       let _ = o.emit(Inst::TailCall(f));
     }
@@ -484,7 +484,7 @@ fn compile_block<'a>(xs: &'a [Stmt<'a>], e: &mut Env, o: &mut Out) -> What {
         What::NIL
       }
       Some((&y, xs)) => {
-        for &x in xs {
+        for &x in xs.iter() {
           compile_stmt(x, e, o).into_nil(e, o);
         }
         compile_stmt(y, e, o)

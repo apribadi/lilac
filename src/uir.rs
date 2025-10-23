@@ -34,7 +34,6 @@ pub enum Inst {
   SetField(Value, Symbol, Value),
   SetIndex(Value, Value, Value),
   SetLocal(Value, Value),
-  Undefined,
 }
 
 impl std::fmt::Display for Inst {
@@ -61,7 +60,6 @@ impl std::fmt::Display for Inst {
       Self::SetField(x, s, y) => write!(f, "%{} [ .{} ] <- %{}", x, s, y),
       Self::SetIndex(x, i, y) => write!(f, "%{} [ %{} ] <- %{}", x, i, y),
       Self::SetLocal(v, x) => write!(f, "[ %{} ] <- %{}", v, x),
-      Self::Undefined => write!(f, "= UNDEFINED"),
     }
   }
 }
