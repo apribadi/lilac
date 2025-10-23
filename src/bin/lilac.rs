@@ -19,15 +19,9 @@ fn compile(source: &str) {
 }
 
 fn main() {
-  compile("x ? 1 : y ? 2 : z ? 3 : 4");
+  compile("loop { break 1, 2, 3 }");
 
-  compile("
-    0 +
-      loop {
-        x[0] <- 4
-        y.foo <- 5
-        return 0, f(1)
-      }");
+  compile("x ? 1 : y ? 2 : z ? 3 : 4");
 
   compile("1 + loop { 1 }");
 
