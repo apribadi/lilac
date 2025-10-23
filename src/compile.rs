@@ -263,6 +263,12 @@ fn compile_expr<'a>(x: Expr<'a>, e: &mut Env, o: &mut Out) -> What {
       put_value(x, e);
       return What::NumValues(1);
     }
+    Expr::If(..) => {
+      unimplemented!()
+    }
+    Expr::IfElse(..) => {
+      unimplemented!()
+    }
     Expr::Index(&(x, y)) => {
       let x = compile_expr(x, e, o).into_value(e, o);
       let y = compile_expr(y, e, o).into_value(e, o);
@@ -374,6 +380,12 @@ fn compile_expr_tail<'a>(x: Expr<'a>, e: &mut Env, o: &mut Out) {
       }
       let _ = o.emit(Inst::TailCall(f));
     }
+    Expr::If(..) => {
+      unimplemented!()
+    }
+    Expr::IfElse(..) => {
+      unimplemented!()
+    }
     Expr::Loop(xs) => {
       let i = o.emit_point();
       let a = o.emit_label_and_patch_points([i]);
@@ -405,14 +417,14 @@ fn compile_expr_tail<'a>(x: Expr<'a>, e: &mut Env, o: &mut Out) {
       compile_expr_tail(x, e, o);
     }
     x @ (
-      | Expr::Bool(_)
-      | Expr::Field(_)
-      | Expr::Index(_)
-      | Expr::Int(_)
-      | Expr::Op1(_)
-      | Expr::Op2(_)
+      | Expr::Bool(..)
+      | Expr::Field(..)
+      | Expr::Index(..)
+      | Expr::Int(..)
+      | Expr::Op1(..)
+      | Expr::Op2(..)
       | Expr::Undefined
-      | Expr::Variable(_)
+      | Expr::Variable(..)
     ) => {
       match compile_expr(x, e, o) {
         What::NumValues(1) => {

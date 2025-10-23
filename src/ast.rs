@@ -12,6 +12,8 @@ pub enum Expr<'a> {
   Bool(bool),
   Call(&'a (Expr<'a>, &'a [Expr<'a>])),
   Field(&'a (Expr<'a>, Symbol)),
+  If(&'a (Expr<'a>, &'a [Stmt<'a>])),
+  IfElse(&'a (Expr<'a>, &'a [Stmt<'a>], &'a [Stmt<'a>])),
   Index(&'a (Expr<'a>, Expr<'a>)),
   Int(i64),
   Loop(&'a [Stmt<'a>]),
