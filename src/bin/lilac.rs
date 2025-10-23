@@ -19,6 +19,20 @@ fn compile(source: &str) {
 }
 
 fn main() {
+  compile("loop { 1 1 }");
+  compile("loop { break }");
+  compile("loop { continue }");
+  compile("loop { return }");
+
+  compile("
+    loop {
+      if x {
+        break 1
+      } else
+        return 2
+      }
+    }");
+
   compile("
     if n == 0 {
       return 0

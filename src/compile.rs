@@ -6,6 +6,56 @@ use crate::uir::Inst;
 
 // TODO: fundef
 
+// TODO: unresolved patch points should be tagged with an arity
+//
+// enum _ {
+//   Known(usize),
+//   Unknown
+// }
+//
+// where Unknown comes from calls with exactly one continuation but with
+// unknown arity.
+//
+// Then, when we reolve patch points we can check arity.
+//
+// On an arity mismatch, we can replace JUMP block terminators with
+// GOTO-STATIC-ERROR, but it's not clear what to do with patch points that are
+// part of a, e.g. COND.
+//
+// e.g.
+//
+// let x = if ... { ... }
+//
+// should generate an arity error from (at least) one of the COND arms.
+//
+// Perhaps we could have a GOTO-STATIC-ERROR instruction that behaves
+// similarly to GOTO? Or we could lazily generate a block
+// { LABEL; GOTO-STATIC-ERROR } at the end of the function?
+
+// NOTE:
+//
+// Functions either have
+// - one ordinary continuation, or
+// - N tagged continuations, where N = 0 or 1 is possible
+//
+// A tail call is ambiguous, in that it could be a call to either type of
+// function.
+//
+// An ordinary function call in non-tail position is always the first case, a
+// call to a function with one ordinary continuation.
+//
+// We'll have special syntax for non-tail calls to functions with tagged
+// continuations, even if it has 0 or 1 continuations.
+//
+// (You could imagine propagating these special contexts to
+// sub-expressions in a similar way that we do tail contexts - you would
+// be unable to evaluate, e.g., operator expressions in such a context)
+//
+// OR
+//
+// we could have a syntax where the function receives multiple continuations
+// explicitly and names them
+
 enum Binding {
   Let(u32),
   Var(u32),
@@ -139,7 +189,7 @@ impl Out {
   }
 
   fn emit_point(&mut self) -> u32 {
-    return self.emit(Inst::Jump(u32::MAX));
+    return self.emit(Inst::Goto(u32::MAX));
   }
 
   fn emit_label_and_patch_points(&mut self, points: impl IntoIterator<Item = u32>) -> u32 {
@@ -151,7 +201,7 @@ impl Out {
 
 fn patch_points(a: u32, points: impl IntoIterator<Item = u32>, o: &mut Out) {
   for i in points {
-    o.0[i as usize] = Inst::Jump(a);
+    o.0[i as usize] = Inst::Goto(a);
   }
 }
 
@@ -183,7 +233,7 @@ impl What {
       What::NumValues(n) => {
         // error, arity mismatch
         let _ = pop_values(n, e);
-        let _ = o.emit(Inst::AbortStaticError);
+        let _ = o.emit(Inst::GotoStaticError);
         let _ = o.emit(Inst::Label);
       }
     }
@@ -202,7 +252,7 @@ impl What {
       What::NumValues(n) => {
         // error, arity mismatch
         let _ = pop_values(n, e);
-        let _ = o.emit(Inst::AbortStaticError);
+        let _ = o.emit(Inst::GotoStaticError);
         let _ = o.emit(Inst::Label);
         let x = o.emit(Inst::Pop);
         return x;
@@ -351,7 +401,7 @@ fn compile_expr<'a>(x: Expr<'a>, e: &mut Env, o: &mut Out) -> What {
     }
     Expr::Undefined => {
       // error, evaluating undefined expression
-      let _ = o.emit(Inst::AbortStaticError);
+      let _ = o.emit(Inst::GotoStaticError);
       let _ = o.emit(Inst::Label);
       let x = o.emit(Inst::Pop);
       put_value(x, e);
@@ -485,7 +535,7 @@ fn compile_stmt<'a>(x: Stmt<'a>, e: &mut Env, o: &mut Out) -> What {
       match e.loops.last_mut() {
         None => {
           // error, break is not inside loop
-          let _ = o.emit(Inst::AbortStaticError);
+          let _ = o.emit(Inst::GotoStaticError);
         }
         Some(LoopBreakTarget::Tail) => {
           compile_expr_list_tail(xs, e, o);
@@ -517,7 +567,9 @@ fn compile_stmt<'a>(x: Stmt<'a>, e: &mut Env, o: &mut Out) -> What {
       return What::NEVER;
     }
     Stmt::Continue => {
-      let _ = o.emit(Inst::Jump(*e.continue_labels.last().unwrap()));
+      // TODO: if continue_labels.last() is None, generate an error.
+      // like for break
+      let _ = o.emit(Inst::Goto(*e.continue_labels.last().unwrap()));
       return What::NEVER;
     }
     Stmt::Let(s, x) => {
@@ -538,7 +590,7 @@ fn compile_stmt<'a>(x: Stmt<'a>, e: &mut Env, o: &mut Out) -> What {
         }
         _ => {
           // error, symbol does not refer to local variable
-          let _ = o.emit(Inst::AbortStaticError);
+          let _ = o.emit(Inst::GotoStaticError);
           let _ = o.emit(Inst::Label);
           return What::NIL;
         }

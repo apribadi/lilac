@@ -1,8 +1,4 @@
 // untyped intermediate representation - bytecode
-//
-//
-
-// TODO: consider operator application in tail position
 
 use crate::op1::Op1;
 use crate::op2::Op2;
@@ -13,11 +9,11 @@ type Label = u32;
 type Value = u32;
 
 pub enum Inst {
-  AbortStaticError,
+  GotoStaticError,
   Label,
   Pop,
   Put(Value),
-  Jump(Label),
+  Goto(Label),
   Cond(Value),
   Ret,
   Call(Value),
@@ -39,11 +35,11 @@ pub enum Inst {
 impl std::fmt::Display for Inst {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     match self {
-      Self::AbortStaticError => write!(f, "= ABORT-STATIC-ERROR"),
       Self::Label => write!(f, "LABEL"),
       Self::Pop => write!(f, "= POP"),
       Self::Put(x) => write!(f, "PUT %{}", x),
-      Self::Jump(x) => write!(f, "==> {}", x),
+      Self::Goto(x) => write!(f, "==> GOTO {}", x),
+      Self::GotoStaticError => write!(f, "==> GOTO-STATIC-ERROR"),
       Self::Cond(x) => write!(f, "COND %{}", x),
       Self::Ret => write!(f, "RET"),
       Self::Call(x) => write!(f, "CALL %{}", x),
