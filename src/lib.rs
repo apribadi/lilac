@@ -17,6 +17,8 @@ pub mod uir;
 //
 //   fun foo(...) -> case @ok .foo int:t, .bar int:t | @error .baz int:t { ... }
 //
+//   fun foo(...) -> case .foo int:t, .bar int:t | .baz int:t { ... }
+//
 //   fun foo(...) -> int:t, int:t { ... }
 //
 //   fun foo(...) -> ! { ... }
@@ -41,10 +43,6 @@ pub mod uir;
 //
 //   fun foo(...) -> case @ok int:t | @error int:t { ... }
 //
-//   fun foo(...) -> | int:t, int:t | int:t { ... }
-//
-//   fun foo(...) -> | @ok int:t, int:t | @err int:t { ... }
-//
 //   let x, y = z ...
 //
 //   let .foo ~ x, .bar ~ y = z ...
@@ -55,8 +53,8 @@ pub mod uir;
 //   }
 //
 //   case z ... {
-//      @ok .x, .y => { x + 1 }
-//      @error .z => { 2 }
+//      @ok .x, .y => { x + y }
+//      @error .z => { z + 1 }
 //   }
 //
 //   return @1
@@ -79,7 +77,7 @@ pub mod uir;
 //
 //   case f(...) { @0 x, y => { ... } @1 x => { ... } }
 //
-//   case f(...) { @ok x, y => { ... } @ x => { ... } }
+//   case f(...) { @ok x, y => { ... } @x => { ... } }
 //
 //   case f(...) {
 //     => { ... }
@@ -119,7 +117,7 @@ pub mod uir;
 //
 //   fun foo(x int:t, .y ~ z int:t) -> int:t { ... }
 //
-//   fun foo(int:t, .y int:t) -> int:t { ... }
+//   fun foo(int:t, .y int:t) -> int:t
 //
 //   let x = construct(.a = 1, .b = 2)
 //
