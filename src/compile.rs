@@ -4,6 +4,8 @@ use crate::symbol::Symbol;
 use crate::symbol_table::SymbolTable;
 use crate::uir::Inst;
 
+// TODO: fundef
+
 enum Binding {
   Let(u32),
   Var(u32),
@@ -47,8 +49,6 @@ fn put_var(s: Symbol, x: u32, e: &mut Env) {
 fn get_binding(s: Symbol, e: &Env) -> Option<&Binding> {
   return e.symbol_table.get(s);
 }
-
-// TODO: put_loop_tail, pop_loop_tail
 
 fn put_loop(a: u32, e: &mut Env) {
   e.loops.push(LoopBreakTarget::NonTail(0));
