@@ -26,9 +26,8 @@ fn main() {
         y.foo <- 5
         return 0, f(1)
       }");
-  compile("
-    1 +
-      loop {
-        1
-      }");
+
+  compile("1 + loop { 1 }");
+
+  compile("1 + loop { return }");
 }

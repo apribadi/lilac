@@ -1,8 +1,10 @@
 use crate::ast::Expr;
 use crate::ast::Stmt;
+use crate::symbol::Symbol;
 use crate::symbol_table::SymbolTable;
 use crate::uir::Inst;
 
+#[derive(Clone, Copy)]
 enum Binding {
   Let(u32),
   Var(u32),
@@ -26,6 +28,14 @@ impl Env {
       // breaks: Vec::new(),
     }
   }
+}
+
+fn put_binding(e: &mut Env, s: Symbol, x: Binding) {
+  e.symbol_table.insert(s, x);
+}
+
+fn get_binding(e: &Env, s: Symbol) -> Option<Binding> {
+  return e.symbol_table.get(s).map(|x| *x);
 }
 
 fn put_loop(e: &mut Env, a: u32) {
@@ -179,7 +189,8 @@ impl What {
         for x in pop_values(n, e) {
           let _ = o.emit(Inst::Put(x));
         }
-        put_point(o.emit_patch_point(), e);
+        let i = o.emit_patch_point();
+        put_point(i, e);
         return 1;
       }
     }
@@ -196,7 +207,8 @@ fn compile_expr<'a>(x: Expr<'a>, e: &mut Env, o: &mut Out) -> What {
       let a = o.emit(Inst::Label);
       let x = o.emit(Inst::ConstBool(false));
       let _ = o.emit(Inst::Put(x));
-      put_point(o.emit_patch_point(), e);
+      let k = o.emit_patch_point();
+      put_point(k, e);
       let b = o.emit(Inst::Label);
       let n = compile_expr(y, e, o).into_points(e, o);
       o.edit_patch_point(i, a);
@@ -219,7 +231,8 @@ fn compile_expr<'a>(x: Expr<'a>, e: &mut Env, o: &mut Out) -> What {
         let _ = o.emit(Inst::Put(x));
       }
       let _ = o.emit(Inst::Call(f));
-      put_point(o.emit_patch_point(), e);
+      let i = o.emit_patch_point();
+      put_point(i, e);
       return What::NumPoints(1);
     }
     Expr::Field(&(x, s)) => {
@@ -284,7 +297,8 @@ fn compile_expr<'a>(x: Expr<'a>, e: &mut Env, o: &mut Out) -> What {
       let b = o.emit(Inst::Label);
       let x = o.emit(Inst::ConstBool(true));
       let _ = o.emit(Inst::Put(x));
-      put_point(o.emit_patch_point(), e);
+      let k = o.emit_patch_point();
+      put_point(k, e);
       o.edit_patch_point(i, a);
       o.edit_patch_point(j, b);
       return What::NumPoints(n + 1);
@@ -310,15 +324,15 @@ fn compile_expr<'a>(x: Expr<'a>, e: &mut Env, o: &mut Out) -> What {
       return What::NumValues(1);
     }
     Expr::Variable(s) => {
-      match e.symbol_table.get(s) {
+      match get_binding(e, s) {
         None => {
           let x = o.emit(Inst::Global(s));
           put_value(x, e);
         }
-        Some(&Binding::Let(x)) => {
+        Some(Binding::Let(x)) => {
           put_value(x, e);
         }
-        Some(&Binding::Var(x)) => {
+        Some(Binding::Var(x)) => {
           let x = o.emit(Inst::Local(x));
           put_value(x, e);
         }
@@ -419,7 +433,7 @@ fn compile_stmt<'a>(x: Stmt<'a>, e: &mut Env, o: &mut Out) -> What {
     }
     Stmt::Let(s, x) => {
       let x = compile_expr(x, e, o).into_value(e, o);
-      e.symbol_table.insert(s, Binding::Let(x));
+      put_binding(e, s, Binding::Let(x));
       return What::NIL;
     }
     Stmt::Return(x) => {
@@ -442,8 +456,8 @@ fn compile_stmt<'a>(x: Stmt<'a>, e: &mut Env, o: &mut Out) -> What {
     }
     Stmt::Set(s, x) => {
       let x = compile_expr(x, e, o).into_value(e, o);
-      match e.symbol_table.get(s) {
-        Some(&Binding::Var(y)) => {
+      match get_binding(e, s) {
+        Some(Binding::Var(y)) => {
           let _ = o.emit(Inst::SetLocal(y, x));
           return What::NIL;
         }
@@ -470,7 +484,7 @@ fn compile_stmt<'a>(x: Stmt<'a>, e: &mut Env, o: &mut Out) -> What {
     Stmt::Var(s, x) => {
       let x = compile_expr(x, e, o).into_value(e, o);
       let x = o.emit(Inst::DefLocal(x));
-      e.symbol_table.insert(s, Binding::Var(x));
+      put_binding(e, s, Binding::Var(x));
       return What::NIL;
     }
   }
