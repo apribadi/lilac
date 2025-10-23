@@ -181,8 +181,9 @@ impl What {
       What::NumValues(0) => {
       }
       What::NumValues(n) => {
+        // error, arity mismatch
         let _ = pop_values(n, e);
-        let _ = o.emit(Inst::AbortStaticError); // arity mismatch
+        let _ = o.emit(Inst::AbortStaticError);
         let _ = o.emit(Inst::Label);
       }
     }
@@ -199,8 +200,9 @@ impl What {
         return pop_value(e);
       }
       What::NumValues(n) => {
+        // error, arity mismatch
         let _ = pop_values(n, e);
-        let _ = o.emit(Inst::AbortStaticError); // arity mismatch
+        let _ = o.emit(Inst::AbortStaticError);
         let _ = o.emit(Inst::Label);
         let x = o.emit(Inst::Pop);
         return x;
@@ -348,6 +350,7 @@ fn compile_expr<'a>(x: Expr<'a>, e: &mut Env, o: &mut Out) -> What {
       return What::NumPoints(m + n);
     }
     Expr::Undefined => {
+      // error, evaluating undefined expression
       let _ = o.emit(Inst::AbortStaticError);
       let _ = o.emit(Inst::Label);
       let x = o.emit(Inst::Pop);
@@ -482,7 +485,7 @@ fn compile_stmt<'a>(x: Stmt<'a>, e: &mut Env, o: &mut Out) -> What {
       match e.loops.last_mut() {
         None => {
           // error, break is not inside loop
-          unimplemented!()
+          let _ = o.emit(Inst::AbortStaticError);
         }
         Some(LoopBreakTarget::Tail) => {
           compile_expr_list_tail(xs, e, o);
@@ -534,7 +537,8 @@ fn compile_stmt<'a>(x: Stmt<'a>, e: &mut Env, o: &mut Out) -> What {
           return What::NIL;
         }
         _ => {
-          let _ = o.emit(Inst::AbortStaticError); // no variable
+          // error, symbol does not refer to local variable
+          let _ = o.emit(Inst::AbortStaticError);
           let _ = o.emit(Inst::Label);
           return What::NIL;
         }
