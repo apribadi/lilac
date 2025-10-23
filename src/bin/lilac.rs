@@ -19,6 +19,8 @@ fn compile(source: &str) {
 }
 
 fn main() {
+  compile("x ? 1 : y ? 2 : z ? 3 : 4");
+
   compile("
     0 +
       loop {

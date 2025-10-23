@@ -104,6 +104,7 @@ impl Out {
 
   fn emit(&mut self, inst: Inst) -> u32 {
     let n = self.0.len();
+    assert!(n < u32::MAX as usize);
     self.0.push(inst);
     return n as u32;
   }
