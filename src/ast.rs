@@ -158,14 +158,18 @@ impl<'a, 'b> parse::Out for ToAst<'a, 'b> {
   }
 
   fn on_if(&mut self, n_stmts: usize) {
-    let _ = n_stmts;
-    unimplemented!()
+    let y = self.pop_stmt_multi(n_stmts);
+    let x = self.pop_expr();
+    let x = Expr::If(self.alloc((x, y)));
+    self.put_expr(x);
   }
 
   fn on_if_else(&mut self, n_stmts_then: usize, n_stmts_else: usize) {
-    let _ = n_stmts_then;
-    let _ = n_stmts_else;
-    unimplemented!()
+    let z = self.pop_stmt_multi(n_stmts_else);
+    let y = self.pop_stmt_multi(n_stmts_then);
+    let x = self.pop_expr();
+    let x = Expr::IfElse(self.alloc((x, y, z)));
+    self.put_expr(x);
   }
 
   fn on_call(&mut self, arity: usize) {

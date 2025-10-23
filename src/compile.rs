@@ -317,15 +317,15 @@ fn compile_expr<'a>(x: Expr<'a>, e: &mut Env, o: &mut Out) -> What {
       put_point(k, e);
       return What::NumPoints(n + 1);
     }
-    Expr::Ternary(&(p, x, y)) => {
-      let p = compile_expr(p, e, o).into_value(e, o);
-      let _ = o.emit(Inst::Cond(p));
+    Expr::Ternary(&(x, y, z)) => {
+      let x = compile_expr(x, e, o).into_value(e, o);
+      let _ = o.emit(Inst::Cond(x));
       let i = o.emit_point();
       let j = o.emit_point();
       let _ = o.emit_label_and_patch_points([i]);
-      let m = compile_expr(y, e, o).into_points(e, o);
+      let m = compile_expr(z, e, o).into_points(e, o);
       let _ = o.emit_label_and_patch_points([j]);
-      let n = compile_expr(x, e, o).into_points(e, o);
+      let n = compile_expr(y, e, o).into_points(e, o);
       return What::NumPoints(m + n);
     }
     Expr::Undefined => {
@@ -406,15 +406,15 @@ fn compile_expr_tail<'a>(x: Expr<'a>, e: &mut Env, o: &mut Out) {
       let _ = o.emit(Inst::Put(x));
       let _ = o.emit(Inst::Ret);
     }
-    Expr::Ternary(&(p, x, y)) => {
-      let p = compile_expr(p, e, o).into_value(e, o);
-      let _ = o.emit(Inst::Cond(p));
+    Expr::Ternary(&(x, y, z)) => {
+      let x = compile_expr(x, e, o).into_value(e, o);
+      let _ = o.emit(Inst::Cond(x));
       let i = o.emit_point();
       let j = o.emit_point();
       let _ = o.emit_label_and_patch_points([i]);
-      compile_expr_tail(y, e, o);
+      compile_expr_tail(z, e, o);
       let _ = o.emit_label_and_patch_points([j]);
-      compile_expr_tail(x, e, o);
+      compile_expr_tail(y, e, o);
     }
     x @ (
       | Expr::Bool(..)
