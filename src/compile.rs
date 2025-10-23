@@ -263,11 +263,26 @@ fn compile_expr<'a>(x: Expr<'a>, e: &mut Env, o: &mut Out) -> What {
       put_value(x, e);
       return What::NumValues(1);
     }
-    Expr::If(..) => {
-      unimplemented!()
+    Expr::If(&(x, ys)) => {
+      let x = compile_expr(x, e, o).into_value(e, o);
+      let _ = o.emit(Inst::Cond(x));
+      let i = o.emit_point();
+      let j = o.emit_point();
+      put_point(i, e);
+      let _ = o.emit_label_and_patch_points([j]);
+      let n = compile_block(ys, e, o).into_points(e, o);
+      return What::NumPoints(1 + n);
     }
-    Expr::IfElse(..) => {
-      unimplemented!()
+    Expr::IfElse(&(x, ys, zs)) => {
+      let x = compile_expr(x, e, o).into_value(e, o);
+      let _ = o.emit(Inst::Cond(x));
+      let i = o.emit_point();
+      let j = o.emit_point();
+      let _ = o.emit_label_and_patch_points([i]);
+      let m = compile_block(zs, e, o).into_points(e, o);
+      let _ = o.emit_label_and_patch_points([j]);
+      let n = compile_block(ys, e, o).into_points(e, o);
+      return What::NumPoints(m + n);
     }
     Expr::Index(&(x, y)) => {
       let x = compile_expr(x, e, o).into_value(e, o);
@@ -522,6 +537,39 @@ fn compile_stmt<'a>(x: Stmt<'a>, e: &mut Env, o: &mut Out) -> What {
       let x = o.emit(Inst::DefLocal(x));
       put_var(s, x, e);
       return What::NIL;
+    }
+  }
+}
+
+fn compile_stmt_tail<'a>(x: Stmt<'a>, e: &mut Env, o: &mut Out) {
+  match x {
+    Stmt::Expr(x) => {
+      compile_expr_tail(x, e, o);
+    }
+    x @ (
+      | Stmt::Break(..)
+      | Stmt::Continue
+      | Stmt::Return(..)
+    ) => {
+      match compile_stmt(x, e, o) {
+        What::NumPoints(0) => {
+        }
+        _ => unreachable!()
+      }
+    }
+    x @ (
+      | Stmt::Let(..)
+      | Stmt::Set(..)
+      | Stmt::SetField(..)
+      | Stmt::SetIndex(..)
+      | Stmt::Var(..)
+    ) => {
+      match compile_stmt(x, e, o) {
+        What::NumValues(0) => {
+          let _ = o.emit(Inst::Ret);
+        }
+        _ => unreachable!()
+      }
     }
   }
 }
