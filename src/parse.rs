@@ -27,6 +27,10 @@ pub trait Out {
 
   fn on_index(&mut self);
 
+  fn on_if(&mut self, n_stmts: usize);
+
+  fn on_if_else(&mut self, n_stmts_then: usize, n_stmts_else: usize);
+
   fn on_call(&mut self, arity: usize);
 
   fn on_loop(&mut self, n_stmts: usize);
@@ -131,6 +135,18 @@ fn parse_prec<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O, n: usize, is_stmt: bool)
       t.next();
       parse_prec(t, o, 0xff, false);
       o.on_op1(Op1::Not);
+    }
+    Token::If => {
+      t.next();
+      parse_expr(t, o);
+      let n_stmts = parse_block(t, o);
+      if t.token() == Token::Else {
+        t.next();
+        let n_stmts_else = parse_block(t, o);
+        o.on_if_else(n_stmts, n_stmts_else);
+      } else {
+        o.on_if(n_stmts);
+      }
     }
     Token::Loop => {
       t.next();
@@ -397,35 +413,38 @@ impl Out for ToSexp {
   }
 
   fn on_ternary(&mut self) {
+    let z = self.pop();
     let y = self.pop();
     let x = self.pop();
-    let p = self.pop();
-    self.put(Sexp::from_array([Sexp::from_bytes(b"?:"), p, x, y]));
+    let t = Sexp::from_bytes(b"?:");
+    self.put(Sexp::from_array([t, x, y, z]));
   }
 
   fn on_or(&mut self) {
     let y = self.pop();
     let x = self.pop();
-    self.put(Sexp::from_array([Sexp::from_bytes(b"||"), x, y]));
+    let t = Sexp::from_bytes(b"||");
+    self.put(Sexp::from_array([t, x, y]));
   }
 
   fn on_and(&mut self) {
     let y = self.pop();
     let x = self.pop();
-    self.put(Sexp::from_array([Sexp::from_bytes(b"&&"), x, y]));
+    let t = Sexp::from_bytes(b"&&");
+    self.put(Sexp::from_array([t, x, y]));
   }
 
   fn on_op1(&mut self, op: Op1) {
     let x = self.pop();
-    let op = Sexp::from_bytes(op.as_str().as_bytes());
-    self.put(Sexp::from_array([op, x]));
+    let t = Sexp::from_bytes(op.as_str().as_bytes());
+    self.put(Sexp::from_array([t, x]));
   }
 
   fn on_op2(&mut self, op: Op2) {
     let y = self.pop();
     let x = self.pop();
-    let op = Sexp::from_bytes(op.as_str().as_bytes());
-    self.put(Sexp::from_array([op, x, y]));
+    let t = Sexp::from_bytes(op.as_str().as_bytes());
+    self.put(Sexp::from_array([t, x, y]));
   }
 
   fn on_field(&mut self, symbol: &[u8]) {
@@ -437,7 +456,23 @@ impl Out for ToSexp {
   fn on_index(&mut self) {
     let y = self.pop();
     let x = self.pop();
-    self.put(Sexp::from_array([Sexp::from_bytes(b"[]"), x, y]));
+    let t = Sexp::from_bytes(b"[]");
+    self.put(Sexp::from_array([t, x, y]));
+  }
+
+  fn on_if(&mut self, n_stmts: usize) {
+    let y = Sexp::List(self.pop_multi(n_stmts).collect());
+    let x = self.pop();
+    let t = Sexp::from_bytes(b"if");
+    self.put(Sexp::from_array([t, x, y]));
+  }
+
+  fn on_if_else(&mut self, n_stmts_then: usize, n_stmts_else: usize) {
+    let z = Sexp::List(self.pop_multi(n_stmts_else).collect());
+    let y = Sexp::List(self.pop_multi(n_stmts_then).collect());
+    let x = self.pop();
+    let t = Sexp::from_bytes(b"if");
+    self.put(Sexp::from_array([t, x, y, z]));
   }
 
   fn on_call(&mut self, arity: usize) {
@@ -446,22 +481,22 @@ impl Out for ToSexp {
   }
 
   fn on_loop(&mut self, n_stmts: usize) {
-    let mut x = Vec::new();
-    x.push(Sexp::from_bytes(b"loop"));
-    x.extend(self.pop_multi(n_stmts));
-    self.put(Sexp::List(x.into_boxed_slice()));
+    let x = Sexp::List(self.pop_multi(n_stmts).collect());
+    let t = Sexp::from_bytes(b"loop");
+    self.put(Sexp::from_array([t, x]));
   }
 
   fn on_stmt_expr(&mut self) {
     let x = self.pop();
-    self.put(Sexp::from_array([Sexp::from_bytes(b"$"), x]));
+    let t = Sexp::from_bytes(b"$");
+    self.put(Sexp::from_array([t, x]));
   }
 
   fn on_break(&mut self, arity: usize) {
-    let mut x = Vec::new();
-    x.push(Sexp::from_bytes(b"break"));
-    x.extend(self.pop_multi(arity));
-    self.put(Sexp::List(x.into_boxed_slice()));
+    let mut r = Vec::new();
+    r.push(Sexp::from_bytes(b"break"));
+    r.extend(self.pop_multi(arity));
+    self.put(Sexp::List(r.into_boxed_slice()));
   }
 
   fn on_continue(&mut self) {
@@ -475,16 +510,17 @@ impl Out for ToSexp {
   }
 
   fn on_return(&mut self, arity: usize) {
-    let mut x = Vec::new();
-    x.push(Sexp::from_bytes(b"return"));
-    x.extend(self.pop_multi(arity));
-    self.put(Sexp::List(x.into_boxed_slice()));
+    let mut r = Vec::new();
+    r.push(Sexp::from_bytes(b"return"));
+    r.extend(self.pop_multi(arity));
+    self.put(Sexp::List(r.into_boxed_slice()));
   }
 
   fn on_set(&mut self, symbol: &[u8]) {
     let x = self.pop();
     let s = Sexp::from_bytes(symbol);
-    self.put(Sexp::from_array([Sexp::from_bytes(b"<-"), s, x]));
+    let t = Sexp::from_bytes(b"<-");
+    self.put(Sexp::from_array([t, s, x]));
   }
 
   fn on_set_field(&mut self, symbol: &[u8]) {
@@ -498,13 +534,15 @@ impl Out for ToSexp {
     let z = self.pop();
     let y = self.pop();
     let x = self.pop();
-    self.put(Sexp::from_array([Sexp::from_bytes(b"[]<-"), x, y, z]));
+    let t = Sexp::from_bytes(b"[]<-");
+    self.put(Sexp::from_array([t, x, y, z]));
   }
 
   fn on_var(&mut self, symbol: &[u8]) {
     let x = self.pop();
     let s = Sexp::from_bytes(symbol);
-    self.put(Sexp::from_array([Sexp::from_bytes(b"var"), s, x]));
+    let t = Sexp::from_bytes(b"var");
+    self.put(Sexp::from_array([t, s, x]));
   }
 
   fn on_error_missing_expected_token(&mut self, _: Token) {

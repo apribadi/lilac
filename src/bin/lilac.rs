@@ -19,6 +19,9 @@ fn compile(source: &str) {
 }
 
 fn main() {
+  parse("if x { let y = 1 y + 2 }");
+  parse("if x { let y = 1 y + 2 } else { 4 }");
+
   compile("loop { break 1, 2, 3 }");
 
   compile("x ? 1 : y ? 2 : z ? 3 : 4");
