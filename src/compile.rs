@@ -125,13 +125,9 @@ enum What {
 }
 
 impl What {
-  fn never() -> Self {
-    return What::NumPoints(0);
-  }
+  const NEVER: Self = What::NumPoints(0);
 
-  fn nil() -> Self {
-    return What::NumValues(0);
-  }
+  const NIL: Self = What::NumValues(0);
 
   fn into_nil(self, e: &mut Env, o: &mut Out) {
     match self {
@@ -144,8 +140,9 @@ impl What {
       What::NumValues(0) => {
       }
       What::NumValues(n) => {
-        // TODO: arity error
         let _ = pop_values(n, e);
+        let _ = o.emit(Inst::AbortStaticError); // arity mismatch
+        let _ = o.emit(Inst::Label);
       }
     }
   }
@@ -164,9 +161,11 @@ impl What {
         return pop_value(e);
       }
       What::NumValues(n) => {
-        // TODO: arity error
         let _ = pop_values(n, e);
-        return o.emit(Inst::Undefined);
+        let _ = o.emit(Inst::AbortStaticError); // arity mismatch
+        let _ = o.emit(Inst::Label);
+        let x = o.emit(Inst::Pop);
+        return x;
       }
     }
   }
@@ -205,14 +204,16 @@ fn compile_expr<'a>(x: Expr<'a>, e: &mut Env, o: &mut Out) -> What {
       return What::NumPoints(1 + n);
     }
     Expr::Bool(x) => {
-      put_value(o.emit(Inst::ConstBool(x)), e);
+      let x = o.emit(Inst::ConstBool(x));
+      put_value(x, e);
       return What::NumValues(1);
     }
     Expr::Call(&(f, x)) => {
       let n = x.len();
       let f = compile_expr(f, e, o).into_value(e, o);
       for &y in x.iter() {
-        put_value(compile_expr(y, e, o).into_value(e, o), e);
+        let y = compile_expr(y, e, o).into_value(e, o);
+        put_value(y, e);
       }
       for y in pop_values(n, e) {
         let _ = o.emit(Inst::Put(y));
@@ -223,17 +224,20 @@ fn compile_expr<'a>(x: Expr<'a>, e: &mut Env, o: &mut Out) -> What {
     }
     Expr::Field(&(x, s)) => {
       let x = compile_expr(x, e, o).into_value(e, o);
-      put_value(o.emit(Inst::Field(x, s)), e);
+      let x = o.emit(Inst::Field(x, s));
+      put_value(x, e);
       return What::NumValues(1);
     }
     Expr::Index(&(x, y)) => {
       let x = compile_expr(x, e, o).into_value(e, o);
       let y = compile_expr(y, e, o).into_value(e, o);
-      put_value(o.emit(Inst::Index(x, y)), e);
+      let x = o.emit(Inst::Index(x, y));
+      put_value(x, e);
       return What::NumValues(1);
     }
     Expr::Int(n) => {
-      put_value(o.emit(Inst::ConstInt(n)), e);
+      let x = o.emit(Inst::ConstInt(n));
+      put_value(x, e);
       return What::NumValues(1);
     }
     Expr::Loop(x) => {
@@ -259,13 +263,15 @@ fn compile_expr<'a>(x: Expr<'a>, e: &mut Env, o: &mut Out) -> What {
     }
     Expr::Op1(&(f, x)) => {
       let x = compile_expr(x, e, o).into_value(e, o);
-      put_value(o.emit(Inst::Op1(f, x)), e);
+      let x = o.emit(Inst::Op1(f, x));
+      put_value(x, e);
       return What::NumValues(1);
     }
     Expr::Op2(&(f, x, y)) => {
       let x = compile_expr(x, e, o).into_value(e, o);
       let y = compile_expr(y, e, o).into_value(e, o);
-      put_value(o.emit(Inst::Op2(f, x, y)), e);
+      let x = o.emit(Inst::Op2(f, x, y));
+      put_value(x, e);
       return What::NumValues(1);
     }
     Expr::Or(&(x, y)) => {
@@ -297,19 +303,24 @@ fn compile_expr<'a>(x: Expr<'a>, e: &mut Env, o: &mut Out) -> What {
       return What::NumPoints(m + n);
     }
     Expr::Undefined => {
-      put_value(o.emit(Inst::Undefined), e);
+      let _ = o.emit(Inst::AbortStaticError);
+      let _ = o.emit(Inst::Label);
+      let x = o.emit(Inst::Pop);
+      put_value(x, e);
       return What::NumValues(1);
     }
     Expr::Variable(s) => {
       match e.symbol_table.get(s) {
         None => {
-          put_value(o.emit(Inst::Global(s)), e);
+          let x = o.emit(Inst::Global(s));
+          put_value(x, e);
         }
         Some(&Binding::Let(x)) => {
           put_value(x, e);
         }
         Some(&Binding::Var(x)) => {
-          put_value(o.emit(Inst::Local(x)), e);
+          let x = o.emit(Inst::Local(x));
+          put_value(x, e);
         }
       }
       return What::NumValues(1);
@@ -404,12 +415,12 @@ fn compile_stmt<'a>(x: Stmt<'a>, e: &mut Env, o: &mut Out) -> What {
     }
     Stmt::Continue => {
       let _ = o.emit(Inst::Jump(*e.continue_labels.last().unwrap()));
-      return What::never();
+      return What::NEVER;
     }
     Stmt::Let(s, x) => {
       let x = compile_expr(x, e, o).into_value(e, o);
       e.symbol_table.insert(s, Binding::Let(x));
-      return What::nil();
+      return What::NIL;
     }
     Stmt::Return(x) => {
       match x {
@@ -427,18 +438,19 @@ fn compile_stmt<'a>(x: Stmt<'a>, e: &mut Env, o: &mut Out) -> What {
           let _ = o.emit(Inst::Ret);
         }
       }
-      return What::never();
+      return What::NEVER;
     }
     Stmt::Set(s, x) => {
       let x = compile_expr(x, e, o).into_value(e, o);
       match e.symbol_table.get(s) {
         Some(&Binding::Var(y)) => {
           let _ = o.emit(Inst::SetLocal(y, x));
-          return What::nil();
+          return What::NIL;
         }
         _ => {
-          // TODO: error not local variable
-          return What::nil();
+          let _ = o.emit(Inst::AbortStaticError); // no variable
+          let _ = o.emit(Inst::Label);
+          return What::NIL;
         }
       }
     }
@@ -446,20 +458,20 @@ fn compile_stmt<'a>(x: Stmt<'a>, e: &mut Env, o: &mut Out) -> What {
       let x = compile_expr(x, e, o).into_value(e, o);
       let y = compile_expr(y, e, o).into_value(e, o);
       let _ = o.emit(Inst::SetField(x, s, y));
-      return What::nil();
+      return What::NIL;
     }
     Stmt::SetIndex(x, y, z) => {
       let x = compile_expr(x, e, o).into_value(e, o);
       let y = compile_expr(y, e, o).into_value(e, o);
       let z = compile_expr(z, e, o).into_value(e, o);
       let _ = o.emit(Inst::SetIndex(x, y, z));
-      return What::nil();
+      return What::NIL;
     }
     Stmt::Var(s, x) => {
       let x = compile_expr(x, e, o).into_value(e, o);
       let x = o.emit(Inst::DefLocal(x));
       e.symbol_table.insert(s, Binding::Var(x));
-      return What::nil();
+      return What::NIL;
     }
   }
 }
@@ -469,7 +481,7 @@ fn compile_block<'a>(xs: &'a [Stmt<'a>], e: &mut Env, o: &mut Out) -> What {
   let w =
     match xs.split_last() {
       None => {
-        What::nil()
+        What::NIL
       }
       Some((&y, xs)) => {
         for &x in xs {

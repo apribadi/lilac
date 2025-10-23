@@ -26,28 +26,9 @@ fn main() {
         y.foo <- 5
         return 0, f(1)
       }");
-  /*
   compile("
     1 +
       loop {
-        let x = foo.bar
-        var y = 1
-        f(x)
-        h(y)
-        y <- y + 1
-        loop {
-          let z = 4
-          continue
-        }
-        let a = 13
-      }
-  ");
-  */
-
-  /*
-  compile("x == y && f(z + 1)");
-  compile("g(x == y && f(z + 1))");
-  compile("x != y ? 1 : a != b ? 2 : 3");
-  compile("1 + (x != y ? 1 : a != b ? 2 : 3)");
-  */
+        1
+      }");
 }

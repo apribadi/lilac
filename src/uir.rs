@@ -13,6 +13,7 @@ type Label = u32;
 type Value = u32;
 
 pub enum Inst {
+  AbortStaticError,
   Label,
   Pop,
   Put(Value),
@@ -39,6 +40,7 @@ pub enum Inst {
 impl std::fmt::Display for Inst {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     match self {
+      Self::AbortStaticError => write!(f, "= ABORT-STATIC-ERROR"),
       Self::Label => write!(f, "LABEL"),
       Self::Pop => write!(f, "= POP"),
       Self::Put(x) => write!(f, "PUT %{}", x),
@@ -46,10 +48,10 @@ impl std::fmt::Display for Inst {
       Self::Cond(x) => write!(f, "COND %{}", x),
       Self::Ret => write!(f, "RET"),
       Self::Call(x) => write!(f, "CALL %{}", x),
-      Self::TailCall(x) => write!(f, "TAILCALL %{}", x),
+      Self::TailCall(x) => write!(f, "TAIL-CALL %{}", x),
       Self::ConstBool(p) => write!(f, "= {}", p),
       Self::ConstInt(n) => write!(f, "= {}", n),
-      Self::DefLocal(x) => write!(f, "= DEFLOCAL %{}", x),
+      Self::DefLocal(x) => write!(f, "= DEF-LOCAL %{}", x),
       Self::Field(x, s) => write!(f, "= %{} [ .{} ]", x, s),
       Self::Global(s) => write!(f, "= {}", s),
       Self::Index(x, y) => write!(f, "= %{} [ %{} ]", x, y),
