@@ -144,10 +144,14 @@ impl Out {
 
   fn emit_label_and_patch_points(&mut self, points: impl IntoIterator<Item = u32>) -> u32 {
     let a = self.emit(Inst::Label);
-    for i in points {
-      self.0[i as usize] = Inst::Jump(a);
-    }
+    patch_points(a, points, self);
     return a;
+  }
+}
+
+fn patch_points(a: u32, points: impl IntoIterator<Item = u32>, o: &mut Out) {
+  for i in points {
+    o.0[i as usize] = Inst::Jump(a);
   }
 }
 
@@ -300,8 +304,8 @@ fn compile_expr<'a>(x: Expr<'a>, e: &mut Env, o: &mut Out) -> What {
       let i = o.emit_point();
       let a = o.emit_label_and_patch_points([i]);
       put_loop(a, e);
-      compile_block(xs, e, o).into_nil(e, o);
-      let _ = o.emit(Inst::Jump(a));
+      let m = compile_block(xs, e, o).into_points(e, o);
+      patch_points(a, pop_points(m, e), o);
       let n = pop_loop(e);
       return What::NumPoints(n);
     }
@@ -395,18 +399,32 @@ fn compile_expr_tail<'a>(x: Expr<'a>, e: &mut Env, o: &mut Out) {
       }
       let _ = o.emit(Inst::TailCall(f));
     }
-    Expr::If(..) => {
-      unimplemented!()
+    Expr::If(&(x, ys)) => {
+      let x = compile_expr(x, e, o).into_value(e, o);
+      let _ = o.emit(Inst::Cond(x));
+      let i = o.emit_point();
+      let j = o.emit_point();
+      let _ = o.emit_label_and_patch_points([i]);
+      let _ = o.emit(Inst::Ret);
+      let _ = o.emit_label_and_patch_points([j]);
+      compile_block_tail(ys, e, o);
     }
-    Expr::IfElse(..) => {
-      unimplemented!()
+    Expr::IfElse(&(x, ys, zs)) => {
+      let x = compile_expr(x, e, o).into_value(e, o);
+      let _ = o.emit(Inst::Cond(x));
+      let i = o.emit_point();
+      let j = o.emit_point();
+      let _ = o.emit_label_and_patch_points([i]);
+      compile_block_tail(zs, e, o);
+      let _ = o.emit_label_and_patch_points([j]);
+      compile_block_tail(ys, e, o);
     }
     Expr::Loop(xs) => {
       let i = o.emit_point();
       let a = o.emit_label_and_patch_points([i]);
       put_loop_tail(a, e);
-      compile_block(xs, e, o).into_nil(e, o);
-      let _ = o.emit(Inst::Jump(a));
+      let m = compile_block(xs, e, o).into_points(e, o);
+      patch_points(a, pop_points(m, e), o);
       pop_loop_tail(e);
     }
     Expr::Or(&(x, y)) => {
@@ -451,6 +469,9 @@ fn compile_expr_tail<'a>(x: Expr<'a>, e: &mut Env, o: &mut Out) {
     }
   }
 }
+
+// NB: We don't jump-thread from a statement directly before a no-argument
+// break or continue. It's probably not worth doing that.
 
 fn compile_stmt<'a>(x: Stmt<'a>, e: &mut Env, o: &mut Out) -> What {
   match x {
@@ -575,21 +596,36 @@ fn compile_stmt_tail<'a>(x: Stmt<'a>, e: &mut Env, o: &mut Out) {
 }
 
 fn compile_block<'a>(xs: &'a [Stmt<'a>], e: &mut Env, o: &mut Out) -> What {
-  put_scope(e);
-  let w =
-    match xs.split_last() {
-      None => {
-        What::NIL
+  match xs.split_last() {
+    None => {
+      return What::NIL;
+    }
+    Some((&y, xs)) => {
+      put_scope(e);
+      for &x in xs.iter() {
+        compile_stmt(x, e, o).into_nil(e, o);
       }
-      Some((&y, xs)) => {
-        for &x in xs.iter() {
-          compile_stmt(x, e, o).into_nil(e, o);
-        }
-        compile_stmt(y, e, o)
+      let w = compile_stmt(y, e, o);
+      pop_scope(e);
+      return w;
+    }
+  }
+}
+
+fn compile_block_tail<'a>(xs: &'a [Stmt<'a>], e: &mut Env, o: &mut Out) {
+  match xs.split_last() {
+    None => {
+      let _ = o.emit(Inst::Ret);
+    }
+    Some((&y, xs)) => {
+      put_scope(e);
+      for &x in xs.iter() {
+        compile_stmt(x, e, o).into_nil(e, o);
       }
-    };
-  pop_scope(e);
-  return w;
+      compile_stmt_tail(y, e, o);
+      pop_scope(e);
+    }
+  }
 }
 
 fn compile_expr_list_tail<'a>(xs: &'a [Expr<'a>], e: &mut Env, o: &mut Out) {

@@ -19,10 +19,28 @@ fn compile(source: &str) {
 }
 
 fn main() {
-  compile("0 + if x { let y = 1 f(y) }");
-  compile("0 + if x { let y = 1 y + 2 } else { 4 }");
+  compile("
+    if n == 0 {
+      return 0
+    } else {
+      var n = n
+      var a = 1
+      var b = 0
+      loop {
+        let c = a + b
+        a <- b
+        b <- c
+        n <- n - 1
+        if n == 0 { return b }
+      }
+    }
+  ");
+
 
   /*
+  compile("if x { let y = 1 f(y) }");
+  compile("if x { let y = 1 y + 2 } else { 4 }");
+
   compile("loop { break 1, 2, 3 }");
 
   compile("x ? 1 : y ? 2 : z ? 3 : 4");
