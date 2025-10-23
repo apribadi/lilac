@@ -36,8 +36,12 @@ impl Env {
   }
 }
 
-fn put_binding(s: Symbol, x: Binding, e: &mut Env) {
-  e.symbol_table.insert(s, x);
+fn put_let(s: Symbol, x: u32, e: &mut Env) {
+  e.symbol_table.insert(s, Binding::Let(x));
+}
+
+fn put_var(s: Symbol, x: u32, e: &mut Env) {
+  e.symbol_table.insert(s, Binding::Var(x));
 }
 
 fn get_binding(s: Symbol, e: &Env) -> Option<&Binding> {
@@ -429,7 +433,7 @@ fn compile_stmt<'a>(x: Stmt<'a>, e: &mut Env, o: &mut Out) -> What {
     Stmt::Break(xs) => {
       match e.loops.last_mut() {
         None => {
-          // error, break not inside loop
+          // error, break is not inside loop
           unimplemented!()
         }
         Some(LoopBreakTarget::Tail) => {
@@ -467,7 +471,7 @@ fn compile_stmt<'a>(x: Stmt<'a>, e: &mut Env, o: &mut Out) -> What {
     }
     Stmt::Let(s, x) => {
       let x = compile_expr(x, e, o).into_value(e, o);
-      put_binding(s, Binding::Let(x), e);
+      put_let(s, x, e);
       return What::NIL;
     }
     Stmt::Return(xs) => {
@@ -504,7 +508,7 @@ fn compile_stmt<'a>(x: Stmt<'a>, e: &mut Env, o: &mut Out) -> What {
     Stmt::Var(s, x) => {
       let x = compile_expr(x, e, o).into_value(e, o);
       let x = o.emit(Inst::DefLocal(x));
-      put_binding(s, Binding::Var(x), e);
+      put_var(s, x, e);
       return What::NIL;
     }
   }
