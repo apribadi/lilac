@@ -42,7 +42,7 @@ impl std::fmt::Display for Inst {
       Self::Label => write!(f, "LABEL"),
       Self::Pop => write!(f, "= POP"),
       Self::Put(x) => write!(f, "PUT %{}", x),
-      Self::Jump(x) => write!(f, "=>{}", x),
+      Self::Jump(x) => write!(f, "==> {}", x),
       Self::Cond(x) => write!(f, "COND %{}", x),
       Self::Ret => write!(f, "RET"),
       Self::Call(x) => write!(f, "CALL %{}", x),

@@ -22,6 +22,8 @@ fn main() {
   compile("
     0 +
       loop {
+        x[0] <- 4
+        y.foo <- 5
         return 0, f(1)
       }");
   /*

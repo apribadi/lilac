@@ -125,6 +125,14 @@ enum What {
 }
 
 impl What {
+  fn never() -> Self {
+    return What::NumPoints(0);
+  }
+
+  fn nil() -> Self {
+    return What::NumValues(0);
+  }
+
   fn into_nil(self, e: &mut Env, o: &mut Out) {
     match self {
       What::NumPoints(n) => {
@@ -242,12 +250,8 @@ fn compile_expr<'a>(x: Expr<'a>, e: &mut Env, o: &mut Out) -> What {
       let i = o.emit_patch_point();
       let a = o.emit(Inst::Label);
       put_loop(e, a);
-      put_scope(e);
-      for &y in x.iter() {
-        compile_stmt(y, e, o).into_nil(e, o);
-      }
+      compile_block(x, e, o).into_nil(e, o);
       let _ = o.emit(Inst::Jump(a));
-      pop_scope(e);
       pop_loop(e);
       o.edit_patch_point(i, a);
       let n_breaks = 0;
@@ -400,12 +404,12 @@ fn compile_stmt<'a>(x: Stmt<'a>, e: &mut Env, o: &mut Out) -> What {
     }
     Stmt::Continue => {
       let _ = o.emit(Inst::Jump(*e.continue_labels.last().unwrap()));
-      return What::NumPoints(0); // no continuation
+      return What::never();
     }
     Stmt::Let(s, x) => {
       let x = compile_expr(x, e, o).into_value(e, o);
       e.symbol_table.insert(s, Binding::Let(x));
-      return What::NumValues(0);
+      return What::nil();
     }
     Stmt::Return(x) => {
       match x {
@@ -423,18 +427,18 @@ fn compile_stmt<'a>(x: Stmt<'a>, e: &mut Env, o: &mut Out) -> What {
           let _ = o.emit(Inst::Ret);
         }
       }
-      return What::NumPoints(0); // no continuation
+      return What::never();
     }
     Stmt::Set(s, x) => {
       let x = compile_expr(x, e, o).into_value(e, o);
       match e.symbol_table.get(s) {
         Some(&Binding::Var(y)) => {
           let _ = o.emit(Inst::SetLocal(y, x));
-          return What::NumValues(0);
+          return What::nil();
         }
         _ => {
           // TODO: error not local variable
-          return What::NumValues(0);
+          return What::nil();
         }
       }
     }
@@ -442,20 +446,38 @@ fn compile_stmt<'a>(x: Stmt<'a>, e: &mut Env, o: &mut Out) -> What {
       let x = compile_expr(x, e, o).into_value(e, o);
       let y = compile_expr(y, e, o).into_value(e, o);
       let _ = o.emit(Inst::SetField(x, s, y));
-      return What::NumValues(0);
+      return What::nil();
     }
     Stmt::SetIndex(x, y, z) => {
       let x = compile_expr(x, e, o).into_value(e, o);
       let y = compile_expr(y, e, o).into_value(e, o);
       let z = compile_expr(z, e, o).into_value(e, o);
       let _ = o.emit(Inst::SetIndex(x, y, z));
-      return What::NumValues(0);
+      return What::nil();
     }
     Stmt::Var(s, x) => {
       let x = compile_expr(x, e, o).into_value(e, o);
       let x = o.emit(Inst::DefLocal(x));
       e.symbol_table.insert(s, Binding::Var(x));
-      return What::NumValues(0);
+      return What::nil();
     }
   }
+}
+
+fn compile_block<'a>(xs: &'a [Stmt<'a>], e: &mut Env, o: &mut Out) -> What {
+  put_scope(e);
+  let w =
+    match xs.split_last() {
+      None => {
+        What::nil()
+      }
+      Some((&y, xs)) => {
+        for &x in xs {
+          compile_stmt(x, e, o).into_nil(e, o);
+        }
+        compile_stmt(y, e, o)
+      }
+    };
+  pop_scope(e);
+  return w;
 }
