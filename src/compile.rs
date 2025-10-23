@@ -10,40 +10,60 @@ enum Binding {
   Var(u32),
 }
 
+enum LoopBreakTarget {
+  Tail,
+  NonTail(usize),
+}
+
 struct Env {
   symbol_table: SymbolTable<Binding>,
+  loops: Vec<LoopBreakTarget>,
+  break_points: Vec<u32>,
   continue_labels: Vec<u32>,
   values: Vec<u32>,
   points: Vec<u32>,
-  // breaks: Vec<usize>,
 }
 
 impl Env {
   fn new() -> Self {
     Self {
       symbol_table: SymbolTable::new(),
+      loops: Vec::new(),
+      break_points: Vec::new(),
       continue_labels: Vec::new(),
       values: Vec::new(),
       points: Vec::new(),
-      // breaks: Vec::new(),
     }
   }
 }
 
-fn put_binding(e: &mut Env, s: Symbol, x: Binding) {
+fn put_binding(s: Symbol, x: Binding, e: &mut Env) {
   e.symbol_table.insert(s, x);
 }
 
-fn get_binding(e: &Env, s: Symbol) -> Option<Binding> {
+fn get_binding(s: Symbol, e: &Env) -> Option<Binding> {
   return e.symbol_table.get(s).map(|x| *x);
 }
 
-fn put_loop(e: &mut Env, a: u32) {
+// TODO: put_loop_tail, pop_loop_tail
+
+fn put_loop(a: u32, e: &mut Env) {
+  e.loops.push(LoopBreakTarget::NonTail(0));
   e.continue_labels.push(a);
 }
 
-fn pop_loop(e: &mut Env) {
+fn pop_loop(e: &mut Env) -> usize {
   let _ = e.continue_labels.pop().unwrap();
+  match e.loops.pop() {
+    Some(LoopBreakTarget::NonTail(n)) => {
+      for _ in 0 .. n {
+        let i = e.break_points.pop().unwrap();
+        e.points.push(i);
+      }
+      return n;
+    }
+    _ => unreachable!()
+  }
 }
 
 fn put_scope(e: &mut Env) {
@@ -66,8 +86,18 @@ fn pop_values(n: usize, e: &mut Env) -> impl Iterator<Item = u32> {
   return e.values.drain(e.values.len() - n ..);
 }
 
-fn put_point(x: u32, e: &mut Env) {
-  e.points.push(x);
+fn put_point(i: u32, e: &mut Env) {
+  e.points.push(i);
+}
+
+fn put_break_point(i: u32, e: &mut Env) {
+  e.break_points.push(i);
+  match e.loops.last_mut() {
+    Some(LoopBreakTarget::NonTail(n)) => {
+      *n += 1;
+    }
+    _ => unreachable!() // ???
+  }
 }
 
 #[allow(dead_code)]
@@ -254,26 +284,15 @@ fn compile_expr<'a>(x: Expr<'a>, e: &mut Env, o: &mut Out) -> What {
       put_value(x, e);
       return What::NumValues(1);
     }
-    Expr::Loop(x) => {
-      // TODO:
-      //
-      // while compiling break statements, we need to push their patch point to
-      // the stack and increment n_breaks
-      //
-      // the break target needs to be scoped lexically, and in particular be
-      // available in sub-trees
-      //
-      // try to just handle returns first
-
+    Expr::Loop(xs) => {
       let i = o.emit_patch_point();
       let a = o.emit(Inst::Label);
-      put_loop(e, a);
-      compile_block(x, e, o).into_nil(e, o);
-      let _ = o.emit(Inst::Jump(a));
-      pop_loop(e);
       o.edit_patch_point(i, a);
-      let n_breaks = 0;
-      return What::NumPoints(n_breaks);
+      put_loop(a, e);
+      compile_block(xs, e, o).into_nil(e, o);
+      let _ = o.emit(Inst::Jump(a));
+      let n = pop_loop(e);
+      return What::NumPoints(n);
     }
     Expr::Op1(&(f, x)) => {
       let x = compile_expr(x, e, o).into_value(e, o);
@@ -325,7 +344,7 @@ fn compile_expr<'a>(x: Expr<'a>, e: &mut Env, o: &mut Out) -> What {
       return What::NumValues(1);
     }
     Expr::Variable(s) => {
-      match get_binding(e, s) {
+      match get_binding(s, e) {
         None => {
           let x = o.emit(Inst::Global(s));
           put_value(x, e);
@@ -363,7 +382,8 @@ fn compile_expr_tail<'a>(x: Expr<'a>, e: &mut Env, o: &mut Out) {
       let n = xs.len();
       let f = compile_expr(f, e, o).into_value(e, o);
       for &x in xs.iter() {
-        put_value(compile_expr(x, e, o).into_value(e, o), e);
+        let x = compile_expr(x, e, o).into_value(e, o);
+        put_value(x, e);
       }
       for x in pop_values(n, e) {
         let _ = o.emit(Inst::Put(x));
@@ -425,8 +445,40 @@ fn compile_stmt<'a>(x: Stmt<'a>, e: &mut Env, o: &mut Out) -> What {
     Stmt::Expr(x) => {
       return compile_expr(x, e, o);
     }
-    Stmt::Break(..) => {
-      unimplemented!()
+    Stmt::Break(xs) => {
+      match e.loops.last_mut() {
+        None => {
+          // error, break not inside loop
+          unimplemented!()
+        }
+        Some(LoopBreakTarget::Tail) => {
+          compile_expr_list_tail(xs, e, o);
+        }
+        Some(LoopBreakTarget::NonTail(_)) => {
+          match xs {
+            &[x] => {
+              let n = compile_expr(x, e, o).into_points(e, o);
+              for _ in 0 .. n {
+                let i = pop_point(e);
+                put_break_point(i, e);
+              }
+            }
+            xs => {
+              let n = xs.len();
+              for &x in xs.iter() {
+                let x = compile_expr(x, e, o).into_value(e, o);
+                put_value(x, e);
+              }
+              for x in pop_values(n, e) {
+                let _ = o.emit(Inst::Put(x));
+              }
+              let i = o.emit_patch_point();
+              put_break_point(i, e);
+            }
+          }
+        }
+      }
+      return What::NEVER;
     }
     Stmt::Continue => {
       let _ = o.emit(Inst::Jump(*e.continue_labels.last().unwrap()));
@@ -434,30 +486,16 @@ fn compile_stmt<'a>(x: Stmt<'a>, e: &mut Env, o: &mut Out) -> What {
     }
     Stmt::Let(s, x) => {
       let x = compile_expr(x, e, o).into_value(e, o);
-      put_binding(e, s, Binding::Let(x));
+      put_binding(s, Binding::Let(x), e);
       return What::NIL;
     }
-    Stmt::Return(x) => {
-      match x {
-        &[x] => {
-          compile_expr_tail(x, e, o);
-        }
-        x => {
-          let n = x.len();
-          for &y in x.iter() {
-            put_value(compile_expr(y, e, o).into_value(e, o), e);
-          }
-          for y in pop_values(n, e) {
-            let _ = o.emit(Inst::Put(y));
-          }
-          let _ = o.emit(Inst::Ret);
-        }
-      }
+    Stmt::Return(xs) => {
+      compile_expr_list_tail(xs, e, o);
       return What::NEVER;
     }
     Stmt::Set(s, x) => {
       let x = compile_expr(x, e, o).into_value(e, o);
-      match get_binding(e, s) {
+      match get_binding(s, e) {
         Some(Binding::Var(y)) => {
           let _ = o.emit(Inst::SetLocal(y, x));
           return What::NIL;
@@ -485,7 +523,7 @@ fn compile_stmt<'a>(x: Stmt<'a>, e: &mut Env, o: &mut Out) -> What {
     Stmt::Var(s, x) => {
       let x = compile_expr(x, e, o).into_value(e, o);
       let x = o.emit(Inst::DefLocal(x));
-      put_binding(e, s, Binding::Var(x));
+      put_binding(s, Binding::Var(x), e);
       return What::NIL;
     }
   }
@@ -507,4 +545,23 @@ fn compile_block<'a>(xs: &'a [Stmt<'a>], e: &mut Env, o: &mut Out) -> What {
     };
   pop_scope(e);
   return w;
+}
+
+fn compile_expr_list_tail<'a>(xs: &'a [Expr<'a>], e: &mut Env, o: &mut Out) {
+  match xs {
+    &[x] => {
+      compile_expr_tail(x, e, o);
+    }
+    xs => {
+      let n = xs.len();
+      for &x in xs.iter() {
+        let x = compile_expr(x, e, o).into_value(e, o);
+        put_value(x, e);
+      }
+      for x in pop_values(n, e) {
+        let _ = o.emit(Inst::Put(x));
+      }
+      let _ = o.emit(Inst::Ret);
+    }
+  }
 }
