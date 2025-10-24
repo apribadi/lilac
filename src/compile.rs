@@ -6,76 +6,41 @@ use crate::uir::Inst;
 
 // TODO: fundef
 
-// TODO: unresolved patch points should be tagged with an arity
-//
-// enum _ {
-//   Known(usize),
-//   Unknown
-// }
-//
-// where Unknown comes from calls with exactly one continuation but with
-// unknown arity.
-//
-// Then, when we reolve patch points we can check arity.
-//
-// On an arity mismatch, we can replace JUMP block terminators with
-// GOTO-STATIC-ERROR, but it's not clear what to do with patch points that are
-// part of a, e.g. COND.
-//
-// e.g.
-//
-// let x = if ... { ... }
-//
-// should generate an arity error from (at least) one of the COND arms.
-//
-// Perhaps we could have a GOTO-STATIC-ERROR instruction that behaves
-// similarly to GOTO? Or we could lazily generate a block
-// { LABEL; GOTO-STATIC-ERROR } at the end of the function?
+#[derive(Clone, Copy)]
+enum What {
+  NumPoints(usize),
+  NumValues(usize),
+}
 
-// NOTE:
-//
-// Functions either have
-// - one ordinary continuation, or
-// - N tagged continuations, where N = 0 or 1 is possible
-//
-// A tail call is ambiguous, in that it could be a call to either type of
-// function.
-//
-// An ordinary function call in non-tail position is always the first case, a
-// call to a function with one ordinary continuation.
-//
-// We'll have special syntax for non-tail calls to functions with tagged
-// continuations, even if it has 0 or 1 continuations.
-//
-// (You could imagine propagating these special contexts to
-// sub-expressions in a similar way that we do tail contexts - you would
-// be unable to evaluate, e.g., operator expressions in such a context)
-//
-// OR
-//
-// we could have a syntax where the function receives multiple continuations
-// explicitly and names them
-
+#[derive(Clone, Copy)]
 enum Binding {
   Let(u32),
   Var(u32),
 }
 
+#[derive(Clone, Copy)]
 enum LoopBreakTarget {
   Tail,
   NonTail(usize),
 }
 
+#[derive(Clone, Copy)]
 struct Point {
   index: u32,
   arity: Option<u32>,
+}
+
+#[derive(Clone, Copy)]
+struct Label {
+  index: u32,
+  arity: u32,
 }
 
 struct Env {
   symbol_table: SymbolTable<Binding>,
   loops: Vec<LoopBreakTarget>,
   break_points: Vec<Point>,
-  continue_labels: Vec<u32>,
+  continue_labels: Vec<Label>,
   values: Vec<u32>,
   points: Vec<Point>,
 }
@@ -105,7 +70,7 @@ fn get_binding(s: Symbol, e: &Env) -> Option<&Binding> {
   return e.symbol_table.get(s);
 }
 
-fn put_loop(a: u32, e: &mut Env) {
+fn put_loop(a: Label, e: &mut Env) {
   e.loops.push(LoopBreakTarget::NonTail(0));
   e.continue_labels.push(a);
 }
@@ -124,7 +89,7 @@ fn pop_loop(e: &mut Env) -> usize {
   }
 }
 
-fn put_loop_tail(a: u32, e: &mut Env) {
+fn put_loop_tail(a: Label, e: &mut Env) {
   e.loops.push(LoopBreakTarget::Tail);
   e.continue_labels.push(a);
 }
@@ -193,23 +158,36 @@ impl Out {
     return n as u32;
   }
 
+  fn emit_label(&mut self, arity: usize) -> Label {
+    let n = arity as u32;
+    let a = self.emit(Inst::Label(n));
+    return Label { index: a, arity: n};
+  }
+
   fn emit_point(&mut self, arity: Option<usize>) -> Point {
     let i = self.emit(Inst::Goto(u32::MAX));
     let n = arity.map(|n| n as u32);
-    // TODO: arity
     return Point { index: i, arity: n };
   }
 
-  fn emit_label_and_patch_points(&mut self, arity: u32, points: impl IntoIterator<Item = Point>) -> u32 {
-    let a = self.emit(Inst::Label(arity));
+  fn emit_label_and_patch_points(&mut self, arity: usize, points: impl IntoIterator<Item = Point>) -> Label {
+    let a = self.emit_label(arity);
     patch_points(a, points, self);
     return a;
   }
 }
 
-fn patch_points(a: u32, points: impl IntoIterator<Item = Point>, o: &mut Out) {
+fn patch_points(a: Label, points: impl IntoIterator<Item = Point>, o: &mut Out) {
   for i in points {
-    o.0[i.index as usize] = Inst::Goto(a);
+    match i.arity {
+      Some(n) if n != a.arity => {
+        // error, arity mismatch
+        o.0[i.index as usize] = Inst::GotoStaticError;
+      }
+      _ => {
+        o.0[i.index as usize] = Inst::Goto(a.index);
+      }
+    }
   }
 }
 
@@ -219,11 +197,6 @@ pub fn compile<'a>(x: Expr<'a>) -> Vec<Inst> {
 
   compile_expr_tail(x, &mut e, &mut o);
   return o.0;
-}
-
-enum What {
-  NumPoints(usize),
-  NumValues(usize),
 }
 
 impl What {
@@ -577,8 +550,9 @@ fn compile_stmt<'a>(x: Stmt<'a>, e: &mut Env, o: &mut Out) -> What {
           // error, break is not inside loop
           let _ = o.emit(Inst::GotoStaticError);
         }
-        Some(&a) => {
-          let _ = o.emit(Inst::Goto(a));
+        Some(a) => {
+          // NB: all loop headers have arity zero
+          let _ = o.emit(Inst::Goto(a.index));
         }
       }
       return What::NEVER;

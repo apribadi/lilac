@@ -19,7 +19,7 @@ fn compile(source: &str) {
 }
 
 fn main() {
-  compile("loop { 1 1 }");
+  compile("loop { f() 1 1 }");
   compile("loop { break }");
   compile("loop { continue }");
   compile("loop { return }");
