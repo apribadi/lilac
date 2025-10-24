@@ -64,8 +64,6 @@ fn main() {
     }
   ");
 
-  compile("fun foo() { loop { break 1, 2, 3 } }");
-
   compile("
     fun foo() {
       let x, y, z =
@@ -73,5 +71,11 @@ fn main() {
           break 1, 2, 3
         }
       return x + y + z
+    }");
+
+  compile("
+    fun foo(x, y) {
+      let a, b = if x >= y { x, y } else { y, x }
+      f(a - b)
     }");
 }

@@ -44,7 +44,7 @@ pub enum Expr<'a> {
 
 #[derive(Clone, Copy, Debug)]
 pub enum Stmt<'a> {
-  Expr(Expr<'a>),
+  Exprs(&'a [Expr<'a>]),
   Break(&'a [Expr<'a>]),
   Continue,
   Let(&'a [Bind], Expr<'a>),
@@ -231,9 +231,9 @@ impl<'a, 'b> parse::Out for ToAst<'a, 'b> {
     self.put_expr(Expr::Loop(x));
   }
 
-  fn on_stmt_expr(&mut self) {
-    let x = self.pop_expr();
-    self.put_stmt(Stmt::Expr(x));
+  fn on_stmt_exprs(&mut self, n_exprs: usize) {
+    let x = self.pop_expr_multi(n_exprs);
+    self.put_stmt(Stmt::Exprs(x));
   }
 
   fn on_break(&mut self, arity: usize) {

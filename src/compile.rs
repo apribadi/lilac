@@ -544,8 +544,8 @@ fn compile_expr_tail<'a>(x: Expr<'a>, e: &mut Env, o: &mut Out) {
 
 fn compile_stmt<'a>(x: Stmt<'a>, e: &mut Env, o: &mut Out) -> What {
   match x {
-    Stmt::Expr(x) => {
-      return compile_expr(x, e, o);
+    Stmt::Exprs(xs) => {
+      return compile_expr_list(xs, e, o);
     }
     Stmt::Break(xs) => {
       match e.loops.last_mut() {
@@ -633,8 +633,8 @@ fn compile_stmt<'a>(x: Stmt<'a>, e: &mut Env, o: &mut Out) -> What {
 
 fn compile_stmt_tail<'a>(x: Stmt<'a>, e: &mut Env, o: &mut Out) {
   match x {
-    Stmt::Expr(x) => {
-      compile_expr_tail(x, e, o);
+    Stmt::Exprs(xs) => {
+      compile_expr_list_tail(xs, e, o);
     }
     x @ (
       | Stmt::Break(..)

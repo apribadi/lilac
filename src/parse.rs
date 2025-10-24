@@ -40,7 +40,7 @@ pub trait Out {
 
   fn on_loop(&mut self, n_stmts: usize);
 
-  fn on_stmt_expr(&mut self);
+  fn on_stmt_exprs(&mut self, n_exprs: usize);
 
   fn on_break(&mut self, arity: usize);
 
@@ -398,8 +398,6 @@ fn parse_block<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O) -> usize {
         n_stmts += 1;
       }
       _ => {
-        // TODO: parse comma-separated expression sequence
-
         // NB: If we couldn't parse anything at all, then we immediately close
         // the block so that we don't get stuck in an infinite loop.
         //
@@ -409,10 +407,19 @@ fn parse_block<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O) -> usize {
         // Also, note that in this case we still emit an `undefined` expr/stmt.
 
         let pos = t.token_start();
+
         if ! parse_prec(t, o, 0x00, true) {
-          o.on_stmt_expr();
+          let mut n_exprs = 1;
+          while t.token() == Token::Comma {
+            t.next();
+            parse_expr(t, o);
+            n_exprs += 1;
+          }
+          o.on_stmt_exprs(n_exprs);
         }
+
         n_stmts += 1;
+
         if t.token_start() == pos {
           expect(t, o, Token::RBrace);
           break;
@@ -551,10 +558,9 @@ impl Out for ToSexp {
     self.put(Sexp::from_array([t, x]));
   }
 
-  fn on_stmt_expr(&mut self) {
-    let x = self.pop();
-    let t = Sexp::from_bytes(b"$");
-    self.put(Sexp::from_array([t, x]));
+  fn on_stmt_exprs(&mut self, n_exprs: usize) {
+    let x = Sexp::List(self.pop_multi(n_exprs).collect());
+    self.put(x);
   }
 
   fn on_break(&mut self, arity: usize) {
