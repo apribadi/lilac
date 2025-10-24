@@ -203,16 +203,20 @@ impl<'a> Lexer<'a> {
           },
         2 =>
           match unsafe { self.source.get_unchecked(start .. stop) } {
+            b"+=" => Token::AddEqual,
             b"&&" => Token::And,
             b"==" => Token::CmpEq,
             b">=" => Token::CmpGe,
             b"<=" => Token::CmpLe,
             b"!=" => Token::CmpNe,
+            b"--" => Token::Decr,
             b"..." => Token::DotDotDot,
+            b"++" => Token::Incr,
             b"||" => Token::Or,
             b"<-" => Token::Set,
             b"<<" => Token::Shl,
             b">>" => Token::Shr,
+            b"-=" => Token::SubEqual,
             _ => Token::Error,
           },
         9 =>

@@ -29,16 +29,20 @@ pub enum Token {
   Tilde    = 0x7e, // ~
   Eof      = 0,
   Error    = 1,
+  AddEqual = 0xa0, // +=
   And,             // &&
   CmpEq,           // ==
   CmpGe,           // >=
   CmpLe,           // <=
   CmpNe,           // !=
+  Decr,            // --
   DotDotDot,       // ...
+  Incr,            // ++
   Or,              // ||
   Set,             // <-
   Shl,             // <<
   Shr,             // >>
+  SubEqual,        // -=
   Underscore,      // _
   Field,           // .foo
   StaticField,     // :foo

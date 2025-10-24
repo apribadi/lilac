@@ -108,6 +108,7 @@ fn expect_symbol<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O) -> &'a [u8] {
 }
 
 fn parse_bind<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O) {
+  // TODO: interpret Token::Underscore as a None(_) name.
   let name = expect_symbol(t, o);
   o.on_bind(name);
 }
