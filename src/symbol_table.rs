@@ -35,8 +35,15 @@ impl<T> SymbolTable<T> {
   }
 
   pub fn insert(&mut self, key: Symbol, value: T) {
-    *self.count.last_mut().unwrap() += 1;
-    self.undo.push((key, self.table.insert(key, value)));
+    match self.count.last_mut() {
+      None => {
+        let _ = self.table.insert(key, value);
+      }
+      Some(n) => {
+        *n += 1;
+        self.undo.push((key, self.table.insert(key, value)));
+      }
+    }
   }
 
   pub fn get(&self, key: Symbol) -> Option<&T> {

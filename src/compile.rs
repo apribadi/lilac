@@ -192,11 +192,19 @@ fn patch_points(a: Label, points: impl IntoIterator<Item = Point>, o: &mut Out) 
   }
 }
 
-pub fn compile<'a>(x: Fundef<'a>) -> Vec<Inst> {
+pub fn compile<'a>(f: Fundef<'a>) -> Vec<Inst> {
   let mut e = Env::new();
   let mut o = Out::new();
 
-  compile_block_tail(x.body, &mut e, &mut o);
+  let _ = o.emit_label(f.args.len());
+
+  for arg in f.args {
+    let x = o.emit(Inst::Pop);
+    put_let(arg.name, x, &mut e);
+  }
+
+  compile_block_tail(f.body, &mut e, &mut o);
+
   return o.0;
 }
 

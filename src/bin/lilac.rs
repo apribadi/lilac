@@ -41,7 +41,14 @@ fn main() {
     fun foo() { loop { break 1, 2, 3 } }
     fun bar() { loop { continue } }
     fun baz() { loop { return 1, 2, 3 } }
-    fun qux() { 1 + 2 }
-    fun qqq() { let z = x >= y ? x : y return f(z)}
+    fun qux() { let z = x >= y ? x : y return f(z)}
   ");
+
+  compile("fun foo(x) { f(x + 1) }");
+  compile("fun foo(x) { return f(x + 1) }");
+  compile("fun foo(x) { loop { break f(x + 1) } }");
+  compile("fun foo(x) { loop { loop { return f(x + 1) } } }");
+  compile("fun foo(x) { if x != 0 { f(x) } }");
+  compile("fun foo(x, y) { x >= y ? x : y }");
+  compile("fun foo(x, y) { f(x >= y ? x : y) }");
 }
