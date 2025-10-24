@@ -66,13 +66,18 @@ enum LoopBreakTarget {
   NonTail(usize),
 }
 
+struct Point {
+  index: u32,
+  arity: Option<u32>,
+}
+
 struct Env {
   symbol_table: SymbolTable<Binding>,
   loops: Vec<LoopBreakTarget>,
-  break_points: Vec<u32>,
+  break_points: Vec<Point>,
   continue_labels: Vec<u32>,
   values: Vec<u32>,
-  points: Vec<u32>,
+  points: Vec<Point>,
 }
 
 impl Env {
@@ -152,11 +157,11 @@ fn pop_values(n: usize, e: &mut Env) -> impl Iterator<Item = u32> {
   return e.values.drain(e.values.len() - n ..);
 }
 
-fn put_point(i: u32, e: &mut Env) {
+fn put_point(i: Point, e: &mut Env) {
   e.points.push(i);
 }
 
-fn put_break_point(i: u32, e: &mut Env) {
+fn put_break_point(i: Point, e: &mut Env) {
   e.break_points.push(i);
   match e.loops.last_mut() {
     Some(LoopBreakTarget::NonTail(n)) => {
@@ -166,11 +171,11 @@ fn put_break_point(i: u32, e: &mut Env) {
   }
 }
 
-fn pop_point(e: &mut Env) -> u32 {
+fn pop_point(e: &mut Env) -> Point {
   return e.points.pop().unwrap();
 }
 
-fn pop_points(n: usize, e: &mut Env) -> impl Iterator<Item = u32> {
+fn pop_points(n: usize, e: &mut Env) -> impl Iterator<Item = Point> {
   return e.points.drain(e.points.len() - n ..);
 }
 
@@ -188,20 +193,22 @@ impl Out {
     return n as u32;
   }
 
-  fn emit_point(&mut self) -> u32 {
-    return self.emit(Inst::Goto(u32::MAX));
+  fn emit_point(&mut self) -> Point {
+    let i = self.emit(Inst::Goto(u32::MAX));
+    // TODO: arity
+    return Point { index: i, arity: None };
   }
 
-  fn emit_label_and_patch_points(&mut self, points: impl IntoIterator<Item = u32>) -> u32 {
+  fn emit_label_and_patch_points(&mut self, points: impl IntoIterator<Item = Point>) -> u32 {
     let a = self.emit(Inst::Label);
     patch_points(a, points, self);
     return a;
   }
 }
 
-fn patch_points(a: u32, points: impl IntoIterator<Item = u32>, o: &mut Out) {
+fn patch_points(a: u32, points: impl IntoIterator<Item = Point>, o: &mut Out) {
   for i in points {
-    o.0[i as usize] = Inst::Goto(a);
+    o.0[i.index as usize] = Inst::Goto(a);
   }
 }
 
