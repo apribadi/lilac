@@ -63,7 +63,7 @@ enum Binding {
 
 enum LoopBreakTarget {
   Tail,
-  NonTail(u32),
+  NonTail(usize),
 }
 
 struct Point {
@@ -110,7 +110,7 @@ fn put_loop(a: u32, e: &mut Env) {
   e.continue_labels.push(a);
 }
 
-fn pop_loop(e: &mut Env) -> u32 {
+fn pop_loop(e: &mut Env) -> usize {
   let _ = e.continue_labels.pop().unwrap();
   match e.loops.pop() {
     Some(LoopBreakTarget::NonTail(n)) => {
@@ -175,8 +175,8 @@ fn pop_point(e: &mut Env) -> Point {
   return e.points.pop().unwrap();
 }
 
-fn pop_points(n: u32, e: &mut Env) -> impl Iterator<Item = Point> {
-  return e.points.drain(e.points.len() - n as usize ..);
+fn pop_points(n: usize, e: &mut Env) -> impl Iterator<Item = Point> {
+  return e.points.drain(e.points.len() - n ..);
 }
 
 struct Out(Vec<Inst>);
@@ -193,10 +193,11 @@ impl Out {
     return n as u32;
   }
 
-  fn emit_point(&mut self, arity: Option<u32>) -> Point {
+  fn emit_point(&mut self, arity: Option<usize>) -> Point {
     let i = self.emit(Inst::Goto(u32::MAX));
+    let n = arity.map(|n| n as u32);
     // TODO: arity
-    return Point { index: i, arity };
+    return Point { index: i, arity: n };
   }
 
   fn emit_label_and_patch_points(&mut self, arity: u32, points: impl IntoIterator<Item = Point>) -> u32 {
@@ -221,7 +222,7 @@ pub fn compile<'a>(x: Expr<'a>) -> Vec<Inst> {
 }
 
 enum What {
-  NumPoints(u32),
+  NumPoints(usize),
   NumValues(usize),
 }
 
@@ -267,7 +268,7 @@ impl What {
     }
   }
 
-  fn into_points(self, e: &mut Env, o: &mut Out) -> u32 {
+  fn into_points(self, e: &mut Env, o: &mut Out) -> usize {
     match self {
       What::NumPoints(n) => {
         return n;
@@ -276,7 +277,7 @@ impl What {
         for x in pop_values(n, e) {
           let _ = o.emit(Inst::Put(x));
         }
-        let i = o.emit_point(Some(n as u32));
+        let i = o.emit_point(Some(n));
         put_point(i, e);
         return 1;
       }
@@ -289,12 +290,12 @@ fn compile_expr<'a>(x: Expr<'a>, e: &mut Env, o: &mut Out) -> What {
     Expr::And(&(x, y)) => {
       let x = compile_expr(x, e, o).into_value(e, o);
       let _ = o.emit(Inst::Cond(x));
-      let i = o.emit_point(None);
-      let j = o.emit_point(None);
+      let i = o.emit_point(Some(0));
+      let j = o.emit_point(Some(0));
       let _ = o.emit_label_and_patch_points(0, [i]);
       let x = o.emit(Inst::ConstBool(false));
       let _ = o.emit(Inst::Put(x));
-      let k = o.emit_point(None);
+      let k = o.emit_point(Some(1));
       put_point(k, e);
       let _ = o.emit_label_and_patch_points(0, [j]);
       let n = compile_expr(y, e, o).into_points(e, o);
@@ -306,13 +307,12 @@ fn compile_expr<'a>(x: Expr<'a>, e: &mut Env, o: &mut Out) -> What {
       return What::NumValues(1);
     }
     Expr::Call(&(f, xs)) => {
-      let n = xs.len();
       let f = compile_expr(f, e, o).into_value(e, o);
       for &x in xs.iter() {
         let x = compile_expr(x, e, o).into_value(e, o);
         put_value(x, e);
       }
-      for x in pop_values(n, e) {
+      for x in pop_values(xs.len(), e) {
         let _ = o.emit(Inst::Put(x));
       }
       let _ = o.emit(Inst::Call(f));
@@ -329,8 +329,8 @@ fn compile_expr<'a>(x: Expr<'a>, e: &mut Env, o: &mut Out) -> What {
     Expr::If(&(x, ys)) => {
       let x = compile_expr(x, e, o).into_value(e, o);
       let _ = o.emit(Inst::Cond(x));
-      let i = o.emit_point(None);
-      let j = o.emit_point(None);
+      let i = o.emit_point(Some(0));
+      let j = o.emit_point(Some(0));
       put_point(i, e);
       let _ = o.emit_label_and_patch_points(0, [j]);
       let n = compile_block(ys, e, o).into_points(e, o);
@@ -339,8 +339,8 @@ fn compile_expr<'a>(x: Expr<'a>, e: &mut Env, o: &mut Out) -> What {
     Expr::IfElse(&(x, ys, zs)) => {
       let x = compile_expr(x, e, o).into_value(e, o);
       let _ = o.emit(Inst::Cond(x));
-      let i = o.emit_point(None);
-      let j = o.emit_point(None);
+      let i = o.emit_point(Some(0));
+      let j = o.emit_point(Some(0));
       let _ = o.emit_label_and_patch_points(0, [i]);
       let m = compile_block(zs, e, o).into_points(e, o);
       let _ = o.emit_label_and_patch_points(0, [j]);
@@ -360,7 +360,7 @@ fn compile_expr<'a>(x: Expr<'a>, e: &mut Env, o: &mut Out) -> What {
       return What::NumValues(1);
     }
     Expr::Loop(xs) => {
-      let i = o.emit_point(None);
+      let i = o.emit_point(Some(0));
       let a = o.emit_label_and_patch_points(0, [i]);
       put_loop(a, e);
       let m = compile_block(xs, e, o).into_points(e, o);
@@ -384,22 +384,22 @@ fn compile_expr<'a>(x: Expr<'a>, e: &mut Env, o: &mut Out) -> What {
     Expr::Or(&(x, y)) => {
       let x = compile_expr(x, e, o).into_value(e, o);
       let _ = o.emit(Inst::Cond(x));
-      let i = o.emit_point(None);
-      let j = o.emit_point(None);
+      let i = o.emit_point(Some(0));
+      let j = o.emit_point(Some(0));
       let _ = o.emit_label_and_patch_points(0, [i]);
       let n = compile_expr(y, e, o).into_points(e, o);
       let _ = o.emit_label_and_patch_points(0, [j]);
       let x = o.emit(Inst::ConstBool(true));
       let _ = o.emit(Inst::Put(x));
-      let k = o.emit_point(None);
+      let k = o.emit_point(Some(1));
       put_point(k, e);
       return What::NumPoints(n + 1);
     }
     Expr::Ternary(&(x, y, z)) => {
       let x = compile_expr(x, e, o).into_value(e, o);
       let _ = o.emit(Inst::Cond(x));
-      let i = o.emit_point(None);
-      let j = o.emit_point(None);
+      let i = o.emit_point(Some(0));
+      let j = o.emit_point(Some(0));
       let _ = o.emit_label_and_patch_points(0, [i]);
       let m = compile_expr(z, e, o).into_points(e, o);
       let _ = o.emit_label_and_patch_points(0, [j]);
@@ -438,8 +438,8 @@ fn compile_expr_tail<'a>(x: Expr<'a>, e: &mut Env, o: &mut Out) {
     Expr::And(&(x, y)) => {
       let x = compile_expr(x, e, o).into_value(e, o);
       let _ = o.emit(Inst::Cond(x));
-      let i = o.emit_point(None);
-      let j = o.emit_point(None);
+      let i = o.emit_point(Some(0));
+      let j = o.emit_point(Some(0));
       let _ = o.emit_label_and_patch_points(0, [i]);
       let x = o.emit(Inst::ConstBool(false));
       let _ = o.emit(Inst::Put(x));
@@ -448,13 +448,12 @@ fn compile_expr_tail<'a>(x: Expr<'a>, e: &mut Env, o: &mut Out) {
       compile_expr_tail(y, e, o);
     }
     Expr::Call(&(f, xs)) => {
-      let n = xs.len();
       let f = compile_expr(f, e, o).into_value(e, o);
       for &x in xs.iter() {
         let x = compile_expr(x, e, o).into_value(e, o);
         put_value(x, e);
       }
-      for x in pop_values(n, e) {
+      for x in pop_values(xs.len(), e) {
         let _ = o.emit(Inst::Put(x));
       }
       let _ = o.emit(Inst::TailCall(f));
@@ -462,8 +461,8 @@ fn compile_expr_tail<'a>(x: Expr<'a>, e: &mut Env, o: &mut Out) {
     Expr::If(&(x, ys)) => {
       let x = compile_expr(x, e, o).into_value(e, o);
       let _ = o.emit(Inst::Cond(x));
-      let i = o.emit_point(None);
-      let j = o.emit_point(None);
+      let i = o.emit_point(Some(0));
+      let j = o.emit_point(Some(0));
       let _ = o.emit_label_and_patch_points(0, [i]);
       let _ = o.emit(Inst::Ret);
       let _ = o.emit_label_and_patch_points(0, [j]);
@@ -472,15 +471,15 @@ fn compile_expr_tail<'a>(x: Expr<'a>, e: &mut Env, o: &mut Out) {
     Expr::IfElse(&(x, ys, zs)) => {
       let x = compile_expr(x, e, o).into_value(e, o);
       let _ = o.emit(Inst::Cond(x));
-      let i = o.emit_point(None);
-      let j = o.emit_point(None);
+      let i = o.emit_point(Some(0));
+      let j = o.emit_point(Some(0));
       let _ = o.emit_label_and_patch_points(0, [i]);
       compile_block_tail(zs, e, o);
       let _ = o.emit_label_and_patch_points(0, [j]);
       compile_block_tail(ys, e, o);
     }
     Expr::Loop(xs) => {
-      let i = o.emit_point(None);
+      let i = o.emit_point(Some(0));
       let a = o.emit_label_and_patch_points(0, [i]);
       put_loop_tail(a, e);
       let m = compile_block(xs, e, o).into_points(e, o);
@@ -490,8 +489,8 @@ fn compile_expr_tail<'a>(x: Expr<'a>, e: &mut Env, o: &mut Out) {
     Expr::Or(&(x, y)) => {
       let x = compile_expr(x, e, o).into_value(e, o);
       let _ = o.emit(Inst::Cond(x));
-      let i = o.emit_point(None);
-      let j = o.emit_point(None);
+      let i = o.emit_point(Some(0));
+      let j = o.emit_point(Some(0));
       let _ = o.emit_label_and_patch_points(0, [i]);
       compile_expr_tail(y, e, o);
       let _ = o.emit_label_and_patch_points(0, [j]);
@@ -502,8 +501,8 @@ fn compile_expr_tail<'a>(x: Expr<'a>, e: &mut Env, o: &mut Out) {
     Expr::Ternary(&(x, y, z)) => {
       let x = compile_expr(x, e, o).into_value(e, o);
       let _ = o.emit(Inst::Cond(x));
-      let i = o.emit_point(None);
-      let j = o.emit_point(None);
+      let i = o.emit_point(Some(0));
+      let j = o.emit_point(Some(0));
       let _ = o.emit_label_and_patch_points(0, [i]);
       compile_expr_tail(z, e, o);
       let _ = o.emit_label_and_patch_points(0, [j]);
@@ -557,15 +556,14 @@ fn compile_stmt<'a>(x: Stmt<'a>, e: &mut Env, o: &mut Out) -> What {
               }
             }
             xs => {
-              let n = xs.len();
               for &x in xs.iter() {
                 let x = compile_expr(x, e, o).into_value(e, o);
                 put_value(x, e);
               }
-              for x in pop_values(n, e) {
+              for x in pop_values(xs.len(), e) {
                 let _ = o.emit(Inst::Put(x));
               }
-              let i = o.emit_point(None);
+              let i = o.emit_point(Some(xs.len()));
               put_break_point(i, e);
             }
           }
@@ -703,12 +701,11 @@ fn compile_expr_list_tail<'a>(xs: &'a [Expr<'a>], e: &mut Env, o: &mut Out) {
       compile_expr_tail(x, e, o);
     }
     xs => {
-      let n = xs.len();
       for &x in xs.iter() {
         let x = compile_expr(x, e, o).into_value(e, o);
         put_value(x, e);
       }
-      for x in pop_values(n, e) {
+      for x in pop_values(xs.len(), e) {
         let _ = o.emit(Inst::Put(x));
       }
       let _ = o.emit(Inst::Ret);
