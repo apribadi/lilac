@@ -23,7 +23,7 @@ fn compile(source: &str) {
 
 fn main() {
   compile("
-    fun {
+    fun fib(n) {
       var n = n
       var a = 1
       var b = 0
@@ -38,27 +38,10 @@ fn main() {
   ");
 
   compile("
-    fun { loop { break 1, 2, 3 } }
-    fun { loop { continue } }
-    fun { loop { return 1, 2, 3 } }
-    fun { 1 + 2 }
-    fun { let z = x >= y ? x : y return f(z)}
-    ");
-  /*
-
-
-
-  /*
-  compile("if x { let y = 1 f(y) }");
-  compile("if x { let y = 1 y + 2 } else { 4 }");
-
-  compile("loop { break 1, 2, 3 }");
-
-  compile("x ? 1 : y ? 2 : z ? 3 : 4");
-
-  compile("1 + loop { 1 }");
-
-  compile("1 + loop { return }");
-  */
-  */
+    fun foo() { loop { break 1, 2, 3 } }
+    fun bar() { loop { continue } }
+    fun baz() { loop { return 1, 2, 3 } }
+    fun qux() { 1 + 2 }
+    fun qqq() { let z = x >= y ? x : y return f(z)}
+  ");
 }

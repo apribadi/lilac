@@ -13,7 +13,14 @@ pub enum Item<'a> {
 
 #[derive(Clone, Copy, Debug)]
 pub struct Fundef<'a> {
+  pub name: Symbol,
+  pub args: &'a [Bind],
   pub body: &'a [Stmt<'a>],
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct Bind {
+  pub name: Symbol,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -54,15 +61,10 @@ pub fn parse<'a>(source: &[u8], arena: &mut Arena<'a>) -> Vec<Item<'a>> {
   return e.items;
 }
 
-pub fn parse_expr<'a>(source: &[u8], arena: &mut Arena<'a>) -> Expr<'a> {
-  let mut e = ToAst::new(arena);
-  parse::parse_expr(&mut Lexer::new(source), &mut e);
-  return e.pop_expr();
-}
-
 struct ToAst<'a, 'b> {
   arena: &'b mut Arena<'a>,
   items: Vec<Item<'a>>,
+  binds: Vec<Bind>,
   exprs: Vec<Expr<'a>>,
   stmts: Vec<Stmt<'a>>,
 }
@@ -72,6 +74,7 @@ impl<'a, 'b> ToAst<'a, 'b> {
     Self {
       arena,
       items: Vec::new(),
+      binds: Vec::new(),
       exprs: Vec::new(),
       stmts: Vec::new(),
     }
@@ -83,6 +86,15 @@ impl<'a, 'b> ToAst<'a, 'b> {
 
   fn put_item(&mut self, x: Item<'a>) {
     self.items.push(x);
+  }
+
+  fn put_bind(&mut self, x: Bind) {
+    self.binds.push(x);
+  }
+
+  fn pop_bind_multi(&mut self, n: usize) -> &'a [Bind] {
+    let x = self.binds.drain(self.binds.len() - n ..);
+    return self.arena.slice_from_iter(x);
   }
 
   fn put_expr(&mut self, x: Expr<'a>) {
@@ -109,10 +121,17 @@ impl<'a, 'b> ToAst<'a, 'b> {
 }
 
 impl<'a, 'b> parse::Out for ToAst<'a, 'b> {
-  fn on_fundef(&mut self, n_stmts: usize) {
-    let x = self.pop_stmt_multi(n_stmts);
-    let x = Item::Fundef(Fundef { body: x });
+  fn on_fundef(&mut self, name: &[u8], n_args: usize, n_stmts: usize) {
+    let z = self.pop_stmt_multi(n_stmts);
+    let y = self.pop_bind_multi(n_args);
+    let x = Symbol::from_bytes(name);
+    let x = Item::Fundef(Fundef { name: x, args: y, body: z });
     self.put_item(x);
+  }
+
+  fn on_bind(&mut self, name: &[u8]) {
+    let x = Bind { name: Symbol::from_bytes(name) };
+    self.put_bind(x);
   }
 
   fn on_variable(&mut self, symbol: &[u8]) {

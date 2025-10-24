@@ -7,7 +7,10 @@ use crate::token::Token;
 pub trait Out {
   // TODO: sort ???
 
-  fn on_fundef(&mut self, n_stmts: usize);
+  fn on_fundef(&mut self, name: &[u8], n_args: usize, n_stmts: usize);
+
+  // TODO: optional type
+  fn on_bind(&mut self, name: &[u8]);
 
   fn on_variable(&mut self, symbol: &[u8]);
 
@@ -70,9 +73,12 @@ pub fn parse<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O) {
       }
       Token::Fun => {
         t.next();
-        // TODO: parameters, optional types
+        let name = expect_symbol(t, o);
+        expect(t, o, Token::LParen);
+        let n_args = parse_bind_list(t, o, Token::RParen);
+        t.next();
         let n_stmts = parse_block(t, o);
-        o.on_fundef(n_stmts);
+        o.on_fundef(name, n_args, n_stmts);
       }
       _ => {
         // error?
@@ -80,10 +86,6 @@ pub fn parse<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O) {
       }
     }
   }
-}
-
-pub fn parse_expr<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O) {
-  return parse_prec(t, o, 0x00, false);
 }
 
 fn expect<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O, token: Token) {
@@ -103,6 +105,28 @@ fn expect_symbol<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O) -> &'a [u8] {
     t.next();
     return symbol;
   }
+}
+
+fn parse_bind<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O) {
+  let name = expect_symbol(t, o);
+  o.on_bind(name);
+}
+
+fn parse_bind_list<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O, stop: Token) -> usize {
+  let mut n_binds = 0;
+  if t.token() != stop {
+    loop {
+      parse_bind(t, o);
+      n_binds += 1;
+      if t.token() != Token::Comma { break; }
+      t.next();
+    }
+  }
+  return n_binds;
+}
+
+fn parse_expr<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O) {
+  return parse_prec(t, o, 0x00, false);
 }
 
 fn parse_expr_list<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O, stop: Token) -> usize {
@@ -424,10 +448,17 @@ impl ToSexp {
 }
 
 impl Out for ToSexp {
-  fn on_fundef(&mut self, n_stmts: usize) {
-    let x = Sexp::List(self.pop_multi(n_stmts).collect());
+  fn on_fundef(&mut self, name: &[u8], n_args: usize, n_stmts: usize) {
+    let z = Sexp::List(self.pop_multi(n_stmts).collect());
+    let y = Sexp::List(self.pop_multi(n_args).collect());
+    let x = Sexp::from_bytes(name);
     let t = Sexp::from_bytes(b"fun");
-    self.put(Sexp::from_array([t, x]));
+    self.put(Sexp::from_array([t, x, y, z]));
+  }
+
+  fn on_bind(&mut self, name: &[u8]) {
+    let x = Sexp::from_bytes(name);
+    self.put(x);
   }
 
   fn on_variable(&mut self, x: &[u8]) {

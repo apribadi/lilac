@@ -8,6 +8,10 @@ type Label = u32;
 
 type Value = u32;
 
+// TODO:
+//
+// - add type ascription
+
 pub enum Inst {
   GotoStaticError,
   Label(u32),
