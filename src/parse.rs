@@ -1,6 +1,6 @@
 use crate::lexer::Lexer;
-use crate::op1::Op1;
-use crate::op2::Op2;
+use crate::ast::Op1;
+use crate::ast::Op2;
 use crate::sexp::Sexp;
 use crate::token::Token;
 
@@ -170,7 +170,7 @@ fn parse_prec<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O, n: usize, is_stmt: bool)
     Token::Symbol => {
       let symbol = t.token_span();
       t.next();
-      if is_stmt && t.token() == Token::Set {
+      if is_stmt && t.token() == Token::Equal {
         t.next();
         parse_expr(t, o);
         o.on_set(symbol);
@@ -313,7 +313,7 @@ fn parse_prec<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O, n: usize, is_stmt: bool)
       Token::Field if t.token_is_attached() => {
         let symbol = &t.token_span()[1 ..];
         t.next();
-        if is_stmt && t.token() == Token::Set {
+        if is_stmt && t.token() == Token::Equal {
           t.next();
           parse_expr(t, o);
           o.on_set_field(symbol);
@@ -326,7 +326,7 @@ fn parse_prec<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O, n: usize, is_stmt: bool)
         t.next();
         parse_expr(t, o);
         expect(t, o, Token::RBracket);
-        if is_stmt && t.token() == Token::Set {
+        if is_stmt && t.token() == Token::Equal {
           t.next();
           parse_expr(t, o);
           o.on_set_index();

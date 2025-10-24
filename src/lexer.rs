@@ -213,7 +213,6 @@ impl<'a> Lexer<'a> {
             b"..." => Token::DotDotDot,
             b"++" => Token::Incr,
             b"||" => Token::Or,
-            b"<-" => Token::Set,
             b"<<" => Token::Shl,
             b">>" => Token::Shr,
             b"-=" => Token::SubEqual,

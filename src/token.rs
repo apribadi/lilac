@@ -39,7 +39,6 @@ pub enum Token {
   DotDotDot,       // ...
   Incr,            // ++
   Or,              // ||
-  Set,             // <-
   Shl,             // <<
   Shr,             // >>
   SubEqual,        // -=

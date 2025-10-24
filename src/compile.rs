@@ -1,9 +1,11 @@
-use crate::ast::Fundef;
 use crate::ast::Expr;
+use crate::ast::Fundef;
 use crate::ast::Stmt;
+use crate::ast;
 use crate::symbol::Symbol;
 use crate::symbol_table::SymbolTable;
 use crate::uir::Inst;
+use crate::uir;
 
 #[derive(Clone, Copy)]
 enum What {
@@ -379,12 +381,36 @@ fn compile_expr<'a>(x: Expr<'a>, e: &mut Env, o: &mut Out) -> What {
       return What::NumPoints(n);
     }
     Expr::Op1(&(f, x)) => {
+      let f =
+        match f {
+          ast::Op1::Neg => uir::Op1::Neg,
+          ast::Op1::Not => uir::Op1::Not,
+        };
       let x = compile_expr(x, e, o).into_value(e, o);
       let x = o.emit(Inst::Op1(f, x));
       put_value(x, e);
       return What::NumValues(1);
     }
     Expr::Op2(&(f, x, y)) => {
+      let f =
+        match f {
+          ast::Op2::Add => uir::Op2::Add,
+          ast::Op2::BitAnd => uir::Op2::BitAnd,
+          ast::Op2::BitOr => uir::Op2::BitOr,
+          ast::Op2::BitXor => uir::Op2::BitXor,
+          ast::Op2::CmpEq => uir::Op2::CmpEq,
+          ast::Op2::CmpGe => uir::Op2::CmpGe,
+          ast::Op2::CmpGt => uir::Op2::CmpGt,
+          ast::Op2::CmpLe => uir::Op2::CmpLe,
+          ast::Op2::CmpLt => uir::Op2::CmpLt,
+          ast::Op2::CmpNe => uir::Op2::CmpNe,
+          ast::Op2::Div => uir::Op2::Div,
+          ast::Op2::Mul => uir::Op2::Mul,
+          ast::Op2::Rem => uir::Op2::Rem,
+          ast::Op2::Shl => uir::Op2::Shl,
+          ast::Op2::Shr => uir::Op2::Shr,
+          ast::Op2::Sub => uir::Op2::Sub,
+        };
       let x = compile_expr(x, e, o).into_value(e, o);
       let y = compile_expr(y, e, o).into_value(e, o);
       let x = o.emit(Inst::Op2(f, x, y));

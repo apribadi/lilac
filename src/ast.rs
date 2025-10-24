@@ -1,29 +1,52 @@
 use crate::lexer::Lexer;
-use crate::op1::Op1;
-use crate::op2::Op2;
 use crate::parse;
 use crate::symbol::Symbol;
 use crate::token::Token;
 use oxcart::Arena;
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy)]
+pub enum Op1 {
+  Neg,
+  Not,
+}
+
+#[derive(Clone, Copy)]
+pub enum Op2 {
+  Add,
+  BitAnd,
+  BitOr,
+  BitXor,
+  CmpEq,
+  CmpGe,
+  CmpGt,
+  CmpLe,
+  CmpLt,
+  CmpNe,
+  Div,
+  Mul,
+  Rem,
+  Shl,
+  Shr,
+  Sub,
+}
+
 pub enum Item<'a> {
   Fundef(Fundef<'a>),
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy)]
 pub struct Fundef<'a> {
   pub name: Symbol,
   pub args: &'a [Bind],
   pub body: &'a [Stmt<'a>],
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy)]
 pub struct Bind {
   pub name: Symbol,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy)]
 pub enum Expr<'a> {
   And(&'a (Expr<'a>, Expr<'a>)),
   Bool(bool),
@@ -42,7 +65,7 @@ pub enum Expr<'a> {
   Variable(Symbol),
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy)]
 pub enum Stmt<'a> {
   Exprs(&'a [Expr<'a>]),
   Break(&'a [Expr<'a>]),
@@ -290,5 +313,49 @@ impl<'a, 'b> parse::Out for ToAst<'a, 'b> {
   fn on_error_missing_expr(&mut self) {
     // TODO: report error on missing expected expression
     self.put_expr(Expr::Undefined);
+  }
+}
+
+impl Op1 {
+  pub fn as_str(&self) -> &'static str {
+    match self {
+      Self::Neg => "-",
+      Self::Not => "!",
+    }
+  }
+}
+
+impl std::fmt::Display for Op1 {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    write!(f, "{}", self.as_str())
+  }
+}
+
+impl Op2 {
+  pub fn as_str(&self) -> &'static str {
+    match self {
+      Self::Add => "+",
+      Self::BitAnd => "&",
+      Self::BitOr => "|",
+      Self::BitXor => "^",
+      Self::CmpEq => "==",
+      Self::CmpGe => ">=",
+      Self::CmpGt => ">",
+      Self::CmpLe => "<=",
+      Self::CmpLt => "<",
+      Self::CmpNe => "!=",
+      Self::Div => "/",
+      Self::Mul => "*",
+      Self::Rem => "%",
+      Self::Shl => "<<",
+      Self::Shr => ">>",
+      Self::Sub => "-",
+    }
+  }
+}
+
+impl std::fmt::Display for Op2 {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    write!(f, "{}", self.as_str())
   }
 }

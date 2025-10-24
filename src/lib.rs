@@ -1,8 +1,6 @@
 pub mod ast;
 pub mod compile;
 pub mod lexer;
-pub mod op1;
-pub mod op2;
 pub mod parse;
 pub mod primop2;
 pub mod sexp;

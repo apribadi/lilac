@@ -30,9 +30,9 @@ fn main() {
       loop {
         if n == 0 { return b }
         let c = a + b
-        a <- b
-        b <- c
-        n <- n - 1
+        a = b
+        b = c
+        n = n - 1
       }
     }
   ");
