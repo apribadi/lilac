@@ -567,9 +567,15 @@ fn compile_stmt<'a>(x: Stmt<'a>, e: &mut Env, o: &mut Out) -> What {
       return What::NEVER;
     }
     Stmt::Continue => {
-      // TODO: if continue_labels.last() is None, generate an error.
-      // like for break
-      let _ = o.emit(Inst::Goto(*e.continue_labels.last().unwrap()));
+      match e.continue_labels.last() {
+        None => {
+          // error, break is not inside loop
+          let _ = o.emit(Inst::GotoStaticError);
+        }
+        Some(&a) => {
+          let _ = o.emit(Inst::Goto(a));
+        }
+      }
       return What::NEVER;
     }
     Stmt::Let(s, x) => {
