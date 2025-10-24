@@ -8,9 +8,7 @@ type Label = u32;
 
 type Value = u32;
 
-// TODO:
-//
-// - add type ascription
+// TODO: add type ascription
 
 pub enum Inst {
   GotoStaticError,
@@ -42,7 +40,7 @@ impl std::fmt::Display for Inst {
       Self::Label(n) => write!(f, "LABEL {}", n),
       Self::Pop => write!(f, "= POP"),
       Self::Put(x) => write!(f, "PUT %{}", x),
-      Self::Goto(x) => write!(f, "==> GOTO {}", x),
+      Self::Goto(x) => write!(f, "==> GOTO %{}", x),
       Self::GotoStaticError => write!(f, "==> GOTO-STATIC-ERROR"),
       Self::Cond(x) => write!(f, "COND %{}", x),
       Self::Ret => write!(f, "RET"),

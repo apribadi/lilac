@@ -5,11 +5,11 @@ use crate::sexp::Sexp;
 use crate::token::Token;
 
 pub trait Out {
-  // TODO: sort ???
+  // TODO: sort trait members
 
   fn on_fundef(&mut self, name: &[u8], n_args: usize, n_stmts: usize);
 
-  // TODO: optional type
+  // TODO: optional type for binding
   fn on_bind(&mut self, name: &[u8]);
 
   fn on_variable(&mut self, symbol: &[u8]);
@@ -46,7 +46,7 @@ pub trait Out {
 
   fn on_continue(&mut self);
 
-  fn on_let(&mut self, symbol: &[u8]);
+  fn on_let(&mut self, n_binds: usize);
 
   fn on_return(&mut self, arity: usize);
 
@@ -76,7 +76,7 @@ pub fn parse<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O) {
         let name = expect_symbol(t, o);
         expect(t, o, Token::LParen);
         let n_args = parse_bind_list(t, o, Token::RParen);
-        t.next();
+        expect(t, o, Token::RParen);
         let n_stmts = parse_block(t, o);
         o.on_fundef(name, n_args, n_stmts);
       }
@@ -373,12 +373,11 @@ fn parse_block<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O) -> usize {
         break;
       }
       Token::Let => {
-        // TODO: multiple value bind
         t.next();
-        let symbol = expect_symbol(t, o);
+        let n_binds = parse_bind_list(t, o, Token::Equal);
         expect(t, o, Token::Equal);
         parse_expr(t, o);
-        o.on_let(symbol);
+        o.on_let(n_binds);
         n_stmts += 1;
       }
       Token::Return => {
@@ -564,10 +563,10 @@ impl Out for ToSexp {
     self.put(Sexp::from_bytes(b"continue"));
   }
 
-  fn on_let(&mut self, symbol: &[u8]) {
-    let x = self.pop();
-    let s = Sexp::from_bytes(symbol);
-    self.put(Sexp::from_array([Sexp::from_bytes(b"let"), s, x]));
+  fn on_let(&mut self, n_binds: usize) {
+    let y = self.pop();
+    let x = Sexp::List(self.pop_multi(n_binds).collect());
+    self.put(Sexp::from_array([Sexp::from_bytes(b"let"), x, y]));
   }
 
   fn on_return(&mut self, arity: usize) {

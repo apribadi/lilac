@@ -47,7 +47,7 @@ pub enum Stmt<'a> {
   Expr(Expr<'a>),
   Break(&'a [Expr<'a>]),
   Continue,
-  Let(Symbol, Expr<'a>),
+  Let(&'a [Bind], Expr<'a>),
   Return(&'a [Expr<'a>]),
   Set(Symbol, Expr<'a>),
   SetField(Expr<'a>, Symbol, Expr<'a>),
@@ -245,10 +245,10 @@ impl<'a, 'b> parse::Out for ToAst<'a, 'b> {
     self.put_stmt(Stmt::Continue);
   }
 
-  fn on_let(&mut self, symbol: &[u8]) {
-    let s = Symbol::from_bytes(symbol);
-    let x = self.pop_expr();
-    self.put_stmt(Stmt::Let(s, x));
+  fn on_let(&mut self, n_binds: usize) {
+    let y = self.pop_expr();
+    let x = self.pop_bind_multi(n_binds);
+    self.put_stmt(Stmt::Let(x, y));
   }
 
   fn on_return(&mut self, arity: usize) {
@@ -284,11 +284,11 @@ impl<'a, 'b> parse::Out for ToAst<'a, 'b> {
 
   fn on_error_missing_expected_token(&mut self, token: Token) {
     let _ = token;
-    // TODO: accumulate errors
+    // TODO: report error on missing expected token
   }
 
   fn on_error_missing_expr(&mut self) {
-    // TODO: accumulate errors
+    // TODO: report error on missing expected expression
     self.put_expr(Expr::Undefined);
   }
 }

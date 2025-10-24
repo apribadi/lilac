@@ -5,8 +5,6 @@ use crate::symbol::Symbol;
 use crate::symbol_table::SymbolTable;
 use crate::uir::Inst;
 
-// TODO: fundef
-
 #[derive(Clone, Copy)]
 enum What {
   NumPoints(usize),
@@ -123,6 +121,11 @@ fn pop_values(n: usize, e: &mut Env) -> impl Iterator<Item = u32> {
   return e.values.drain(e.values.len() - n ..);
 }
 
+fn rev_values(n: usize, e: &mut Env) {
+  let k = e.values.len() - n;
+  e.values[k ..].reverse();
+}
+
 fn put_point(i: Point, e: &mut Env) {
   e.points.push(i);
 }
@@ -218,13 +221,13 @@ impl What {
       What::NumPoints(n) => {
         let _ = o.emit_label_and_patch_points(0, pop_points(n, e));
       }
-      What::NumValues(0) => {
-      }
       What::NumValues(n) => {
-        // error, arity mismatch
-        let _ = pop_values(n, e);
-        let _ = o.emit(Inst::GotoStaticError);
-        let _ = o.emit(Inst::Label(0));
+        if n != 0 {
+          // error, arity mismatch
+          let _ = pop_values(n, e);
+          let _ = o.emit(Inst::GotoStaticError);
+          let _ = o.emit(Inst::Label(0));
+        }
       }
     }
   }
@@ -236,16 +239,41 @@ impl What {
         let x = o.emit(Inst::Pop);
         return x;
       }
-      What::NumValues(1) => {
-        return pop_value(e);
+      What::NumValues(n) => {
+        if n == 1 {
+          return pop_value(e);
+        } else {
+          // error, arity mismatch
+          let _ = pop_values(n, e);
+          let _ = o.emit(Inst::GotoStaticError);
+          let _ = o.emit(Inst::Label(1));
+          let x = o.emit(Inst::Pop);
+          return x;
+        }
+      }
+    }
+  }
+
+  fn into_values(self, arity: usize, e: &mut Env, o: &mut Out) {
+    match self {
+      What::NumPoints(n) => {
+        let _ = o.emit_label_and_patch_points(arity, pop_points(n, e));
+        for _ in 0 .. arity {
+          let x = o.emit(Inst::Pop);
+          put_value(x, e);
+        }
       }
       What::NumValues(n) => {
-        // error, arity mismatch
-        let _ = pop_values(n, e);
-        let _ = o.emit(Inst::GotoStaticError);
-        let _ = o.emit(Inst::Label(1));
-        let x = o.emit(Inst::Pop);
-        return x;
+        if arity != n {
+          // error, arity mismatch
+          let _ = pop_values(n, e);
+          let _ = o.emit(Inst::GotoStaticError);
+          let _ = o.emit(Inst::Label(arity as u32));
+          for _ in 0 .. arity {
+            let x = o.emit(Inst::Pop);
+            put_value(x, e);
+          }
+        }
       }
     }
   }
@@ -566,9 +594,15 @@ fn compile_stmt<'a>(x: Stmt<'a>, e: &mut Env, o: &mut Out) -> What {
       }
       return What::NEVER;
     }
-    Stmt::Let(s, x) => {
-      let x = compile_expr(x, e, o).into_value(e, o);
-      put_let(s, x, e);
+    Stmt::Let(xs, y) => {
+      // NOTE: we do the bindings from left to right, so later bindings shadow
+      // earlier ones. we should just produce an error in that case
+      compile_expr(y, e, o).into_values(xs.len(), e, o);
+      rev_values(xs.len(), e);
+      for &x in xs.iter() {
+        let y = pop_value(e);
+        put_let(x.name, y, e);
+      }
       return What::NIL;
     }
     Stmt::Return(xs) => {

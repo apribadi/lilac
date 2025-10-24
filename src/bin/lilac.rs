@@ -37,6 +37,7 @@ fn main() {
     }
   ");
 
+  /*
   compile("
     fun foo() { loop { break 1, 2, 3 } }
     fun bar() { loop { continue } }
@@ -51,4 +52,23 @@ fn main() {
   compile("fun foo(x) { if x != 0 { f(x) } }");
   compile("fun foo(x, y) { x >= y ? x : y }");
   compile("fun foo(x, y) { f(x >= y ? x : y) }");
+  */
+
+  compile("
+    fun foo(x, y) {
+      let a = x + y
+      let b = x - y
+      let c, d = f(a, b)
+      g(c - d)
+    }
+  ");
+
+  compile("
+    fun foo(x, y) {
+      let a = x + y
+      let b = x - y
+      let c, d = if a >= b { f(a, b) } else { f(b, a) }
+      g(c - d)
+    }
+  ");
 }
