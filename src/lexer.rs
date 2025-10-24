@@ -208,6 +208,7 @@ impl<'a> Lexer<'a> {
             b">=" => Token::CmpGe,
             b"<=" => Token::CmpLe,
             b"!=" => Token::CmpNe,
+            b"..." => Token::DotDotDot,
             b"||" => Token::Or,
             b"<-" => Token::Set,
             b"<<" => Token::Shl,

@@ -1,3 +1,4 @@
+use crate::ast::Fundef;
 use crate::ast::Expr;
 use crate::ast::Stmt;
 use crate::symbol::Symbol;
@@ -191,11 +192,11 @@ fn patch_points(a: Label, points: impl IntoIterator<Item = Point>, o: &mut Out) 
   }
 }
 
-pub fn compile<'a>(x: Expr<'a>) -> Vec<Inst> {
+pub fn compile<'a>(x: Fundef<'a>) -> Vec<Inst> {
   let mut e = Env::new();
   let mut o = Out::new();
 
-  compile_expr_tail(x, &mut e, &mut o);
+  compile_block_tail(x.body, &mut e, &mut o);
   return o.0;
 }
 

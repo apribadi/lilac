@@ -8,40 +8,44 @@ fn compile(source: &str) {
   let mut store = oxcart::Store::new();
   let mut arena = store.arena();
 
-  let a = lilac::ast::parse_expr(source.as_bytes(), &mut arena);
-  let a = lilac::compile::compile(a);
+  let items = lilac::ast::parse(source.as_bytes(), &mut arena);
 
-  for (i, x) in a.iter().enumerate() {
-    print!("%{} {}\n", i, x);
+  for lilac::ast::Item::Fundef(f) in items {
+    let code = lilac::compile::compile(f);
+
+    for (i, x) in code.iter().enumerate() {
+      print!("%{} {}\n", i, x);
+    }
+
+    print!("\n");
   }
-
-  print!("\n");
 }
 
 fn main() {
-  compile("loop { f() 1 1 }");
-  compile("loop { break }");
-  compile("loop { continue }");
-  compile("loop { return }");
-
-  compile("1 + (x >= y ? x : y)");
-
   compile("
-    if n == 0 {
-      return 0
-    } else {
+    fun {
       var n = n
       var a = 1
       var b = 0
       loop {
+        if n == 0 { return b }
         let c = a + b
         a <- b
         b <- c
         n <- n - 1
-        if n == 0 { return b }
       }
     }
   ");
+
+  compile("
+    fun { loop { break 1, 2, 3 } }
+    fun { loop { continue } }
+    fun { loop { return 1, 2, 3 } }
+    fun { 1 + 2 }
+    fun { let z = x >= y ? x : y return f(z)}
+    ");
+  /*
+
 
 
   /*
@@ -55,5 +59,6 @@ fn main() {
   compile("1 + loop { 1 }");
 
   compile("1 + loop { return }");
+  */
   */
 }

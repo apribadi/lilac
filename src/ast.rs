@@ -7,6 +7,16 @@ use crate::token::Token;
 use oxcart::Arena;
 
 #[derive(Clone, Copy, Debug)]
+pub enum Item<'a> {
+  Fundef(Fundef<'a>),
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct Fundef<'a> {
+  pub body: &'a [Stmt<'a>],
+}
+
+#[derive(Clone, Copy, Debug)]
 pub enum Expr<'a> {
   And(&'a (Expr<'a>, Expr<'a>)),
   Bool(bool),
@@ -38,6 +48,12 @@ pub enum Stmt<'a> {
   Var(Symbol, Expr<'a>),
 }
 
+pub fn parse<'a>(source: &[u8], arena: &mut Arena<'a>) -> Vec<Item<'a>> {
+  let mut e = ToAst::new(arena);
+  parse::parse(&mut Lexer::new(source), &mut e);
+  return e.items;
+}
+
 pub fn parse_expr<'a>(source: &[u8], arena: &mut Arena<'a>) -> Expr<'a> {
   let mut e = ToAst::new(arena);
   parse::parse_expr(&mut Lexer::new(source), &mut e);
@@ -46,6 +62,7 @@ pub fn parse_expr<'a>(source: &[u8], arena: &mut Arena<'a>) -> Expr<'a> {
 
 struct ToAst<'a, 'b> {
   arena: &'b mut Arena<'a>,
+  items: Vec<Item<'a>>,
   exprs: Vec<Expr<'a>>,
   stmts: Vec<Stmt<'a>>,
 }
@@ -54,6 +71,7 @@ impl<'a, 'b> ToAst<'a, 'b> {
   fn new(arena: &'b mut Arena<'a>) -> Self {
     Self {
       arena,
+      items: Vec::new(),
       exprs: Vec::new(),
       stmts: Vec::new(),
     }
@@ -61,6 +79,10 @@ impl<'a, 'b> ToAst<'a, 'b> {
 
   fn alloc<T>(&mut self, x: T) -> &'a T {
     return self.arena.alloc().init(x);
+  }
+
+  fn put_item(&mut self, x: Item<'a>) {
+    self.items.push(x);
   }
 
   fn put_expr(&mut self, x: Expr<'a>) {
@@ -87,6 +109,12 @@ impl<'a, 'b> ToAst<'a, 'b> {
 }
 
 impl<'a, 'b> parse::Out for ToAst<'a, 'b> {
+  fn on_fundef(&mut self, n_stmts: usize) {
+    let x = self.pop_stmt_multi(n_stmts);
+    let x = Item::Fundef(Fundef { body: x });
+    self.put_item(x);
+  }
+
   fn on_variable(&mut self, symbol: &[u8]) {
     let s = Symbol::from_bytes(symbol);
     self.put_expr(Expr::Variable(s));

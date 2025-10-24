@@ -5,7 +5,9 @@ use crate::sexp::Sexp;
 use crate::token::Token;
 
 pub trait Out {
-  // TODO: sort exprs, sort stmts
+  // TODO: sort ???
+
+  fn on_fundef(&mut self, n_stmts: usize);
 
   fn on_variable(&mut self, symbol: &[u8]);
 
@@ -56,6 +58,28 @@ pub trait Out {
   fn on_error_missing_expected_token(&mut self, token: Token);
 
   fn on_error_missing_expr(&mut self);
+}
+
+// toplevel sequence of items
+
+pub fn parse<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O) {
+  loop {
+    match t.token() {
+      Token::Eof => {
+        break;
+      }
+      Token::Fun => {
+        t.next();
+        // TODO: parameters, optional types
+        let n_stmts = parse_block(t, o);
+        o.on_fundef(n_stmts);
+      }
+      _ => {
+        // error?
+        break;
+      }
+    }
+  }
 }
 
 pub fn parse_expr<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O) {
@@ -400,6 +424,12 @@ impl ToSexp {
 }
 
 impl Out for ToSexp {
+  fn on_fundef(&mut self, n_stmts: usize) {
+    let x = Sexp::List(self.pop_multi(n_stmts).collect());
+    let t = Sexp::from_bytes(b"fun");
+    self.put(Sexp::from_array([t, x]));
+  }
+
   fn on_variable(&mut self, x: &[u8]) {
     self.put(Sexp::from_bytes(x));
   }
