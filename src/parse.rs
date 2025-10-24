@@ -46,7 +46,7 @@ pub trait Out {
 
   fn on_continue(&mut self);
 
-  fn on_let(&mut self, n_binds: usize);
+  fn on_let(&mut self, n_binds: usize, n_exprs: usize);
 
   fn on_return(&mut self, arity: usize);
 
@@ -375,10 +375,21 @@ fn parse_block<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O) -> usize {
       }
       Token::Let => {
         t.next();
+        // NOTE: we allow a list of zero bindings, like
+        //
+        //   let = f(x)
+        //
+        // which is a bit weird. but works semantically
         let n_binds = parse_bind_list(t, o, Token::Equal);
         expect(t, o, Token::Equal);
-        parse_expr(t, o);
-        o.on_let(n_binds);
+        let mut n_exprs = 0;
+        loop {
+          parse_expr(t, o);
+          n_exprs += 1;
+          if t.token() != Token::Comma { break; }
+          t.next();
+        }
+        o.on_let(n_binds, n_exprs);
         n_stmts += 1;
       }
       Token::Return => {
@@ -574,8 +585,8 @@ impl Out for ToSexp {
     self.put(Sexp::from_bytes(b"continue"));
   }
 
-  fn on_let(&mut self, n_binds: usize) {
-    let y = self.pop();
+  fn on_let(&mut self, n_binds: usize, n_exprs: usize) {
+    let y = Sexp::List(self.pop_multi(n_exprs).collect());
     let x = Sexp::List(self.pop_multi(n_binds).collect());
     self.put(Sexp::from_array([Sexp::from_bytes(b"let"), x, y]));
   }

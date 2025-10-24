@@ -78,4 +78,30 @@ fn main() {
       let a, b = if x >= y { x, y } else { y, x }
       f(a - b)
     }");
+
+  compile("
+    fun foo(x, y) {
+      let a = x + y
+      let b = x - y
+      let a, b = b, a
+      f(a - b)
+    }");
+
+  compile("
+    fun foo(x, y) {
+      let a = x + y
+      let b = x - y
+      let a, b = b, a
+      let a, b = b, a
+      f(a - b)
+    }");
+
+  compile("
+    fun foo(x, y) {
+      let a = x + y
+      let b = x - y
+      let = g(1)
+      let a, b = b, a
+      f(a - b)
+    }");
 }

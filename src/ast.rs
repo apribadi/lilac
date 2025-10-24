@@ -47,7 +47,7 @@ pub enum Stmt<'a> {
   Exprs(&'a [Expr<'a>]),
   Break(&'a [Expr<'a>]),
   Continue,
-  Let(&'a [Bind], Expr<'a>),
+  Let(&'a [Bind], &'a [Expr<'a>]),
   Return(&'a [Expr<'a>]),
   Set(Symbol, Expr<'a>),
   SetField(Expr<'a>, Symbol, Expr<'a>),
@@ -245,8 +245,8 @@ impl<'a, 'b> parse::Out for ToAst<'a, 'b> {
     self.put_stmt(Stmt::Continue);
   }
 
-  fn on_let(&mut self, n_binds: usize) {
-    let y = self.pop_expr();
+  fn on_let(&mut self, n_binds: usize, n_exprs: usize) {
+    let y = self.pop_expr_multi(n_exprs);
     let x = self.pop_bind_multi(n_binds);
     self.put_stmt(Stmt::Let(x, y));
   }

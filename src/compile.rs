@@ -579,10 +579,10 @@ fn compile_stmt<'a>(x: Stmt<'a>, e: &mut Env, o: &mut Out) -> What {
       }
       return What::NEVER;
     }
-    Stmt::Let(xs, y) => {
+    Stmt::Let(xs, ys) => {
       // NOTE: we do the bindings from left to right, so later bindings shadow
       // earlier ones. we should just produce an error in that case
-      compile_expr(y, e, o).into_values(xs.len(), e, o);
+      compile_expr_list(ys, e, o).into_values(xs.len(), e, o);
       rev_values(xs.len(), e);
       for &x in xs.iter() {
         let y = pop_value(e);
