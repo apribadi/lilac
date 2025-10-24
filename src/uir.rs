@@ -1,32 +1,8 @@
 // untyped intermediate representation - bytecode
 
 use crate::symbol::Symbol;
-
-pub enum Op1 {
-  Decr,
-  Incr,
-  Neg,
-  Not,
-}
-
-pub enum Op2 {
-  Add,
-  BitAnd,
-  BitOr,
-  BitXor,
-  CmpEq,
-  CmpGe,
-  CmpGt,
-  CmpLe,
-  CmpLt,
-  CmpNe,
-  Div,
-  Mul,
-  Rem,
-  Shl,
-  Shr,
-  Sub,
-}
+use crate::op1::Op1;
+use crate::op2::Op2;
 
 type Label = u32;
 
@@ -83,51 +59,5 @@ impl std::fmt::Display for Inst {
       Self::SetIndex(x, i, y) => write!(f, "%{} [ %{} ] <- %{}", x, i, y),
       Self::SetLocal(v, x) => write!(f, "[ %{} ] <- %{}", v, x),
     }
-  }
-}
-
-impl Op1 {
-  pub fn as_str(&self) -> &'static str {
-    match self {
-      Self::Decr => "--",
-      Self::Incr => "++",
-      Self::Neg => "-",
-      Self::Not => "!",
-    }
-  }
-}
-
-impl std::fmt::Display for Op1 {
-  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    write!(f, "{}", self.as_str())
-  }
-}
-
-impl Op2 {
-  pub fn as_str(&self) -> &'static str {
-    match self {
-      Self::Add => "+",
-      Self::BitAnd => "&",
-      Self::BitOr => "|",
-      Self::BitXor => "^",
-      Self::CmpEq => "==",
-      Self::CmpGe => ">=",
-      Self::CmpGt => ">",
-      Self::CmpLe => "<=",
-      Self::CmpLt => "<",
-      Self::CmpNe => "!=",
-      Self::Div => "/",
-      Self::Mul => "*",
-      Self::Rem => "%",
-      Self::Shl => "<<",
-      Self::Shr => ">>",
-      Self::Sub => "-",
-    }
-  }
-}
-
-impl std::fmt::Display for Op2 {
-  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    write!(f, "{}", self.as_str())
   }
 }
