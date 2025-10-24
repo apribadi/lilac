@@ -126,7 +126,7 @@ fn parse_bind_list<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O, stop: Token) -> usi
 }
 
 fn parse_expr<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O) {
-  return parse_prec(t, o, 0x00, false);
+  parse_expr_prec(t, o, 0x00);
 }
 
 fn parse_expr_list<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O, stop: Token) -> usize {
@@ -142,7 +142,11 @@ fn parse_expr_list<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O, stop: Token) -> usi
   return n_exprs;
 }
 
-fn parse_prec<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O, n: usize, is_stmt: bool) {
+fn parse_expr_prec<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O, n: usize) {
+  let _: bool = parse_prec(t, o, n, false);
+}
+
+fn parse_prec<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O, n: usize, is_stmt: bool) -> bool {
   match t.token() {
     Token::LParen => {
       t.next();
@@ -169,19 +173,19 @@ fn parse_prec<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O, n: usize, is_stmt: bool)
         t.next();
         parse_expr(t, o);
         o.on_set(symbol);
-        return;
+        return true;
       } else {
         o.on_variable(symbol);
       }
     }
     Token::Hyphen => {
       t.next();
-      parse_prec(t, o, 0xff, false);
+      parse_expr_prec(t, o, 0xff);
       o.on_op1(Op1::Neg);
     }
     Token::Not => {
       t.next();
-      parse_prec(t, o, 0xff, false);
+      parse_expr_prec(t, o, 0xff);
       o.on_op1(Op1::Not);
     }
     Token::If => {
@@ -212,97 +216,97 @@ fn parse_prec<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O, n: usize, is_stmt: bool)
         t.next();
         parse_expr(t, o);
         expect(t, o, Token::Colon);
-        parse_prec(t, o, 0x10, false);
+        parse_expr_prec(t, o, 0x10);
         o.on_ternary();
       }
       Token::Or if n <= 0x20 => {
         t.next();
-        parse_prec(t, o, 0x21, false);
+        parse_expr_prec(t, o, 0x21);
         o.on_or();
       }
       Token::And if n <= 0x30 => {
         t.next();
-        parse_prec(t, o, 0x31, false);
+        parse_expr_prec(t, o, 0x31);
         o.on_and();
       }
       Token::CmpEq if n <= 0x40 => {
         t.next();
-        parse_prec(t, o, 0x41, false);
+        parse_expr_prec(t, o, 0x41);
         o.on_op2(Op2::CmpEq);
       }
       Token::CmpGe if n <= 0x40 => {
         t.next();
-        parse_prec(t, o, 0x41, false);
+        parse_expr_prec(t, o, 0x41);
         o.on_op2(Op2::CmpGe);
       }
       Token::CmpGt if n <= 0x40 => {
         t.next();
-        parse_prec(t, o, 0x41, false);
+        parse_expr_prec(t, o, 0x41);
         o.on_op2(Op2::CmpGt);
       }
       Token::CmpLe if n <= 0x40 => {
         t.next();
-        parse_prec(t, o, 0x41, false);
+        parse_expr_prec(t, o, 0x41);
         o.on_op2(Op2::CmpLe);
       }
       Token::CmpLt if n <= 0x40 => {
         t.next();
-        parse_prec(t, o, 0x41, false);
+        parse_expr_prec(t, o, 0x41);
         o.on_op2(Op2::CmpLt);
       }
       Token::CmpNe if n <= 0x40 => {
         t.next();
-        parse_prec(t, o, 0x41, false);
+        parse_expr_prec(t, o, 0x41);
         o.on_op2(Op2::CmpNe);
       }
       Token::BitOr if n <= 0x50 => {
         t.next();
-        parse_prec(t, o, 0x51, false);
+        parse_expr_prec(t, o, 0x51);
         o.on_op2(Op2::BitOr);
       }
       Token::BitXor if n <= 0x60 => {
         t.next();
-        parse_prec(t, o, 0x61, false);
+        parse_expr_prec(t, o, 0x61);
         o.on_op2(Op2::BitXor);
       }
       Token::BitAnd if n <= 0x70 => {
         t.next();
-        parse_prec(t, o, 0x71, false);
+        parse_expr_prec(t, o, 0x71);
         o.on_op2(Op2::BitAnd);
       }
       Token::Shl if n <= 0x80 => {
         t.next();
-        parse_prec(t, o, 0x81, false);
+        parse_expr_prec(t, o, 0x81);
         o.on_op2(Op2::Shl);
       }
       Token::Shr if n <= 0x80 => {
         t.next();
-        parse_prec(t, o, 0x81, false);
+        parse_expr_prec(t, o, 0x81);
         o.on_op2(Op2::Shr);
       }
       Token::Add if n <= 0x90 => {
         t.next();
-        parse_prec(t, o, 0x91, false);
+        parse_expr_prec(t, o, 0x91);
         o.on_op2(Op2::Add);
       }
       Token::Hyphen if n <= 0x90 => {
         t.next();
-        parse_prec(t, o, 0x91, false);
+        parse_expr_prec(t, o, 0x91);
         o.on_op2(Op2::Sub);
       }
       Token::Div if n <= 0xA0 => {
         t.next();
-        parse_prec(t, o, 0xA1, false);
+        parse_expr_prec(t, o, 0xA1);
         o.on_op2(Op2::Div);
       }
       Token::Mul if n <= 0xA0 => {
         t.next();
-        parse_prec(t, o, 0xA1, false);
+        parse_expr_prec(t, o, 0xA1);
         o.on_op2(Op2::Mul);
       }
       Token::Rem if n <= 0xA0 => {
         t.next();
-        parse_prec(t, o, 0xA1, false);
+        parse_expr_prec(t, o, 0xA1);
         o.on_op2(Op2::Rem);
       }
       Token::Field if t.token_is_attached() => {
@@ -312,7 +316,7 @@ fn parse_prec<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O, n: usize, is_stmt: bool)
           t.next();
           parse_expr(t, o);
           o.on_set_field(symbol);
-          return;
+          return true;
         } else {
           o.on_field(symbol);
         }
@@ -325,7 +329,7 @@ fn parse_prec<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O, n: usize, is_stmt: bool)
           t.next();
           parse_expr(t, o);
           o.on_set_index();
-          return;
+          return true;
         } else {
           o.on_index();
         }
@@ -337,10 +341,7 @@ fn parse_prec<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O, n: usize, is_stmt: bool)
         o.on_call(arity);
       }
       _ => {
-        if is_stmt {
-          o.on_stmt_expr();
-        }
-        return;
+        return false;
       }
     }
   }
@@ -397,6 +398,8 @@ fn parse_block<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O) -> usize {
         n_stmts += 1;
       }
       _ => {
+        // TODO: parse comma-separated expression sequence
+
         // NB: If we couldn't parse anything at all, then we immediately close
         // the block so that we don't get stuck in an infinite loop.
         //
@@ -406,7 +409,9 @@ fn parse_block<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O) -> usize {
         // Also, note that in this case we still emit an `undefined` expr/stmt.
 
         let pos = t.token_start();
-        parse_prec(t, o, 0x00, true);
+        if ! parse_prec(t, o, 0x00, true) {
+          o.on_stmt_expr();
+        }
         n_stmts += 1;
         if t.token_start() == pos {
           expect(t, o, Token::RBrace);

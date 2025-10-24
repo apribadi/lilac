@@ -58,17 +58,9 @@ fn main() {
     fun foo(x, y) {
       let a = x + y
       let b = x - y
-      let c, d = f(a, b)
-      g(c - d)
-    }
-  ");
-
-  compile("
-    fun foo(x, y) {
-      let a = x + y
-      let b = x - y
-      let c, d = if a >= b { f(a, b) } else { f(b, a) }
-      g(c - d)
+      f(a, b)
+      let c, d = g(a, b)
+      h(c - d)
     }
   ");
 }
