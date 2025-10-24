@@ -104,4 +104,10 @@ fn main() {
       let a, b = b, a
       f(a - b)
     }");
+
+  compile("
+    fun foo(x, y) {
+      let _ = f(x + y)
+      let _ = f(x - y)
+    }");
 }

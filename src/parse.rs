@@ -10,7 +10,7 @@ pub trait Out {
   fn on_fundef(&mut self, name: &[u8], n_args: usize, n_stmts: usize);
 
   // TODO: optional type for binding
-  fn on_bind(&mut self, name: &[u8]);
+  fn on_bind(&mut self, name: Option<&[u8]>);
 
   fn on_variable(&mut self, symbol: &[u8]);
 
@@ -108,9 +108,20 @@ fn expect_symbol<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O) -> &'a [u8] {
 }
 
 fn parse_bind<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O) {
-  // TODO: interpret Token::Underscore as a None(_) name.
-  let name = expect_symbol(t, o);
-  o.on_bind(name);
+  match t.token() {
+    Token::Symbol => {
+      o.on_bind(Some(t.token_span()));
+      t.next();
+    }
+    Token::Underscore => {
+      o.on_bind(None);
+      t.next();
+    }
+    _ => {
+      o.on_error_missing_expected_token(Token::Symbol);
+      o.on_bind(None);
+    }
+  }
 }
 
 fn parse_bind_list<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O, stop: Token) -> usize {
@@ -479,8 +490,12 @@ impl Out for ToSexp {
     self.put(Sexp::from_array([t, x, y, z]));
   }
 
-  fn on_bind(&mut self, name: &[u8]) {
-    let x = Sexp::from_bytes(name);
+  fn on_bind(&mut self, name: Option<&[u8]>) {
+    let x =
+      match name {
+        None => Sexp::from_bytes(b"_"),
+        Some(name) => Sexp::from_bytes(name),
+      };
     self.put(x);
   }
 

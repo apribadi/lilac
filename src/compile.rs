@@ -12,7 +12,7 @@ enum What {
 }
 
 #[derive(Clone, Copy)]
-enum Binding {
+enum Referent {
   Let(u32),
   Var(u32),
 }
@@ -36,7 +36,7 @@ struct Label {
 }
 
 struct Env {
-  symbol_table: SymbolTable<Binding>,
+  symbol_table: SymbolTable<Referent>,
   loops: Vec<LoopBreakTarget>,
   break_points: Vec<Point>,
   continue_labels: Vec<Label>,
@@ -58,14 +58,14 @@ impl Env {
 }
 
 fn put_let(s: Symbol, x: u32, e: &mut Env) {
-  e.symbol_table.insert(s, Binding::Let(x));
+  e.symbol_table.insert(s, Referent::Let(x));
 }
 
 fn put_var(s: Symbol, x: u32, e: &mut Env) {
-  e.symbol_table.insert(s, Binding::Var(x));
+  e.symbol_table.insert(s, Referent::Var(x));
 }
 
-fn get_binding(s: Symbol, e: &Env) -> Option<&Binding> {
+fn get_referent(s: Symbol, e: &Env) -> Option<&Referent> {
   return e.symbol_table.get(s);
 }
 
@@ -201,9 +201,11 @@ pub fn compile<'a>(f: Fundef<'a>) -> Vec<Inst> {
 
   let _ = o.emit_label(f.args.len());
 
-  for arg in f.args {
-    let x = o.emit(Inst::Pop);
-    put_let(arg.name, x, &mut e);
+  for x in f.args {
+    let y = o.emit(Inst::Pop);
+    if let Some(x) = x.name {
+      put_let(x, y, &mut e);
+    }
   }
 
   compile_block_tail(f.body, &mut e, &mut o);
@@ -425,15 +427,15 @@ fn compile_expr<'a>(x: Expr<'a>, e: &mut Env, o: &mut Out) -> What {
       return What::NumValues(1);
     }
     Expr::Variable(s) => {
-      match get_binding(s, e) {
+      match get_referent(s, e) {
         None => {
           let x = o.emit(Inst::Global(s));
           put_value(x, e);
         }
-        Some(&Binding::Let(x)) => {
+        Some(&Referent::Let(x)) => {
           put_value(x, e);
         }
-        Some(&Binding::Var(x)) => {
+        Some(&Referent::Var(x)) => {
           let x = o.emit(Inst::Local(x));
           put_value(x, e);
         }
@@ -586,7 +588,9 @@ fn compile_stmt<'a>(x: Stmt<'a>, e: &mut Env, o: &mut Out) -> What {
       rev_values(xs.len(), e);
       for &x in xs.iter() {
         let y = pop_value(e);
-        put_let(x.name, y, e);
+        if let Some(x) = x.name {
+          put_let(x, y, e);
+        }
       }
       return What::NIL;
     }
@@ -596,8 +600,8 @@ fn compile_stmt<'a>(x: Stmt<'a>, e: &mut Env, o: &mut Out) -> What {
     }
     Stmt::Set(s, x) => {
       let x = compile_expr(x, e, o).into_value(e, o);
-      match get_binding(s, e) {
-        Some(&Binding::Var(y)) => {
+      match get_referent(s, e) {
+        Some(&Referent::Var(y)) => {
           let _ = o.emit(Inst::SetLocal(y, x));
           return What::NIL;
         }

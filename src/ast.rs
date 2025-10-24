@@ -19,7 +19,7 @@ pub struct Fundef<'a> {
 
 #[derive(Clone, Copy)]
 pub struct Bind {
-  pub name: Symbol,
+  pub name: Option<Symbol>,
 }
 
 #[derive(Clone, Copy)]
@@ -128,8 +128,8 @@ impl<'a, 'b> parse::Out for ToAst<'a, 'b> {
     self.put_item(x);
   }
 
-  fn on_bind(&mut self, name: &[u8]) {
-    let x = Bind { name: Symbol::from_bytes(name) };
+  fn on_bind(&mut self, name: Option<&[u8]>) {
+    let x = Bind { name: name.map(Symbol::from_bytes) };
     self.put_bind(x);
   }
 
