@@ -557,25 +557,10 @@ fn compile_stmt<'a>(x: Stmt<'a>, e: &mut Env, o: &mut Out) -> What {
           compile_expr_list_tail(xs, e, o);
         }
         Some(LoopBreakTarget::NonTail(_)) => {
-          match xs {
-            &[x] => {
-              let n = compile_expr(x, e, o).into_points(e, o);
-              for _ in 0 .. n {
-                let i = pop_point(e);
-                put_break_point(i, e);
-              }
-            }
-            xs => {
-              for &x in xs.iter() {
-                let x = compile_expr(x, e, o).into_value(e, o);
-                put_value(x, e);
-              }
-              for x in pop_values(xs.len(), e) {
-                let _ = o.emit(Inst::Put(x));
-              }
-              let i = o.emit_point(Some(xs.len()));
-              put_break_point(i, e);
-            }
+          let n = compile_expr_list(xs, e, o).into_points(e, o);
+          for _ in 0 .. n {
+            let i = pop_point(e);
+            put_break_point(i, e);
           }
         }
       }
@@ -708,6 +693,21 @@ fn compile_block_tail<'a>(xs: &'a [Stmt<'a>], e: &mut Env, o: &mut Out) {
       }
       compile_stmt_tail(y, e, o);
       pop_scope(e);
+    }
+  }
+}
+
+fn compile_expr_list<'a>(xs: &'a [Expr<'a>], e: &mut Env, o: &mut Out) -> What {
+  match xs {
+    &[x] => {
+      return compile_expr(x, e, o);
+    }
+    xs => {
+      for &x in xs.iter() {
+        let x = compile_expr(x, e, o).into_value(e, o);
+        put_value(x, e);
+      }
+      return What::NumValues(xs.len());
     }
   }
 }

@@ -63,4 +63,15 @@ fn main() {
       h(c - d)
     }
   ");
+
+  compile("fun foo() { loop { break 1, 2, 3 } }");
+
+  compile("
+    fun foo() {
+      let x, y, z =
+        loop {
+          break 1, 2, 3
+        }
+      return x + y + z
+    }");
 }
