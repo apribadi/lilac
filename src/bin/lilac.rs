@@ -24,14 +24,7 @@ fn main() {
   compile("loop { continue }");
   compile("loop { return }");
 
-  compile("
-    loop {
-      if x {
-        break 1
-      } else
-        return 2
-      }
-    }");
+  compile("1 + (x >= y ? x : y)");
 
   compile("
     if n == 0 {

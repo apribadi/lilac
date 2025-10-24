@@ -199,8 +199,8 @@ impl Out {
     return Point { index: i, arity: None };
   }
 
-  fn emit_label_and_patch_points(&mut self, points: impl IntoIterator<Item = Point>) -> u32 {
-    let a = self.emit(Inst::Label);
+  fn emit_label_and_patch_points(&mut self, arity: u32, points: impl IntoIterator<Item = Point>) -> u32 {
+    let a = self.emit(Inst::Label(arity));
     patch_points(a, points, self);
     return a;
   }
@@ -233,7 +233,7 @@ impl What {
   fn into_nil(self, e: &mut Env, o: &mut Out) {
     match self {
       What::NumPoints(n) => {
-        let _ = o.emit_label_and_patch_points(pop_points(n, e));
+        let _ = o.emit_label_and_patch_points(0, pop_points(n, e));
       }
       What::NumValues(0) => {
       }
@@ -241,7 +241,7 @@ impl What {
         // error, arity mismatch
         let _ = pop_values(n, e);
         let _ = o.emit(Inst::GotoStaticError);
-        let _ = o.emit(Inst::Label);
+        let _ = o.emit(Inst::Label(0));
       }
     }
   }
@@ -249,7 +249,7 @@ impl What {
   fn into_value(self, e: &mut Env, o: &mut Out) -> u32 {
     match self {
       What::NumPoints(n) => {
-        let _ = o.emit_label_and_patch_points(pop_points(n, e));
+        let _ = o.emit_label_and_patch_points(1, pop_points(n, e));
         let x = o.emit(Inst::Pop);
         return x;
       }
@@ -260,7 +260,7 @@ impl What {
         // error, arity mismatch
         let _ = pop_values(n, e);
         let _ = o.emit(Inst::GotoStaticError);
-        let _ = o.emit(Inst::Label);
+        let _ = o.emit(Inst::Label(1));
         let x = o.emit(Inst::Pop);
         return x;
       }
@@ -291,12 +291,12 @@ fn compile_expr<'a>(x: Expr<'a>, e: &mut Env, o: &mut Out) -> What {
       let _ = o.emit(Inst::Cond(x));
       let i = o.emit_point();
       let j = o.emit_point();
-      let _ = o.emit_label_and_patch_points([i]);
+      let _ = o.emit_label_and_patch_points(0, [i]);
       let x = o.emit(Inst::ConstBool(false));
       let _ = o.emit(Inst::Put(x));
       let k = o.emit_point();
       put_point(k, e);
-      let _ = o.emit_label_and_patch_points([j]);
+      let _ = o.emit_label_and_patch_points(0, [j]);
       let n = compile_expr(y, e, o).into_points(e, o);
       return What::NumPoints(1 + n);
     }
@@ -332,7 +332,7 @@ fn compile_expr<'a>(x: Expr<'a>, e: &mut Env, o: &mut Out) -> What {
       let i = o.emit_point();
       let j = o.emit_point();
       put_point(i, e);
-      let _ = o.emit_label_and_patch_points([j]);
+      let _ = o.emit_label_and_patch_points(0, [j]);
       let n = compile_block(ys, e, o).into_points(e, o);
       return What::NumPoints(1 + n);
     }
@@ -341,9 +341,9 @@ fn compile_expr<'a>(x: Expr<'a>, e: &mut Env, o: &mut Out) -> What {
       let _ = o.emit(Inst::Cond(x));
       let i = o.emit_point();
       let j = o.emit_point();
-      let _ = o.emit_label_and_patch_points([i]);
+      let _ = o.emit_label_and_patch_points(0, [i]);
       let m = compile_block(zs, e, o).into_points(e, o);
-      let _ = o.emit_label_and_patch_points([j]);
+      let _ = o.emit_label_and_patch_points(0, [j]);
       let n = compile_block(ys, e, o).into_points(e, o);
       return What::NumPoints(m + n);
     }
@@ -361,7 +361,7 @@ fn compile_expr<'a>(x: Expr<'a>, e: &mut Env, o: &mut Out) -> What {
     }
     Expr::Loop(xs) => {
       let i = o.emit_point();
-      let a = o.emit_label_and_patch_points([i]);
+      let a = o.emit_label_and_patch_points(0, [i]);
       put_loop(a, e);
       let m = compile_block(xs, e, o).into_points(e, o);
       patch_points(a, pop_points(m, e), o);
@@ -386,9 +386,9 @@ fn compile_expr<'a>(x: Expr<'a>, e: &mut Env, o: &mut Out) -> What {
       let _ = o.emit(Inst::Cond(x));
       let i = o.emit_point();
       let j = o.emit_point();
-      let _ = o.emit_label_and_patch_points([i]);
+      let _ = o.emit_label_and_patch_points(0, [i]);
       let n = compile_expr(y, e, o).into_points(e, o);
-      let _ = o.emit_label_and_patch_points([j]);
+      let _ = o.emit_label_and_patch_points(0, [j]);
       let x = o.emit(Inst::ConstBool(true));
       let _ = o.emit(Inst::Put(x));
       let k = o.emit_point();
@@ -400,16 +400,16 @@ fn compile_expr<'a>(x: Expr<'a>, e: &mut Env, o: &mut Out) -> What {
       let _ = o.emit(Inst::Cond(x));
       let i = o.emit_point();
       let j = o.emit_point();
-      let _ = o.emit_label_and_patch_points([i]);
+      let _ = o.emit_label_and_patch_points(0, [i]);
       let m = compile_expr(z, e, o).into_points(e, o);
-      let _ = o.emit_label_and_patch_points([j]);
+      let _ = o.emit_label_and_patch_points(0, [j]);
       let n = compile_expr(y, e, o).into_points(e, o);
       return What::NumPoints(m + n);
     }
     Expr::Undefined => {
       // error, evaluating undefined expression
       let _ = o.emit(Inst::GotoStaticError);
-      let _ = o.emit(Inst::Label);
+      let _ = o.emit(Inst::Label(1));
       let x = o.emit(Inst::Pop);
       put_value(x, e);
       return What::NumValues(1);
@@ -440,11 +440,11 @@ fn compile_expr_tail<'a>(x: Expr<'a>, e: &mut Env, o: &mut Out) {
       let _ = o.emit(Inst::Cond(x));
       let i = o.emit_point();
       let j = o.emit_point();
-      let _ = o.emit_label_and_patch_points([i]);
+      let _ = o.emit_label_and_patch_points(0, [i]);
       let x = o.emit(Inst::ConstBool(false));
       let _ = o.emit(Inst::Put(x));
       let _ = o.emit(Inst::Ret);
-      let _ = o.emit_label_and_patch_points([j]);
+      let _ = o.emit_label_and_patch_points(0, [j]);
       compile_expr_tail(y, e, o);
     }
     Expr::Call(&(f, xs)) => {
@@ -464,9 +464,9 @@ fn compile_expr_tail<'a>(x: Expr<'a>, e: &mut Env, o: &mut Out) {
       let _ = o.emit(Inst::Cond(x));
       let i = o.emit_point();
       let j = o.emit_point();
-      let _ = o.emit_label_and_patch_points([i]);
+      let _ = o.emit_label_and_patch_points(0, [i]);
       let _ = o.emit(Inst::Ret);
-      let _ = o.emit_label_and_patch_points([j]);
+      let _ = o.emit_label_and_patch_points(0, [j]);
       compile_block_tail(ys, e, o);
     }
     Expr::IfElse(&(x, ys, zs)) => {
@@ -474,14 +474,14 @@ fn compile_expr_tail<'a>(x: Expr<'a>, e: &mut Env, o: &mut Out) {
       let _ = o.emit(Inst::Cond(x));
       let i = o.emit_point();
       let j = o.emit_point();
-      let _ = o.emit_label_and_patch_points([i]);
+      let _ = o.emit_label_and_patch_points(0, [i]);
       compile_block_tail(zs, e, o);
-      let _ = o.emit_label_and_patch_points([j]);
+      let _ = o.emit_label_and_patch_points(0, [j]);
       compile_block_tail(ys, e, o);
     }
     Expr::Loop(xs) => {
       let i = o.emit_point();
-      let a = o.emit_label_and_patch_points([i]);
+      let a = o.emit_label_and_patch_points(0, [i]);
       put_loop_tail(a, e);
       let m = compile_block(xs, e, o).into_points(e, o);
       patch_points(a, pop_points(m, e), o);
@@ -492,9 +492,9 @@ fn compile_expr_tail<'a>(x: Expr<'a>, e: &mut Env, o: &mut Out) {
       let _ = o.emit(Inst::Cond(x));
       let i = o.emit_point();
       let j = o.emit_point();
-      let _ = o.emit_label_and_patch_points([i]);
+      let _ = o.emit_label_and_patch_points(0, [i]);
       compile_expr_tail(y, e, o);
-      let _ = o.emit_label_and_patch_points([j]);
+      let _ = o.emit_label_and_patch_points(0, [j]);
       let x = o.emit(Inst::ConstBool(true));
       let _ = o.emit(Inst::Put(x));
       let _ = o.emit(Inst::Ret);
@@ -504,9 +504,9 @@ fn compile_expr_tail<'a>(x: Expr<'a>, e: &mut Env, o: &mut Out) {
       let _ = o.emit(Inst::Cond(x));
       let i = o.emit_point();
       let j = o.emit_point();
-      let _ = o.emit_label_and_patch_points([i]);
+      let _ = o.emit_label_and_patch_points(0, [i]);
       compile_expr_tail(z, e, o);
-      let _ = o.emit_label_and_patch_points([j]);
+      let _ = o.emit_label_and_patch_points(0, [j]);
       compile_expr_tail(y, e, o);
     }
     x @ (
@@ -604,7 +604,7 @@ fn compile_stmt<'a>(x: Stmt<'a>, e: &mut Env, o: &mut Out) -> What {
         _ => {
           // error, symbol does not refer to local variable
           let _ = o.emit(Inst::GotoStaticError);
-          let _ = o.emit(Inst::Label);
+          let _ = o.emit(Inst::Label(0));
           return What::NIL;
         }
       }

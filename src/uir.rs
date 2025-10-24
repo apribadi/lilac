@@ -10,7 +10,7 @@ type Value = u32;
 
 pub enum Inst {
   GotoStaticError,
-  Label,
+  Label(u32),
   Pop,
   Put(Value),
   Goto(Label),
@@ -35,7 +35,7 @@ pub enum Inst {
 impl std::fmt::Display for Inst {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     match self {
-      Self::Label => write!(f, "LABEL"),
+      Self::Label(n) => write!(f, "LABEL #{}", n),
       Self::Pop => write!(f, "= POP"),
       Self::Put(x) => write!(f, "PUT %{}", x),
       Self::Goto(x) => write!(f, "==> GOTO {}", x),
