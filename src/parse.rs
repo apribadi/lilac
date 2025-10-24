@@ -387,7 +387,7 @@ fn parse_block<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O) -> usize {
       }
       Token::Let => {
         t.next();
-        // NOTE: we allow a list of zero bindings, like
+        // NB: we allow a list of zero bindings, like
         //
         //   let = f(x)
         //
