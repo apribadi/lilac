@@ -35,9 +35,9 @@ pub enum Token {
   CmpGe,           // >=
   CmpLe,           // <=
   CmpNe,           // !=
-  Decr,            // --
+  Dec,             // --
   DotDotDot,       // ...
-  Incr,            // ++
+  Inc,             // ++
   Or,              // ||
   Shl,             // <<
   Shr,             // >>

@@ -1,4 +1,4 @@
-// untyped intermediate representation - bytecode
+// high-level intermediate representation - bytecode
 
 use crate::symbol::Symbol;
 use crate::op1::Op1;

@@ -1,15 +1,16 @@
 pub mod ast;
 pub mod compile;
+pub mod hir;
+pub mod infer;
 pub mod lexer;
+pub mod mir;
 pub mod op1;
 pub mod op2;
 pub mod parse;
-pub mod primop2;
 pub mod sexp;
 pub mod symbol;
 pub mod symbol_table;
 pub mod token;
-pub mod uir;
 
 // syntax ideas - use something in { :, @, ` } to denote symbol/label ?
 //

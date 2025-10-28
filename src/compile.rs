@@ -1,9 +1,9 @@
 use crate::ast::Expr;
 use crate::ast::Fundef;
 use crate::ast::Stmt;
+use crate::hir::Inst;
 use crate::symbol::Symbol;
 use crate::symbol_table::SymbolTable;
-use crate::uir::Inst;
 
 #[derive(Clone, Copy)]
 enum What {
