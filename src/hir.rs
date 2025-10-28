@@ -12,6 +12,7 @@ type Value = u32;
 
 pub enum Inst {
   GotoStaticError,
+  Entry(u32),
   Label(u32),
   Pop,
   Put(Value),
@@ -24,8 +25,8 @@ pub enum Inst {
   ConstInt(i64),
   DefLocal(Value),
   Field(Value, Symbol),
-  Global(Symbol),
   Index(Value, Value),
+  Const(Symbol),
   Local(Value),
   Op1(Op1, Value),
   Op2(Op2, Value, Value),
@@ -37,6 +38,7 @@ pub enum Inst {
 impl std::fmt::Display for Inst {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     match self {
+      Self::Entry(n) => write!(f, "LABEL {}", n),
       Self::Label(n) => write!(f, "LABEL {}", n),
       Self::Pop => write!(f, "= POP"),
       Self::Put(x) => write!(f, "PUT %{}", x),
@@ -50,13 +52,13 @@ impl std::fmt::Display for Inst {
       Self::ConstInt(n) => write!(f, "= {}", n),
       Self::DefLocal(x) => write!(f, "= DEF-LOCAL %{}", x),
       Self::Field(x, s) => write!(f, "= %{} [ .{} ]", x, s),
-      Self::Global(s) => write!(f, "= {}", s),
       Self::Index(x, y) => write!(f, "= %{} [ %{} ]", x, y),
+      Self::Const(s) => write!(f, "= {}", s),
       Self::Local(v) => write!(f, "= [ %{} ]", v),
       Self::Op1(op, x) => write!(f, "= {} %{}", op, x),
       Self::Op2(op, x, y) => write!(f, "= %{} {} %{}", x, op, y),
       Self::SetField(x, s, y) => write!(f, "%{} [ .{} ] <- %{}", x, s, y),
-      Self::SetIndex(x, i, y) => write!(f, "%{} [ %{} ] <- %{}", x, i, y),
+      Self::SetIndex(x, y, z) => write!(f, "%{} [ %{} ] <- %{}", x, y, z),
       Self::SetLocal(v, x) => write!(f, "[ %{} ] <- %{}", v, x),
     }
   }

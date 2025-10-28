@@ -40,7 +40,7 @@ pub trait Out {
 
   fn on_loop(&mut self, n_stmts: usize);
 
-  fn on_stmt_exprs(&mut self, n_exprs: usize);
+  fn on_stmt_expr_list(&mut self, n_exprs: usize);
 
   fn on_break(&mut self, arity: usize);
 
@@ -438,7 +438,7 @@ fn parse_block<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O) -> usize {
             parse_expr(t, o);
             n_exprs += 1;
           }
-          o.on_stmt_exprs(n_exprs);
+          o.on_stmt_expr_list(n_exprs);
         }
 
         n_stmts += 1;
@@ -585,7 +585,7 @@ impl Out for ToSexp {
     self.put(Sexp::from_array([t, x]));
   }
 
-  fn on_stmt_exprs(&mut self, n_exprs: usize) {
+  fn on_stmt_expr_list(&mut self, n_exprs: usize) {
     let x = Sexp::List(self.pop_multi(n_exprs).collect());
     self.put(x);
   }
