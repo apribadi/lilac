@@ -5,6 +5,26 @@ use crate::hir::Inst;
 use crate::symbol::Symbol;
 use crate::symbol_table::SymbolTable;
 
+pub fn compile<'a>(item_list: impl Iterator<Item = Item<'a>>) -> Vec<Inst> {
+  let mut e = Env::new();
+  let mut o = Out::new();
+
+  for Item::Fundef(f) in item_list {
+    let _ = o.emit(Inst::Entry(f.args.len() as u32));
+
+    for x in f.args {
+      let y = o.emit(Inst::Pop);
+      if let Some(x) = x.name {
+        put_let(x, y, &mut e);
+      }
+    }
+
+    compile_block_tail(f.body, &mut e, &mut o);
+  }
+
+  return o.0;
+}
+
 #[derive(Clone, Copy)]
 enum What {
   NumPoints(usize),
@@ -121,7 +141,7 @@ fn pop_value_list(n: usize, e: &mut Env) -> impl Iterator<Item = u32> {
   return e.values.drain(e.values.len() - n ..);
 }
 
-fn rev_values(n: usize, e: &mut Env) {
+fn rev_value_list(n: usize, e: &mut Env) {
   let k = e.values.len() - n;
   e.values[k ..].reverse();
 }
@@ -197,26 +217,6 @@ fn patch_point_list(a: Label, points: impl IntoIterator<Item = Point>, o: &mut O
       }
     }
   }
-}
-
-pub fn compile<'a>(item_list: impl Iterator<Item = Item<'a>>) -> Vec<Inst> {
-  let mut e = Env::new();
-  let mut o = Out::new();
-
-  for Item::Fundef(f) in item_list {
-    let _ = o.emit(Inst::Entry(f.args.len() as u32));
-
-    for x in f.args {
-      let y = o.emit(Inst::Pop);
-      if let Some(x) = x.name {
-        put_let(x, y, &mut e);
-      }
-    }
-
-    compile_block_tail(f.body, &mut e, &mut o);
-  }
-
-  return o.0;
 }
 
 impl What {
@@ -591,7 +591,7 @@ fn compile_stmt<'a>(x: Stmt<'a>, e: &mut Env, o: &mut Out) -> What {
       // TODO: we do the bindings from left to right, so later bindings shadow
       // earlier ones. we should just produce an error in that case
       compile_expr_list(ys, e, o).into_value_list(xs.len(), e, o);
-      rev_values(xs.len(), e);
+      rev_value_list(xs.len(), e);
       for &x in xs.iter() {
         let y = pop_value(e);
         if let Some(x) = x.name {
