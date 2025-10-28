@@ -8,31 +8,41 @@ fn compile(source: &str) {
   let mut store = oxcart::Store::new();
   let mut arena = store.arena();
 
-  let items = lilac::ast::parse(source.as_bytes(), &mut arena);
+  let item_list = lilac::ast::parse(source.as_bytes(), &mut arena);
 
-  for lilac::ast::Item::Fundef(f) in items {
-    let code = lilac::compile::compile(f);
+  let code = lilac::compile::compile(item_list.into_iter());
 
-    for (i, x) in code.iter().enumerate() {
-      print!("%{} {}\n", i, x);
-    }
-
-    print!("\n");
+  for (i, x) in code.iter().enumerate() {
+    print!("%{} {}\n", i, x);
   }
+
+  print!("\n");
 }
 
 fn main() {
   compile("
     fun foo(n) {
-      var n = n
       var a = 1
       var b = 0
+      var n = n
       loop {
-        if n == 0 { return b }
+        if n <= 0 { return b }
         let c = a + b
         a = b
         b = c
         n = n - 1
+      }
+    }
+
+    fun bar(n) {
+      baz(1, 0, n)
+    }
+
+    fun baz(a, b, n) {
+      if n <= 0 {
+        b
+      } else {
+        baz(b, a + b, n - 1)
       }
     }
   ");

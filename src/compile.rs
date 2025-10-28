@@ -1,5 +1,5 @@
 use crate::ast::Expr;
-use crate::ast::Fundef;
+use crate::ast::Item;
 use crate::ast::Stmt;
 use crate::hir::Inst;
 use crate::symbol::Symbol;
@@ -199,20 +199,22 @@ fn patch_point_list(a: Label, points: impl IntoIterator<Item = Point>, o: &mut O
   }
 }
 
-pub fn compile<'a>(f: Fundef<'a>) -> Vec<Inst> {
+pub fn compile<'a>(item_list: impl Iterator<Item = Item<'a>>) -> Vec<Inst> {
   let mut e = Env::new();
   let mut o = Out::new();
 
-  let _ = o.emit(Inst::Entry(f.args.len() as u32));
+  for Item::Fundef(f) in item_list {
+    let _ = o.emit(Inst::Entry(f.args.len() as u32));
 
-  for x in f.args {
-    let y = o.emit(Inst::Pop);
-    if let Some(x) = x.name {
-      put_let(x, y, &mut e);
+    for x in f.args {
+      let y = o.emit(Inst::Pop);
+      if let Some(x) = x.name {
+        put_let(x, y, &mut e);
+      }
     }
-  }
 
-  compile_block_tail(f.body, &mut e, &mut o);
+    compile_block_tail(f.body, &mut e, &mut o);
+  }
 
   return o.0;
 }

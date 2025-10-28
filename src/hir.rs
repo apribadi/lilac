@@ -38,7 +38,7 @@ pub enum Inst {
 impl std::fmt::Display for Inst {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     match self {
-      Self::Entry(n) => write!(f, "LABEL {}", n),
+      Self::Entry(n) => write!(f, "ENTRY {}", n),
       Self::Label(n) => write!(f, "LABEL {}", n),
       Self::Pop => write!(f, "= POP"),
       Self::Put(x) => write!(f, "PUT %{}", x),
@@ -53,7 +53,7 @@ impl std::fmt::Display for Inst {
       Self::DefLocal(x) => write!(f, "= DEF-LOCAL %{}", x),
       Self::Field(x, s) => write!(f, "= %{} [ .{} ]", x, s),
       Self::Index(x, y) => write!(f, "= %{} [ %{} ]", x, y),
-      Self::Const(s) => write!(f, "= {}", s),
+      Self::Const(s) => write!(f, "= CONST {}", s),
       Self::Local(v) => write!(f, "= [ %{} ]", v),
       Self::Op1(op, x) => write!(f, "= {} %{}", op, x),
       Self::Op2(op, x, y) => write!(f, "= %{} {} %{}", x, op, y),
