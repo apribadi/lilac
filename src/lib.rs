@@ -9,7 +9,6 @@ pub mod op2;
 pub mod parse;
 pub mod sexp;
 pub mod symbol;
-pub mod symbol_table;
 pub mod token;
 
 // syntax ideas - use something in { :, @, ` } to denote symbol/label ?

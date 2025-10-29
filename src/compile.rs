@@ -3,7 +3,10 @@ use crate::ast::Item;
 use crate::ast::Stmt;
 use crate::hir::Inst;
 use crate::symbol::Symbol;
-use crate::symbol_table::SymbolTable;
+use foldhash::HashMap;
+use foldhash::HashMapExt;
+
+// TODO: consider special lowering for arguments to cond
 
 pub fn compile<'a>(item_list: impl Iterator<Item = Item<'a>>) -> Vec<Inst> {
   let mut e = Env::new();
@@ -15,7 +18,7 @@ pub fn compile<'a>(item_list: impl Iterator<Item = Item<'a>>) -> Vec<Inst> {
     for x in f.args {
       let y = o.emit(Inst::Pop);
       if let Some(x) = x.name {
-        put_let(x, y, &mut e);
+        put_referent(x, Referent::Let(y), &mut e);
       }
     }
 
@@ -25,25 +28,16 @@ pub fn compile<'a>(item_list: impl Iterator<Item = Item<'a>>) -> Vec<Inst> {
   return o.0;
 }
 
-#[derive(Clone, Copy)]
 enum What {
   NumPoints(usize),
   NumValues(usize),
 }
 
-#[derive(Clone, Copy)]
 enum Referent {
   Let(u32),
   Var(u32),
 }
 
-#[derive(Clone, Copy)]
-enum LoopBreakTarget {
-  Tail,
-  NonTail(usize),
-}
-
-#[derive(Clone, Copy)]
 struct Point {
   index: u32,
   arity: Option<u32>,
@@ -55,11 +49,17 @@ struct Label {
   arity: u32,
 }
 
+struct LoopInfo {
+  top: Label,
+  bot: Option<usize>,
+}
+
 struct Env {
-  symbol_table: SymbolTable<Referent>,
-  loops: Vec<LoopBreakTarget>,
-  break_points: Vec<Point>,
-  continue_labels: Vec<Label>,
+  scope_count: Vec<usize>,
+  scope_cover: Vec<(Symbol, Option<Referent>)>,
+  scope_table: HashMap<Symbol, Referent>,
+  loops: Vec<LoopInfo>,
+  breaks: Vec<Point>,
   values: Vec<u32>,
   points: Vec<Point>,
 }
@@ -67,66 +67,68 @@ struct Env {
 impl Env {
   fn new() -> Self {
     Self {
-      symbol_table: SymbolTable::new(),
+      scope_count: Vec::new(),
+      scope_cover: Vec::new(),
+      scope_table: HashMap::new(),
       loops: Vec::new(),
-      break_points: Vec::new(),
-      continue_labels: Vec::new(),
+      breaks: Vec::new(),
       values: Vec::new(),
       points: Vec::new(),
     }
   }
 }
 
-fn put_let(s: Symbol, x: u32, e: &mut Env) {
-  e.symbol_table.insert(s, Referent::Let(x));
-}
-
-fn put_var(s: Symbol, x: u32, e: &mut Env) {
-  e.symbol_table.insert(s, Referent::Var(x));
+fn put_referent(s: Symbol, x: Referent, e: &mut Env) {
+  match e.scope_count.last_mut() {
+    None => {
+      let _ = e.scope_table.insert(s, x);
+    }
+    Some(n) => {
+      e.scope_cover.push((s, e.scope_table.insert(s, x)));
+      *n += 1;
+    }
+  }
 }
 
 fn get_referent(s: Symbol, e: &Env) -> Option<&Referent> {
-  return e.symbol_table.get(s);
+  return e.scope_table.get(&s);
 }
 
 fn put_loop(a: Label, e: &mut Env) {
-  e.loops.push(LoopBreakTarget::NonTail(0));
-  e.continue_labels.push(a);
+  e.loops.push(LoopInfo { top: a, bot: Some(0) });
 }
 
 fn pop_loop(e: &mut Env) -> usize {
-  let _ = e.continue_labels.pop().unwrap();
-  match e.loops.pop() {
-    Some(LoopBreakTarget::NonTail(n)) => {
-      for _ in 0 .. n {
-        let i = e.break_points.pop().unwrap();
-        e.points.push(i);
-      }
-      return n;
-    }
-    _ => unreachable!()
+  let Some(LoopInfo { bot: Some(n), .. }) = e.loops.pop() else { unreachable!() };
+  for i in e.breaks.drain(e.breaks.len() - n ..) {
+    e.points.push(i);
   }
+  return n;
 }
 
 fn put_loop_tail(a: Label, e: &mut Env) {
-  e.loops.push(LoopBreakTarget::Tail);
-  e.continue_labels.push(a);
+  e.loops.push(LoopInfo { top: a, bot: None });
 }
 
 fn pop_loop_tail(e: &mut Env) {
-  let _ = e.continue_labels.pop().unwrap();
-  match e.loops.pop() {
-    Some(LoopBreakTarget::Tail) => (),
-    _ => unreachable!()
-  }
+  let _ = e.loops.pop();
 }
 
 fn put_scope(e: &mut Env) {
-  e.symbol_table.put_scope();
+  e.scope_count.push(0);
 }
 
 fn pop_scope(e: &mut Env) {
-  e.symbol_table.pop_scope();
+  for _ in 0 .. e.scope_count.pop().unwrap() {
+    match e.scope_cover.pop().unwrap() {
+      (symbol, None) => {
+        let _ = e.scope_table.remove(&symbol);
+      }
+      (symbol, Some(referent)) => {
+        let _ = e.scope_table.insert(symbol, referent);
+      }
+    }
+  }
 }
 
 fn put_value(x: u32, e: &mut Env) {
@@ -151,13 +153,9 @@ fn put_point(i: Point, e: &mut Env) {
 }
 
 fn put_break_point(i: Point, e: &mut Env) {
-  e.break_points.push(i);
-  match e.loops.last_mut() {
-    Some(LoopBreakTarget::NonTail(n)) => {
-      *n += 1;
-    }
-    _ => unreachable!() // ???
-  }
+  let Some(LoopInfo { bot: Some(n), .. }) = e.loops.last_mut() else { unreachable!() };
+  e.breaks.push(i);
+  *n += 1;
 }
 
 fn pop_point(e: &mut Env) -> Point {
@@ -547,24 +545,21 @@ fn compile_expr_tail<'a>(x: Expr<'a>, e: &mut Env, o: &mut Out) {
   }
 }
 
-// NB: We don't jump-thread from a statement directly before a no-argument
-// break or continue. It's probably not worth doing that.
-
 fn compile_stmt<'a>(x: Stmt<'a>, e: &mut Env, o: &mut Out) -> What {
   match x {
     Stmt::ExprList(xs) => {
       return compile_expr_list(xs, e, o);
     }
     Stmt::Break(xs) => {
-      match e.loops.last_mut() {
+      match e.loops.last() {
         None => {
           // error, break is not inside loop
           let _ = o.emit(Inst::GotoStaticError);
         }
-        Some(LoopBreakTarget::Tail) => {
+        Some(LoopInfo { bot: None, .. }) => {
           compile_expr_list_tail(xs, e, o);
         }
-        Some(LoopBreakTarget::NonTail(_)) => {
+        Some(LoopInfo { bot: Some(_), .. }) => {
           let n = compile_expr_list(xs, e, o).into_point_list(e, o);
           for _ in 0 .. n {
             let i = pop_point(e);
@@ -575,27 +570,27 @@ fn compile_stmt<'a>(x: Stmt<'a>, e: &mut Env, o: &mut Out) -> What {
       return What::NEVER;
     }
     Stmt::Continue => {
-      match e.continue_labels.last() {
+      match e.loops.last() {
         None => {
           // error, break is not inside loop
           let _ = o.emit(Inst::GotoStaticError);
         }
-        Some(a) => {
+        Some(loop_info) => {
           // NB: all loop headers have arity zero
-          let _ = o.emit(Inst::Goto(a.index));
+          let _ = o.emit(Inst::Goto(loop_info.top.index));
         }
       }
       return What::NEVER;
     }
     Stmt::Let(xs, ys) => {
-      // TODO: we do the bindings from left to right, so later bindings shadow
-      // earlier ones. we should just produce an error in that case
+      // NB: we do the bindings from left to right, so later bindings shadow
+      // earlier ones.
       compile_expr_list(ys, e, o).into_value_list(xs.len(), e, o);
       rev_value_list(xs.len(), e);
       for &x in xs.iter() {
         let y = pop_value(e);
         if let Some(x) = x.name {
-          put_let(x, y, e);
+          put_referent(x, Referent::Let(y), e);
         }
       }
       return What::NIL;
@@ -635,7 +630,7 @@ fn compile_stmt<'a>(x: Stmt<'a>, e: &mut Env, o: &mut Out) -> What {
     Stmt::Var(s, x) => {
       let x = compile_expr(x, e, o).into_value(e, o);
       let x = o.emit(Inst::DefLocal(x));
-      put_var(s, x, e);
+      put_referent(s, Referent::Var(x), e);
       return What::NIL;
     }
   }
