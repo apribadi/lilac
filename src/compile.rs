@@ -5,6 +5,7 @@ use crate::hir::Inst;
 use crate::symbol::Symbol;
 use foldhash::HashMap;
 use foldhash::HashMapExt;
+use std::iter::zip;
 
 // TODO: consider special lowering for arguments to cond
 
@@ -54,12 +55,6 @@ struct LoopInfo {
   bot: Option<usize>,
 }
 
-struct Scopes {
-  count: Vec<usize>,
-  cover: Vec<(Symbol, Option<Referent>)>,
-  table: HashMap<Symbol, Referent>,
-}
-
 struct Env {
   scopes: Scopes,
   loops: Vec<LoopInfo>,
@@ -71,11 +66,27 @@ struct Env {
 impl Env {
   fn new() -> Self {
     Self {
-      scopes: Scopes { count: Vec::new(), cover: Vec::new(), table: HashMap::new() },
+      scopes: Scopes::new(),
       loops: Vec::new(),
       breaks: Vec::new(),
       values: Vec::new(),
       points: Vec::new(),
+    }
+  }
+}
+
+struct Scopes {
+  count: Vec<usize>,
+  cover: Vec<(Symbol, Option<Referent>)>,
+  table: HashMap<Symbol, Referent>,
+}
+
+impl Scopes {
+  fn new() -> Self {
+    Self {
+      count: Vec::new(),
+      cover: Vec::new(),
+      table: HashMap::new()
     }
   }
 }
@@ -101,8 +112,8 @@ fn put_loop(a: Label, e: &mut Env) {
 }
 
 fn pop_loop(e: &mut Env) -> usize {
-  let n = e.loops.pop().unwrap().bot.unwrap();
-  for i in e.breaks.drain(e.breaks.len() - n ..) {
+  let n = pop(&mut e.loops).bot.unwrap();
+  for i in pop_list(n, &mut e.breaks) {
     e.points.push(i);
   }
   return n;
@@ -121,7 +132,7 @@ fn put_scope(t: &mut Scopes) {
 }
 
 fn pop_scope(t: &mut Scopes) {
-  for (s, x) in t.cover.drain(t.cover.len() - t.count.pop().unwrap() ..) {
+  for (s, x) in pop_list(pop(&mut t.count), &mut t.cover) {
     match x {
       None => {
         let _ = t.table.remove(&s);
@@ -137,7 +148,7 @@ fn put<T>(x: T, y: &mut Vec<T>) {
   y.push(x);
 }
 
-fn pop<T>(x: &mut Vec<T>) -> T{
+fn pop<T>(x: &mut Vec<T>) -> T {
   return x.pop().unwrap();
 }
 
@@ -567,7 +578,7 @@ fn compile_stmt<'a>(x: Stmt<'a>, e: &mut Env, o: &mut Out) -> What {
       // NB: we do the bindings from left to right, so later bindings shadow
       // earlier ones.
       compile_expr_list(ys, e, o).into_value_list(xs.len(), e, o);
-      for (&x, y) in std::iter::zip(xs.iter(), pop_list(xs.len(), &mut e.values)) {
+      for (&x, y) in zip(xs.iter(), pop_list(xs.len(), &mut e.values)) {
         if let Some(x) = x.name {
           put_referent(x, Referent::Let(y), &mut e.scopes);
         }
