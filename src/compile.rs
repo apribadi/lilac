@@ -172,24 +172,16 @@ impl Out {
     return n as u32;
   }
 
-  fn emit_label(&mut self, arity: usize) -> Label {
-    let n = arity as u32;
-    let a = self.emit(Inst::Label(n));
-    return Label { index: a, arity: n};
-  }
-
   fn emit_point(&mut self, arity: Option<usize>) -> Point {
     let i = self.emit(Inst::Goto(u32::MAX));
     let n = arity.map(|n| n as u32);
     return Point { index: i, arity: n };
   }
 
-  fn emit_label_and_patch_point_list(
-      &mut self,
-      arity: usize,
-      points: impl IntoIterator<Item = Point>
-    ) -> Label {
-    let a = self.emit_label(arity);
+  fn emit_label(&mut self, arity: usize, points: impl IntoIterator<Item = Point>) -> Label {
+    let n = arity as u32;
+    let a = self.emit(Inst::Label(n));
+    let a = Label { index: a, arity: n};
     patch_point_list(a, points, self);
     return a;
   }
@@ -197,14 +189,11 @@ impl Out {
 
 fn patch_point_list(a: Label, points: impl IntoIterator<Item = Point>, o: &mut Out) {
   for i in points {
-    match i.arity {
-      Some(n) if n != a.arity => {
-        // error, arity mismatch
-        o.0[i.index as usize] = Inst::GotoStaticError;
-      }
-      _ => {
-        o.0[i.index as usize] = Inst::Goto(a.index);
-      }
+    if let Some(n) = i.arity && n != a.arity {
+      // error, arity mismatch
+      o.0[i.index as usize] = Inst::GotoStaticError;
+    } else {
+      o.0[i.index as usize] = Inst::Goto(a.index);
     }
   }
 }
@@ -216,13 +205,13 @@ impl What {
 
   fn into_nil(self, e: &mut Env, o: &mut Out) {
     match self {
-      What::NumPoints(n) => {
-        let _ = o.emit_label_and_patch_point_list(0, pop_list(n, &mut e.points));
+      What::NumPoints(n_points) => {
+        let _ = o.emit_label(0, pop_list(n_points, &mut e.points));
       }
-      What::NumValues(n) => {
-        if n != 0 {
+      What::NumValues(n_values) => {
+        if n_values != 0 {
           // error, arity mismatch
-          let _ = pop_list(n, &mut e.values);
+          let _ = pop_list(n_values, &mut e.values);
           let _ = o.emit(Inst::GotoStaticError);
           let _ = o.emit(Inst::Label(0));
         }
@@ -232,17 +221,17 @@ impl What {
 
   fn into_value(self, e: &mut Env, o: &mut Out) -> u32 {
     match self {
-      What::NumPoints(n) => {
-        let _ = o.emit_label_and_patch_point_list(1, pop_list(n, &mut e.points));
+      What::NumPoints(n_points) => {
+        let _ = o.emit_label(1, pop_list(n_points, &mut e.points));
         let x = o.emit(Inst::Pop);
         return x;
       }
-      What::NumValues(n) => {
-        if n == 1 {
+      What::NumValues(n_values) => {
+        if n_values == 1 {
           return pop(&mut e.values);
         } else {
           // error, arity mismatch
-          let _ = pop_list(n, &mut e.values);
+          let _ = pop_list(n_values, &mut e.values);
           let _ = o.emit(Inst::GotoStaticError);
           let _ = o.emit(Inst::Label(1));
           let x = o.emit(Inst::Pop);
@@ -254,17 +243,17 @@ impl What {
 
   fn into_value_list(self, arity: usize, e: &mut Env, o: &mut Out) {
     match self {
-      What::NumPoints(n) => {
-        let _ = o.emit_label_and_patch_point_list(arity, pop_list(n, &mut e.points));
+      What::NumPoints(n_points) => {
+        let _ = o.emit_label(arity, pop_list(n_points, &mut e.points));
         for _ in 0 .. arity {
           let x = o.emit(Inst::Pop);
           put(x, &mut e.values);
         }
       }
-      What::NumValues(n) => {
-        if arity != n {
+      What::NumValues(n_values) => {
+        if arity != n_values {
           // error, arity mismatch
-          let _ = pop_list(n, &mut e.values);
+          let _ = pop_list(n_values, &mut e.values);
           let _ = o.emit(Inst::GotoStaticError);
           let _ = o.emit(Inst::Label(arity as u32));
           for _ in 0 .. arity {
@@ -278,14 +267,14 @@ impl What {
 
   fn into_point_list(self, e: &mut Env, o: &mut Out) -> usize {
     match self {
-      What::NumPoints(n) => {
-        return n;
+      What::NumPoints(n_points) => {
+        return n_points;
       }
-      What::NumValues(n) => {
-        for x in pop_list(n, &mut e.values) {
+      What::NumValues(n_values) => {
+        for x in pop_list(n_values, &mut e.values) {
           let _ = o.emit(Inst::Put(x));
         }
-        let i = o.emit_point(Some(n));
+        let i = o.emit_point(Some(n_values));
         put(i, &mut e.points);
         return 1;
       }
@@ -300,12 +289,12 @@ fn compile_expr<'a>(x: Expr<'a>, e: &mut Env, o: &mut Out) -> What {
       let _ = o.emit(Inst::Cond(x));
       let i = o.emit_point(Some(0));
       let j = o.emit_point(Some(0));
-      let _ = o.emit_label_and_patch_point_list(0, [i]);
+      let _ = o.emit_label(0, [i]);
       let x = o.emit(Inst::ConstBool(false));
       let _ = o.emit(Inst::Put(x));
       let k = o.emit_point(Some(1));
       put(k, &mut e.points);
-      let _ = o.emit_label_and_patch_point_list(0, [j]);
+      let _ = o.emit_label(0, [j]);
       let n = compile_expr(y, e, o).into_point_list(e, o);
       return What::NumPoints(1 + n);
     }
@@ -340,7 +329,7 @@ fn compile_expr<'a>(x: Expr<'a>, e: &mut Env, o: &mut Out) -> What {
       let i = o.emit_point(Some(0));
       let j = o.emit_point(Some(0));
       put(i, &mut e.points);
-      let _ = o.emit_label_and_patch_point_list(0, [j]);
+      let _ = o.emit_label(0, [j]);
       let n = compile_block(ys, e, o).into_point_list(e, o);
       return What::NumPoints(1 + n);
     }
@@ -349,9 +338,9 @@ fn compile_expr<'a>(x: Expr<'a>, e: &mut Env, o: &mut Out) -> What {
       let _ = o.emit(Inst::Cond(x));
       let i = o.emit_point(Some(0));
       let j = o.emit_point(Some(0));
-      let _ = o.emit_label_and_patch_point_list(0, [i]);
+      let _ = o.emit_label(0, [i]);
       let m = compile_block(zs, e, o).into_point_list(e, o);
-      let _ = o.emit_label_and_patch_point_list(0, [j]);
+      let _ = o.emit_label(0, [j]);
       let n = compile_block(ys, e, o).into_point_list(e, o);
       return What::NumPoints(m + n);
     }
@@ -369,7 +358,7 @@ fn compile_expr<'a>(x: Expr<'a>, e: &mut Env, o: &mut Out) -> What {
     }
     Expr::Loop(xs) => {
       let i = o.emit_point(Some(0));
-      let a = o.emit_label_and_patch_point_list(0, [i]);
+      let a = o.emit_label(0, [i]);
       put_loop(a, e);
       let n = compile_block(xs, e, o).into_point_list(e, o);
       patch_point_list(a, pop_list(n, &mut e.points), o);
@@ -394,9 +383,9 @@ fn compile_expr<'a>(x: Expr<'a>, e: &mut Env, o: &mut Out) -> What {
       let _ = o.emit(Inst::Cond(x));
       let i = o.emit_point(Some(0));
       let j = o.emit_point(Some(0));
-      let _ = o.emit_label_and_patch_point_list(0, [i]);
+      let _ = o.emit_label(0, [i]);
       let n = compile_expr(y, e, o).into_point_list(e, o);
-      let _ = o.emit_label_and_patch_point_list(0, [j]);
+      let _ = o.emit_label(0, [j]);
       let x = o.emit(Inst::ConstBool(true));
       let _ = o.emit(Inst::Put(x));
       let k = o.emit_point(Some(1));
@@ -408,9 +397,9 @@ fn compile_expr<'a>(x: Expr<'a>, e: &mut Env, o: &mut Out) -> What {
       let _ = o.emit(Inst::Cond(x));
       let i = o.emit_point(Some(0));
       let j = o.emit_point(Some(0));
-      let _ = o.emit_label_and_patch_point_list(0, [i]);
+      let _ = o.emit_label(0, [i]);
       let m = compile_expr(z, e, o).into_point_list(e, o);
-      let _ = o.emit_label_and_patch_point_list(0, [j]);
+      let _ = o.emit_label(0, [j]);
       let n = compile_expr(y, e, o).into_point_list(e, o);
       return What::NumPoints(m + n);
     }
@@ -448,11 +437,11 @@ fn compile_expr_tail<'a>(x: Expr<'a>, e: &mut Env, o: &mut Out) {
       let _ = o.emit(Inst::Cond(x));
       let i = o.emit_point(Some(0));
       let j = o.emit_point(Some(0));
-      let _ = o.emit_label_and_patch_point_list(0, [i]);
+      let _ = o.emit_label(0, [i]);
       let x = o.emit(Inst::ConstBool(false));
       let _ = o.emit(Inst::Put(x));
       let _ = o.emit(Inst::Ret);
-      let _ = o.emit_label_and_patch_point_list(0, [j]);
+      let _ = o.emit_label(0, [j]);
       compile_expr_tail(y, e, o);
     }
     Expr::Call(&(f, xs)) => {
@@ -471,9 +460,9 @@ fn compile_expr_tail<'a>(x: Expr<'a>, e: &mut Env, o: &mut Out) {
       let _ = o.emit(Inst::Cond(x));
       let i = o.emit_point(Some(0));
       let j = o.emit_point(Some(0));
-      let _ = o.emit_label_and_patch_point_list(0, [i]);
+      let _ = o.emit_label(0, [i]);
       let _ = o.emit(Inst::Ret);
-      let _ = o.emit_label_and_patch_point_list(0, [j]);
+      let _ = o.emit_label(0, [j]);
       compile_block_tail(ys, e, o);
     }
     Expr::IfElse(&(x, ys, zs)) => {
@@ -481,14 +470,14 @@ fn compile_expr_tail<'a>(x: Expr<'a>, e: &mut Env, o: &mut Out) {
       let _ = o.emit(Inst::Cond(x));
       let i = o.emit_point(Some(0));
       let j = o.emit_point(Some(0));
-      let _ = o.emit_label_and_patch_point_list(0, [i]);
+      let _ = o.emit_label(0, [i]);
       compile_block_tail(zs, e, o);
-      let _ = o.emit_label_and_patch_point_list(0, [j]);
+      let _ = o.emit_label(0, [j]);
       compile_block_tail(ys, e, o);
     }
     Expr::Loop(xs) => {
       let i = o.emit_point(Some(0));
-      let a = o.emit_label_and_patch_point_list(0, [i]);
+      let a = o.emit_label(0, [i]);
       put_loop_tail(a, e);
       let n = compile_block(xs, e, o).into_point_list(e, o);
       patch_point_list(a, pop_list(n, &mut e.points), o);
@@ -499,9 +488,9 @@ fn compile_expr_tail<'a>(x: Expr<'a>, e: &mut Env, o: &mut Out) {
       let _ = o.emit(Inst::Cond(x));
       let i = o.emit_point(Some(0));
       let j = o.emit_point(Some(0));
-      let _ = o.emit_label_and_patch_point_list(0, [i]);
+      let _ = o.emit_label(0, [i]);
       compile_expr_tail(y, e, o);
-      let _ = o.emit_label_and_patch_point_list(0, [j]);
+      let _ = o.emit_label(0, [j]);
       let x = o.emit(Inst::ConstBool(true));
       let _ = o.emit(Inst::Put(x));
       let _ = o.emit(Inst::Ret);
@@ -511,9 +500,9 @@ fn compile_expr_tail<'a>(x: Expr<'a>, e: &mut Env, o: &mut Out) {
       let _ = o.emit(Inst::Cond(x));
       let i = o.emit_point(Some(0));
       let j = o.emit_point(Some(0));
-      let _ = o.emit_label_and_patch_point_list(0, [i]);
+      let _ = o.emit_label(0, [i]);
       compile_expr_tail(z, e, o);
-      let _ = o.emit_label_and_patch_point_list(0, [j]);
+      let _ = o.emit_label(0, [j]);
       compile_expr_tail(y, e, o);
     }
     x @ (
@@ -587,18 +576,14 @@ fn compile_stmt<'a>(x: Stmt<'a>, e: &mut Env, o: &mut Out) -> What {
     }
     Stmt::Set(s, x) => {
       let x = compile_expr(x, e, o).into_value(e, o);
-      match get_referent(s, &e.scopes) {
-        Some(&Referent::Var(y)) => {
-          let _ = o.emit(Inst::SetLocal(y, x));
-          return What::NIL;
-        }
-        _ => {
-          // error, symbol does not refer to local variable
-          let _ = o.emit(Inst::GotoStaticError);
-          let _ = o.emit(Inst::Label(0));
-          return What::NIL;
-        }
+      if let Some(&Referent::Var(y)) = get_referent(s, &e.scopes) {
+        let _ = o.emit(Inst::SetLocal(y, x));
+      } else {
+        // error, symbol does not refer to local variable
+        let _ = o.emit(Inst::GotoStaticError);
+        let _ = o.emit(Inst::Label(0));
       }
+      return What::NIL;
     }
     Stmt::SetField(x, s, y) => {
       let x = compile_expr(x, e, o).into_value(e, o);
