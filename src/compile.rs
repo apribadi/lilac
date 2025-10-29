@@ -77,7 +77,7 @@ impl Env {
 
 struct Scopes {
   count: Vec<usize>,
-  cover: Vec<(Symbol, Option<Referent>)>,
+  undo: Vec<(Symbol, Option<Referent>)>,
   table: HashMap<Symbol, Referent>,
 }
 
@@ -85,21 +85,29 @@ impl Scopes {
   fn new() -> Self {
     Self {
       count: Vec::new(),
-      cover: Vec::new(),
+      undo: Vec::new(),
       table: HashMap::new()
     }
   }
 }
 
+fn put<T>(x: T, y: &mut Vec<T>) {
+  y.push(x);
+}
+
+fn pop<T>(x: &mut Vec<T>) -> T {
+  return x.pop().unwrap();
+}
+
+fn pop_list<T>(n: usize, x: &mut Vec<T>) -> impl Iterator<Item = T> {
+  return x.drain(x.len() - n ..);
+}
+
 fn put_referent(s: Symbol, x: Referent, t: &mut Scopes) {
-  match t.count.last_mut() {
-    None => {
-      let _ = t.table.insert(s, x);
-    }
-    Some(n) => {
-      t.cover.push((s, t.table.insert(s, x)));
-      *n += 1;
-    }
+  let y = t.table.insert(s, x);
+  if let Some(n) = t.count.last_mut() {
+    t.undo.push((s, y));
+    *n += 1;
   }
 }
 
@@ -132,7 +140,7 @@ fn put_scope(t: &mut Scopes) {
 }
 
 fn pop_scope(t: &mut Scopes) {
-  for (s, x) in pop_list(pop(&mut t.count), &mut t.cover) {
+  for (s, x) in pop_list(pop(&mut t.count), &mut t.undo) {
     match x {
       None => {
         let _ = t.table.remove(&s);
@@ -142,18 +150,6 @@ fn pop_scope(t: &mut Scopes) {
       }
     }
   }
-}
-
-fn put<T>(x: T, y: &mut Vec<T>) {
-  y.push(x);
-}
-
-fn pop<T>(x: &mut Vec<T>) -> T {
-  return x.pop().unwrap();
-}
-
-fn pop_list<T>(n: usize, x: &mut Vec<T>) -> impl Iterator<Item = T> {
-  return x.drain(x.len() - n ..);
 }
 
 fn put_break_point(i: Point, e: &mut Env) {
@@ -320,7 +316,7 @@ fn compile_expr<'a>(x: Expr<'a>, e: &mut Env, o: &mut Out) -> What {
     }
     Expr::Call(&(f, xs)) => {
       let f = compile_expr(f, e, o).into_value(e, o);
-      for &x in xs.iter() {
+      for &x in xs {
         let x = compile_expr(x, e, o).into_value(e, o);
         put(x, &mut e.values);
       }
@@ -461,7 +457,7 @@ fn compile_expr_tail<'a>(x: Expr<'a>, e: &mut Env, o: &mut Out) {
     }
     Expr::Call(&(f, xs)) => {
       let f = compile_expr(f, e, o).into_value(e, o);
-      for &x in xs.iter() {
+      for &x in xs {
         let x = compile_expr(x, e, o).into_value(e, o);
         put(x, &mut e.values);
       }
@@ -578,7 +574,7 @@ fn compile_stmt<'a>(x: Stmt<'a>, e: &mut Env, o: &mut Out) -> What {
       // NB: we do the bindings from left to right, so later bindings shadow
       // earlier ones.
       compile_expr_list(ys, e, o).into_value_list(xs.len(), e, o);
-      for (&x, y) in zip(xs.iter(), pop_list(xs.len(), &mut e.values)) {
+      for (&x, y) in zip(xs, pop_list(xs.len(), &mut e.values)) {
         if let Some(x) = x.name {
           put_referent(x, Referent::Let(y), &mut e.scopes);
         }
@@ -658,7 +654,7 @@ fn compile_block<'a>(xs: &'a [Stmt<'a>], e: &mut Env, o: &mut Out) -> What {
     }
     Some((&y, xs)) => {
       put_scope(&mut e.scopes);
-      for &x in xs.iter() {
+      for &x in xs {
         compile_stmt(x, e, o).into_nil(e, o);
       }
       let w = compile_stmt(y, e, o);
@@ -675,7 +671,7 @@ fn compile_block_tail<'a>(xs: &'a [Stmt<'a>], e: &mut Env, o: &mut Out) {
     }
     Some((&y, xs)) => {
       put_scope(&mut e.scopes);
-      for &x in xs.iter() {
+      for &x in xs {
         compile_stmt(x, e, o).into_nil(e, o);
       }
       compile_stmt_tail(y, e, o);
@@ -690,7 +686,7 @@ fn compile_expr_list<'a>(xs: &'a [Expr<'a>], e: &mut Env, o: &mut Out) -> What {
       return compile_expr(x, e, o);
     }
     xs => {
-      for &x in xs.iter() {
+      for &x in xs {
         let x = compile_expr(x, e, o).into_value(e, o);
         put(x, &mut e.values);
       }
@@ -705,7 +701,7 @@ fn compile_expr_list_tail<'a>(xs: &'a [Expr<'a>], e: &mut Env, o: &mut Out) {
       compile_expr_tail(x, e, o);
     }
     xs => {
-      for &x in xs.iter() {
+      for &x in xs {
         let x = compile_expr(x, e, o).into_value(e, o);
         put(x, &mut e.values);
       }
