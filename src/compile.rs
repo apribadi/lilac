@@ -567,10 +567,7 @@ fn compile_stmt<'a>(x: Stmt<'a>, e: &mut Env, o: &mut Out) -> What {
       // NB: we do the bindings from left to right, so later bindings shadow
       // earlier ones.
       compile_expr_list(ys, e, o).into_value_list(xs.len(), e, o);
-      let m = e.values.len();
-      e.values[m - xs.len() ..].reverse();
-      for &x in xs.iter() {
-        let y = pop(&mut e.values);
+      for (&x, y) in std::iter::zip(xs.iter(), pop_list(xs.len(), &mut e.values)) {
         if let Some(x) = x.name {
           put_referent(x, Referent::Let(y), &mut e.scopes);
         }
