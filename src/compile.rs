@@ -99,7 +99,7 @@ fn put_loop(a: Label, e: &mut Env) {
 }
 
 fn pop_loop(e: &mut Env) -> usize {
-  let Some(LoopInfo { bot: Some(n), .. }) = e.loops.pop() else { unreachable!() };
+  let n = e.loops.pop().unwrap().bot.unwrap();
   for i in e.breaks.drain(e.breaks.len() - n ..) {
     e.points.push(i);
   }
@@ -119,13 +119,13 @@ fn put_scope(e: &mut Env) {
 }
 
 fn pop_scope(e: &mut Env) {
-  for _ in 0 .. e.scope_count.pop().unwrap() {
-    match e.scope_cover.pop().unwrap() {
-      (symbol, None) => {
-        let _ = e.scope_table.remove(&symbol);
+  for (s, x) in e.scope_cover.drain(e.scope_cover.len() - e.scope_count.pop().unwrap() ..) {
+    match x {
+      None => {
+        let _ = e.scope_table.remove(&s);
       }
-      (symbol, Some(referent)) => {
-        let _ = e.scope_table.insert(symbol, referent);
+      Some(x) => {
+        let _ = e.scope_table.insert(s, x);
       }
     }
   }
@@ -143,17 +143,12 @@ fn pop_value_list(n: usize, e: &mut Env) -> impl Iterator<Item = u32> {
   return e.values.drain(e.values.len() - n ..);
 }
 
-fn rev_value_list(n: usize, e: &mut Env) {
-  let k = e.values.len() - n;
-  e.values[k ..].reverse();
-}
-
 fn put_point(i: Point, e: &mut Env) {
   e.points.push(i);
 }
 
 fn put_break_point(i: Point, e: &mut Env) {
-  let Some(LoopInfo { bot: Some(n), .. }) = e.loops.last_mut() else { unreachable!() };
+  let n = e.loops.last_mut().unwrap().bot.as_mut().unwrap();
   e.breaks.push(i);
   *n += 1;
 }
@@ -534,13 +529,9 @@ fn compile_expr_tail<'a>(x: Expr<'a>, e: &mut Env, o: &mut Out) {
       | Expr::Undefined
       | Expr::Variable(..)
     ) => {
-      match compile_expr(x, e, o) {
-        What::NumValues(1) => {
-          let _ = o.emit(Inst::Put(pop_value(e)));
-          let _ = o.emit(Inst::Ret);
-        }
-        _ => unreachable!()
-      }
+      let What::NumValues(1) = compile_expr(x, e, o) else { unreachable!() };
+      let _ = o.emit(Inst::Put(pop_value(e)));
+      let _ = o.emit(Inst::Ret);
     }
   }
 }
@@ -586,7 +577,8 @@ fn compile_stmt<'a>(x: Stmt<'a>, e: &mut Env, o: &mut Out) -> What {
       // NB: we do the bindings from left to right, so later bindings shadow
       // earlier ones.
       compile_expr_list(ys, e, o).into_value_list(xs.len(), e, o);
-      rev_value_list(xs.len(), e);
+      let m = e.values.len();
+      e.values[m - xs.len() ..].reverse();
       for &x in xs.iter() {
         let y = pop_value(e);
         if let Some(x) = x.name {
@@ -646,11 +638,7 @@ fn compile_stmt_tail<'a>(x: Stmt<'a>, e: &mut Env, o: &mut Out) {
       | Stmt::Continue
       | Stmt::Return(..)
     ) => {
-      match compile_stmt(x, e, o) {
-        What::NumPoints(0) => {
-        }
-        _ => unreachable!()
-      }
+      let What::NumPoints(0) = compile_stmt(x, e, o) else { unreachable!() };
     }
     x @ (
       | Stmt::Let(..)
@@ -659,12 +647,8 @@ fn compile_stmt_tail<'a>(x: Stmt<'a>, e: &mut Env, o: &mut Out) {
       | Stmt::SetIndex(..)
       | Stmt::Var(..)
     ) => {
-      match compile_stmt(x, e, o) {
-        What::NumValues(0) => {
-          let _ = o.emit(Inst::Ret);
-        }
-        _ => unreachable!()
-      }
+      let What::NumValues(0) = compile_stmt(x, e, o) else { unreachable!() };
+      let _ = o.emit(Inst::Ret);
     }
   }
 }
