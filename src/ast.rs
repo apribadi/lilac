@@ -6,6 +6,7 @@ use crate::symbol::Symbol;
 use crate::token::Token;
 use oxcart::Arena;
 
+#[derive(Clone, Copy)]
 pub enum Item<'a> {
   Fundef(Fundef<'a>),
 }

@@ -1,4 +1,8 @@
-// high-level intermediate representation - bytecode
+// intermediate representation
+//
+// - bytecode
+// - from a source file, without context
+// - not type checked
 
 use crate::symbol::Symbol;
 use crate::op1::Op1;
@@ -7,6 +11,8 @@ use crate::op2::Op2;
 type Label = u32;
 
 type Value = u32;
+
+type Local = u32;
 
 // TODO: add type ascription
 
@@ -21,18 +27,18 @@ pub enum Inst {
   Ret,
   Call(Value),
   TailCall(Value),
+  Const(Symbol),
   ConstBool(bool),
   ConstInt(i64),
   DefLocal(Value),
   Field(Value, Symbol),
   Index(Value, Value),
-  Const(Symbol),
-  Local(Value),
+  Local(Local),
   Op1(Op1, Value),
   Op2(Op2, Value, Value),
   SetField(Value, Symbol, Value),
   SetIndex(Value, Value, Value),
-  SetLocal(Value, Value),
+  SetLocal(Local, Value),
 }
 
 impl std::fmt::Display for Inst {
@@ -48,12 +54,12 @@ impl std::fmt::Display for Inst {
       Self::Ret => write!(f, "RET"),
       Self::Call(x) => write!(f, "CALL %{}", x),
       Self::TailCall(x) => write!(f, "TAIL-CALL %{}", x),
+      Self::Const(s) => write!(f, "= CONST {}", s),
       Self::ConstBool(p) => write!(f, "= {}", p),
       Self::ConstInt(n) => write!(f, "= {}", n),
       Self::DefLocal(x) => write!(f, "= DEF-LOCAL %{}", x),
       Self::Field(x, s) => write!(f, "= %{} [ .{} ]", x, s),
       Self::Index(x, y) => write!(f, "= %{} [ %{} ]", x, y),
-      Self::Const(s) => write!(f, "= CONST {}", s),
       Self::Local(v) => write!(f, "= [ %{} ]", v),
       Self::Op1(op, x) => write!(f, "= {} %{}", op, x),
       Self::Op2(op, x, y) => write!(f, "= %{} {} %{}", x, op, y),
