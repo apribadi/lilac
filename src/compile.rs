@@ -69,7 +69,7 @@ impl Env {
 }
 
 struct Scopes {
-  count: Vec<usize>,
+  counts: Vec<usize>,
   undo: Vec<(Symbol, Option<Referent>)>,
   table: HashMap<Symbol, Referent>,
 }
@@ -77,7 +77,7 @@ struct Scopes {
 impl Scopes {
   fn new() -> Self {
     Self {
-      count: Vec::new(),
+      counts: Vec::new(),
       undo: Vec::new(),
       table: HashMap::new()
     }
@@ -114,7 +114,7 @@ fn pop_list<T>(n: usize, x: &mut Vec<T>) -> impl Iterator<Item = T> {
 
 fn put_referent(s: Symbol, x: Referent, t: &mut Scopes) {
   let y = t.table.insert(s, x);
-  if let Some(n) = t.count.last_mut() {
+  if let Some(n) = t.counts.last_mut() {
     t.undo.push((s, y));
     *n += 1;
   }
@@ -149,11 +149,11 @@ fn pop_loop_tail(t: &mut Loops) {
 }
 
 fn put_scope(t: &mut Scopes) {
-  t.count.push(0);
+  t.counts.push(0);
 }
 
 fn pop_scope(t: &mut Scopes) {
-  for (s, x) in pop_list(pop(&mut t.count), &mut t.undo) {
+  for (s, x) in pop_list(pop(&mut t.counts), &mut t.undo) {
     match x {
       None => {
         let _ = t.table.remove(&s);
@@ -547,9 +547,11 @@ fn compile_stmt<'a>(x: Stmt<'a>, e: &mut Env, o: &mut Out) -> What {
           let _ = o.emit(Inst::GotoStaticError);
         }
         Some(None) => {
+          // loop is in tail position
           compile_expr_list_tail(xs, e, o);
         }
         Some(Some(_)) => {
+          // loop is in non-tail position
           let n = compile_expr_list(xs, e, o).into_point_list(e, o);
           for i in pop_list(n, &mut e.points) {
             put_break(i, &mut e.loops);
