@@ -52,6 +52,7 @@ pub enum Stmt<'a> {
   SetField(Expr<'a>, Symbol, Expr<'a>),
   SetIndex(Expr<'a>, Expr<'a>, Expr<'a>),
   Var(Symbol, Expr<'a>),
+  While(Expr<'a>, &'a [Stmt<'a>]),
 }
 
 pub fn parse<'a>(source: &[u8], arena: &mut Arena<'a>) -> Vec<Item<'a>> {
@@ -279,6 +280,12 @@ impl<'a, 'b> parse::Out for ToAst<'a, 'b> {
     let s = Symbol::from_bytes(symbol);
     let x = self.pop_expr();
     self.put_stmt(Stmt::Var(s, x));
+  }
+
+  fn on_while(&mut self, n_stmts: usize) {
+    let y = self.pop_stmt_multi(n_stmts);
+    let x = self.pop_expr();
+    self.put_stmt(Stmt::While(x, y));
   }
 
   fn on_error_missing_expected_token(&mut self, token: Token) {

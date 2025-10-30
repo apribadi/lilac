@@ -21,7 +21,7 @@ fn compile(source: &str) {
 
 fn main() {
   compile("
-    fun foo(n) {
+    fun fib(n) {
       var a = 1
       var b = 0
       var n = n
@@ -33,16 +33,18 @@ fn main() {
         n = n - 1
       }
     }
+  ");
 
-    fun bar(n) {
-      baz(1, 0, n)
+  compile("
+    fun fib(n) {
+      aux(1, 0, n)
     }
 
-    fun baz(a, b, n) {
+    fun aux(a, b, n) {
       if n <= 0 {
         b
       } else {
-        baz(b, a + b, n - 1)
+        aux(b, a + b, n - 1)
       }
     }
   ");

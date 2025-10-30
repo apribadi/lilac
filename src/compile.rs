@@ -618,6 +618,21 @@ fn compile_stmt<'a>(x: Stmt<'a>, e: &mut Env, o: &mut Out) -> What {
       put_referent(s, Referent::Var(x), &mut e.scopes);
       return What::NIL;
     }
+    Stmt::While(x, ys) => {
+      let p = o.emit_point(Some(0));
+      let a = o.emit_label(0, [p]);
+      put_loop(a, &mut e.loops);
+      let x = compile_expr(x, e, o).into_value(e, o);
+      let _ = o.emit(Inst::Cond(x));
+      let q = o.emit_point(Some(0));
+      put(q, &mut e.points);
+      let r = o.emit_point(Some(0));
+      let _ = o.emit_label(0, [r]);
+      let m = compile_block(ys, e, o).into_point_list(e, o);
+      patch_point_list(a, pop_list(m, &mut e.points), o);
+      let n = pop_loop(&mut e.loops, &mut e.points);
+      return What::NumPoints(1 + n);
+    }
   }
 }
 
@@ -639,6 +654,7 @@ fn compile_stmt_tail<'a>(x: Stmt<'a>, e: &mut Env, o: &mut Out) {
       | Stmt::SetField(..)
       | Stmt::SetIndex(..)
       | Stmt::Var(..)
+      | Stmt::While(..)
     ) => {
       let What::NumValues(0) = compile_stmt(x, e, o) else { unreachable!() };
       let _ = o.emit(Inst::Ret);

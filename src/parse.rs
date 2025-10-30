@@ -58,6 +58,8 @@ pub trait Out {
 
   fn on_var(&mut self, symbol: &[u8]);
 
+  fn on_while(&mut self, n_stmts: usize);
+
   fn on_error_missing_expected_token(&mut self, token: Token);
 
   fn on_error_missing_expr(&mut self);
@@ -75,10 +77,10 @@ pub fn parse<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O) {
         t.next();
         let name = expect_symbol(t, o);
         expect(t, o, Token::LParen);
-        let n_args = parse_bind_list(t, o, Token::RParen);
+        let m = parse_bind_list(t, o, Token::RParen);
         expect(t, o, Token::RParen);
-        let n_stmts = parse_block(t, o);
-        o.on_fundef(name, n_args, n_stmts);
+        let n = parse_block(t, o);
+        o.on_fundef(name, m, n);
       }
       _ => {
         // error?
@@ -203,19 +205,19 @@ fn parse_prec<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O, n: usize, is_stmt: bool)
     Token::If => {
       t.next();
       parse_expr(t, o);
-      let n_stmts = parse_block(t, o);
+      let n = parse_block(t, o);
       if t.token() == Token::Else {
         t.next();
-        let n_stmts_else = parse_block(t, o);
-        o.on_if_else(n_stmts, n_stmts_else);
+        let m = parse_block(t, o);
+        o.on_if_else(n, m);
       } else {
-        o.on_if(n_stmts);
+        o.on_if(n);
       }
     }
     Token::Loop => {
       t.next();
-      let n_stmts = parse_block(t, o);
-      o.on_loop(n_stmts);
+      let n = parse_block(t, o);
+      o.on_loop(n);
     }
     _ => {
       o.on_error_missing_expr();
@@ -418,6 +420,13 @@ fn parse_block<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O) -> usize {
         expect(t, o, Token::Equal);
         parse_expr(t, o);
         o.on_var(symbol);
+        n_stmts += 1;
+      }
+      Token::While => {
+        t.next();
+        parse_expr(t, o);
+        let n = parse_block(t, o);
+        o.on_while(n);
         n_stmts += 1;
       }
       _ => {
@@ -641,6 +650,13 @@ impl Out for ToSexp {
     let s = Sexp::from_bytes(symbol);
     let t = Sexp::from_bytes(b"var");
     self.put(Sexp::from_array([t, s, x]));
+  }
+
+  fn on_while(&mut self, n_stmts: usize) {
+    let y = Sexp::List(self.pop_multi(n_stmts).collect());
+    let x = self.pop();
+    let t = Sexp::from_bytes(b"while");
+    self.put(Sexp::from_array([t, x, y]));
   }
 
   fn on_error_missing_expected_token(&mut self, _: Token) {
