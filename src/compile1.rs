@@ -1,15 +1,19 @@
 use crate::ast::Expr;
 use crate::ast::Item;
 use crate::ast::Stmt;
-use crate::hir::Inst;
+use crate::ast::parse;
+use crate::ir1::Inst;
 use crate::symbol::Symbol;
 use foldhash::HashMap;
 use foldhash::HashMapExt;
+use oxcart::Arena;
 use std::iter::zip;
 
 // TODO: consider special lowering for arguments to cond
 
-pub fn compile<'a>(item_list: impl Iterator<Item = Item<'a>>) -> Vec<Inst> {
+pub fn compile<'a>(source: &[u8], arena: &mut Arena<'a>) -> Vec<Inst> {
+  let item_list = parse(source, arena);
+
   let mut e = Env::new();
   let mut o = Out::new();
 
