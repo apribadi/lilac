@@ -86,16 +86,16 @@ impl Scopes {
 
 struct Loops {
   labels: Vec<Label>,
-  konts: Vec<Option<usize>>,
-  breaks: Vec<Point>,
+  break_counts: Vec<Option<usize>>,
+  break_points: Vec<Point>,
 }
 
 impl Loops {
   fn new() -> Self {
     Self {
       labels: Vec::new(),
-      konts: Vec::new(),
-      breaks: Vec::new(),
+      break_counts: Vec::new(),
+      break_points: Vec::new(),
     }
   }
 }
@@ -126,12 +126,13 @@ fn get_referent(s: Symbol, t: &Scopes) -> Option<&Referent> {
 
 fn put_loop(a: Label, e: &mut Env) {
   e.loops.labels.push(a);
-  e.loops.konts.push(Some(0));
+  e.loops.break_counts.push(Some(0));
 }
 
 fn pop_loop(e: &mut Env) -> usize {
-  let n = e.loops.konts.pop().unwrap().unwrap();
-  for i in pop_list(n, &mut e.loops.breaks) {
+  let _ = e.loops.labels.pop().unwrap();
+  let n = e.loops.break_counts.pop().unwrap().unwrap();
+  for i in pop_list(n, &mut e.loops.break_points) {
     e.points.push(i);
   }
   return n;
@@ -139,12 +140,12 @@ fn pop_loop(e: &mut Env) -> usize {
 
 fn put_loop_tail(a: Label, e: &mut Env) {
   e.loops.labels.push(a);
-  e.loops.konts.push(None);
+  e.loops.break_counts.push(None);
 }
 
 fn pop_loop_tail(e: &mut Env) {
   let _ = e.loops.labels.pop().unwrap();
-  let _ = e.loops.konts.pop().unwrap();
+  let _ = e.loops.break_counts.pop().unwrap();
 }
 
 fn put_scope(t: &mut Scopes) {
@@ -165,8 +166,8 @@ fn pop_scope(t: &mut Scopes) {
 }
 
 fn put_break(i: Point, t: &mut Loops) {
-  let n = t.konts.last_mut().unwrap().as_mut().unwrap();
-  t.breaks.push(i);
+  let n = t.break_counts.last_mut().unwrap().as_mut().unwrap();
+  t.break_points.push(i);
   *n += 1;
 }
 
@@ -540,7 +541,7 @@ fn compile_stmt<'a>(x: Stmt<'a>, e: &mut Env, o: &mut Out) -> What {
       return compile_expr_list(xs, e, o);
     }
     Stmt::Break(xs) => {
-      match e.loops.konts.last() {
+      match e.loops.break_counts.last() {
         None => {
           // error, break is not inside loop
           let _ = o.emit(Inst::GotoStaticError);
