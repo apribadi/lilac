@@ -105,4 +105,9 @@ fn main() {
       let _ = f(x - y)
     }");
   */
+
+  compile("fun foo() { loop { break 1 } }");
+  compile("fun foo() { loop { continue } }");
+  compile("fun foo() { loop { return 1 } }");
+  compile("fun foo() { let x = loop { break 1 } return x }");
 }
