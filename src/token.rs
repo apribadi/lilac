@@ -1,5 +1,5 @@
-#[repr(u8)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[repr(u8)]
 pub enum Token {
   Not      = 0x21, // !
   Dollar   = 0x24, // $
