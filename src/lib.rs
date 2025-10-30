@@ -1,9 +1,9 @@
 pub mod ast;
-pub mod compile1;
 pub mod infer;
 pub mod ir1;
 pub mod lexer;
 pub mod parse;
+pub mod pass1;
 pub mod sexp;
 pub mod symbol;
 pub mod token;

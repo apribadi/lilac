@@ -463,7 +463,6 @@ fn parse_block<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O) -> usize {
   return n_stmts;
 }
 
-
 struct ToSexp(Vec<Sexp>);
 
 pub fn parse_expr_sexp(source: &[u8]) -> Sexp {

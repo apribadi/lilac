@@ -6,7 +6,7 @@ fn parse(source: &str) {
 #[allow(dead_code)]
 fn compile(source: &str) {
   let mut store = oxcart::Store::new();
-  let code = lilac::compile1::compile(source.as_bytes(), &mut store.arena());
+  let code = lilac::pass1::compile(source.as_bytes(), &mut store.arena());
 
   for (i, x) in code.iter().enumerate() {
     print!("%{} {}\n", i, x);
