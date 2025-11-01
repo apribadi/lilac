@@ -21,6 +21,7 @@ unused_results = "warn"
 
 [dependencies]
 oxcart = { git = "https://github.com/apribadi/oxcart.git" }
+tangerine = { git = "https://github.com/apribadi/tangerine.git" }
 foldhash = { version = "0.2.0" }
 
 [dev-dependencies]

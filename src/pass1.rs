@@ -4,10 +4,9 @@ use crate::ast::Stmt;
 use crate::ast::parse;
 use crate::ir1::Inst;
 use crate::symbol::Symbol;
-use foldhash::HashMap;
-use foldhash::HashMapExt;
 use oxcart::Arena;
 use std::iter::zip;
+use tangerine::map::HashMap;
 
 // TODO: consider special lowering for arguments to cond
 
@@ -125,7 +124,7 @@ fn put_referent(s: Symbol, x: Referent, t: &mut Scopes) {
 }
 
 fn get_referent(s: Symbol, t: &Scopes) -> Option<&Referent> {
-  return t.table.get(&s);
+  return t.table.get(s);
 }
 
 fn put_loop(a: Label, t: &mut Loops) {
@@ -160,7 +159,7 @@ fn pop_scope(t: &mut Scopes) {
   for (s, x) in pop_list(pop(&mut t.counts), &mut t.undo) {
     match x {
       None => {
-        let _ = t.table.remove(&s);
+        let _ = t.table.remove(s);
       }
       Some(x) => {
         let _ = t.table.insert(s, x);
