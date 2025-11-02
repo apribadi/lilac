@@ -16,9 +16,10 @@ use core::ptr;
 pub struct Idx(NonZeroU32);
 
 pub struct Buf<T> {
-  ptr: *const T,
+  ptr: pop::ptr,
   cap: u32,
   len: u32,
+  _phantom_data: PhantomData<T>,
 }
 
 unsafe impl<T: Send> Send for Buf<T> {
@@ -30,9 +31,10 @@ unsafe impl<T: Sync> Sync for Buf<T> {
 impl<T> Buf<T> {
   pub const fn new() -> Self {
     return Self {
-      ptr: ptr::null(),
+      ptr: pop::ptr::NULL,
       cap: if size_of::<T>() == 0 { u32::MAX } else { 0 },
       len: 0,
+      _phantom_data: PhantomData,
     };
   }
 
@@ -47,6 +49,9 @@ impl<T> Buf<T> {
   #[cold]
   fn grow(old_p: *mut T, old_c: u32) -> (*mut T, u32) {
     assert!(size_of::<T>() != 0);
+
+    unimplemented!()
+    /*
 
     // TODO: check max capacity
 
@@ -73,17 +78,18 @@ impl<T> Buf<T> {
       unsafe { dealloc(old_p as *mut u8, old_l) };
       return (new_p, new_c);
     }
+  */
   }
 
   #[inline(always)]
   pub fn put(&mut self, value: T) -> Idx {
-    let p = self.ptr as *mut T;
+    let p = self.ptr.as_mut_ptr::<T>();
     let c = self.cap;
     let n = self.len;
 
     if n == c {
       let (p, c) = Self::grow(p, c);
-      self.ptr = p;
+      self.ptr = pop::ptr::from(p);
       self.cap = c;
       unsafe { ptr::write(p.wrapping_add(n as usize), value) };
     } else {
@@ -97,7 +103,7 @@ impl<T> Buf<T> {
 
   #[inline(always)]
   pub fn pop(&mut self) -> T {
-    let p = self.ptr;
+    let p = self.ptr.as_mut_ptr::<T>();
     let n = self.len;
 
     assert!(n != 0);
@@ -108,22 +114,22 @@ impl<T> Buf<T> {
   }
 
   pub fn pop_multi(&mut self, k: u32) -> PopMulti<'_, T> {
-    let p = self.ptr;
+    let p = self.ptr.as_mut_ptr::<T>();
     let n = self.len;
 
     assert!(k <= n);
 
     self.len = n - k;
 
-    return PopMulti { ptr: p.wrapping_add((n - k) as usize), len: k, _phantom_data: PhantomData };
+    return PopMulti { ptr: pop::ptr::from(p.wrapping_add((n - k) as usize)), len: k, _phantom_data: PhantomData };
   }
 
   pub fn reset(&mut self) {
-    let p = self.ptr as *mut T;
+    let p = self.ptr.as_mut_ptr::<T>();
     let c = self.cap;
     let n = self.len;
 
-    self.ptr = ptr::null();
+    self.ptr = pop::ptr::NULL;
     self.cap = if size_of::<T>() == 0 { u32::MAX } else { 0 };
     self.len = 0;
 
@@ -156,7 +162,7 @@ impl<T> Index<Idx> for Buf<T> {
 
   #[inline(always)]
   fn index(&self, index: Idx) -> &Self::Output {
-    let p = self.ptr;
+    let p = self.ptr.as_const_ptr::<T>();
     let n = self.len;
     let i = index.0.get();
 
@@ -169,7 +175,7 @@ impl<T> Index<Idx> for Buf<T> {
 impl<T> IndexMut<Idx> for Buf<T> {
   #[inline(always)]
   fn index_mut(&mut self, index: Idx) -> &mut Self::Output {
-    let p = self.ptr as *mut T;
+    let p = self.ptr.as_mut_ptr::<T>();
     let n = self.len;
     let i = index.0.get();
 
@@ -180,15 +186,15 @@ impl<T> IndexMut<Idx> for Buf<T> {
 }
 
 pub struct PopMulti<'a, T> {
-  ptr: *const T,
+  ptr: pop::ptr,
   len: u32,
-  _phantom_data: PhantomData<&'a ()>,
+  _phantom_data: PhantomData<&'a mut T>,
 }
 
 impl<'a, T> Drop for PopMulti<'a, T> {
   fn drop(&mut self) {
     if needs_drop::<T>() {
-      let mut a = self.ptr as *mut T;
+      let mut a = self.ptr.as_mut_ptr::<T>();
       let mut n = self.len;
       while n > 0 {
         unsafe { ptr::drop_in_place(a) };
@@ -204,7 +210,7 @@ impl<'a, T> Iterator for PopMulti<'a, T> {
 
   #[inline(always)]
   fn next(&mut self) -> Option<T> {
-    let p = self.ptr;
+    let p = self.ptr.as_const_ptr::<T>();
     let n = self.len;
 
     if n == 0 {
@@ -213,7 +219,7 @@ impl<'a, T> Iterator for PopMulti<'a, T> {
 
     let value = unsafe { ptr::read(p) };
 
-    self.ptr = p.wrapping_add(1);
+    self.ptr = pop::ptr::from(p.wrapping_add(1));
     self.len = n - 1;
 
     return Some(value);
