@@ -87,7 +87,30 @@ impl<T> Buf<T> {
   }
 
   pub fn reset(&mut self) {
-    unimplemented!()
+    let p = self.ptr as *mut T;
+    let c = self.cap;
+    let n = self.len;
+
+    self.ptr = ptr::nul();
+    self.cap = if size_of::<T>() == 0 { u32::MAX } else { 0 };
+    self.len = 0;
+
+    if needs_drop::<T>() {
+      let mut a = p;
+      let mut n = n;
+      while n > 0 {
+        unsafe { ptr::drop_in_place(a) };
+        a = a.wrapping_add(1);
+        n = n - 1;
+      }
+    }
+
+    if size_of::<T>() != 0 && c != 0 {
+      let align = align_of::<T>();
+      let size = c * size_of::<T>();
+      let layout = unsafe { Layout::from_size_align_unchecked(size, align) };
+      unsafe { dealloc(p, layout) };
+    }
   }
 }
 
