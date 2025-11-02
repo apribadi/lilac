@@ -1,4 +1,5 @@
 pub mod ast;
+pub mod buf;
 pub mod infer;
 pub mod ir1;
 pub mod lexer;

@@ -8,7 +8,9 @@ const HASHER: foldhash::quality::FixedState =
 
 impl Symbol {
   pub fn from_bytes(s: &[u8]) -> Self {
-    if s.len() <= 8 {
+    if s.len() == 0 {
+      panic!();
+    } else if s.len() <= 8 {
       let mut buf = [0u8; 8];
       buf[.. s.len()].copy_from_slice(s);
       let n = u64::from_le_bytes(buf);
