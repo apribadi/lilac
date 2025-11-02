@@ -36,6 +36,11 @@ impl<T> Buf<T> {
     };
   }
 
+  #[inline(always)]
+  pub fn len(&self) -> u32 {
+    return self.len;
+  }
+
   // const MAX_CAP: u32 = isize::MAX as usize / size_of::<T>();
 
   #[inline(never)]

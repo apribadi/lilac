@@ -1,6 +1,9 @@
 #[allow(dead_code)]
 fn parse(source: &str) {
-  print!("{}\n", lilac::parse::parse_expr_sexp(source.as_bytes()));
+  let mut buf = lilac::parse::parse_sexp(source.as_bytes());
+  for f in buf.pop_multi(buf.len()) {
+    print!("{}\n", f);
+  }
 }
 
 #[allow(dead_code)]
@@ -16,6 +19,21 @@ fn compile(source: &str) {
 }
 
 fn main() {
+  parse("
+    fun fib(n) {
+      var a = 1
+      var b = 0
+      var n = n
+      loop {
+        if n <= 0 { return b }
+        let c = a + b
+        a = b
+        b = c
+        n = n - 1
+      }
+    }
+  ");
+
   compile("
     fun fib(n) {
       var a = 1

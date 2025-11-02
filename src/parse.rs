@@ -3,6 +3,7 @@ use crate::ir1::Op1;
 use crate::ir1::Op2;
 use crate::sexp::Sexp;
 use crate::token::Token;
+use crate::buf::Buf;
 
 pub trait Out {
   // TODO: sort trait members
@@ -463,29 +464,29 @@ fn parse_block<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O) -> usize {
   return n_stmts;
 }
 
-struct ToSexp(Vec<Sexp>);
+struct ToSexp(Buf<Sexp>);
 
-pub fn parse_expr_sexp(source: &[u8]) -> Sexp {
+pub fn parse_sexp(source: &[u8]) -> Buf<Sexp> {
   let mut o = ToSexp::new();
-  parse_expr(&mut Lexer::new(source), &mut o);
-  return o.pop();
+  parse(&mut Lexer::new(source), &mut o);
+  return o.0;
 }
 
 impl ToSexp {
   fn new() -> Self {
-    Self(Vec::new())
+    Self(Buf::new())
   }
 
   fn put(&mut self, x: Sexp) {
-    self.0.push(x);
+    let _ = self.0.put(x);
   }
 
   fn pop(&mut self) -> Sexp {
-    return self.0.pop().unwrap();
+    return self.0.pop();
   }
 
   fn pop_multi(&mut self, n: usize) -> impl Iterator<Item = Sexp> {
-    return self.0.drain(self.0.len() - n ..);
+    return self.0.pop_multi(n as u32);
   }
 }
 
