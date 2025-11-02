@@ -13,28 +13,19 @@ use core::panic::RefUnwindSafe;
 use core::panic::UnwindSafe;
 use core::ptr;
 
+#[derive(Clone, Copy)]
+pub struct Idx(NonZeroU32);
+
 pub struct Buf<T> {
   ptr: *const T,
   cap: u32,
   len: u32,
 }
 
-#[derive(Clone, Copy)]
-pub struct Idx(NonZeroU32);
-
 unsafe impl<T: Send> Send for Buf<T> {
 }
 
 unsafe impl<T: Sync> Sync for Buf<T> {
-}
-
-impl <T: UnwindSafe> UnwindSafe for Buf<T> {
-}
-
-impl <T: RefUnwindSafe> RefUnwindSafe for Buf<T> {
-}
-
-impl <T: Unpin> Unpin for Buf<T> {
 }
 
 impl<T> Buf<T> {
@@ -52,6 +43,7 @@ impl<T> Buf<T> {
     unimplemented!()
   }
 
+  #[inline(always)]
   pub fn put(&mut self, value: T) -> Idx {
     let p = self.ptr as *mut T;
     let c = self.cap;
@@ -71,6 +63,7 @@ impl<T> Buf<T> {
     return Idx(unsafe { NonZeroU32::new_unchecked(n + 1) });
   }
 
+  #[inline(always)]
   pub fn pop(&mut self) -> T {
     let p = self.ptr;
     let n = self.len;
@@ -90,11 +83,7 @@ impl<T> Buf<T> {
 
     self.len = n - k;
 
-    return PopMulti {
-      ptr: p.wrapping_add((n - k) as usize),
-      len: k,
-      _phantom_data: PhantomData,
-    };
+    return PopMulti { ptr: p.wrapping_add((n - k) as usize), len: k, _phantom_data: PhantomData };
   }
 
   pub fn reset(&mut self) {
