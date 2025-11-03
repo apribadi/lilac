@@ -1,7 +1,5 @@
 extern crate alloc;
 
-use alloc::alloc::alloc;
-use alloc::alloc::dealloc;
 use alloc::alloc::handle_alloc_error;
 use core::alloc::Layout;
 use core::iter::FusedIterator;
@@ -50,35 +48,35 @@ impl<T> Buf<T> {
   fn grow(old_p: ptr, old_c: u32) -> (ptr, u32) {
     assert!(size_of::<T>() != 0);
 
-    unimplemented!()
-    /*
-
-    // TODO: check max capacity
+    // TODO: check max capacity!!!
 
     if old_c == 0 {
       let new_c = 16;
-      let new_s = new_c as usize * size_of::<T>();
+      let new_s = size_of::<T>() * new_c as usize;
       let new_l = unsafe { Layout::from_size_align_unchecked(new_s, align_of::<T>()) };
-      let new_p = unsafe { alloc(new_l) } as *mut T;
+      let new_p = unsafe { pop::alloc(new_l) };
+
       if new_p.is_null() {
-        match handle_alloc_error(new_l) { /* ! */ }
+        match handle_alloc_error(new_l) {
+        }
       }
+
       return (new_p, new_c);
     } else {
-      let old_s = old_c as usize * size_of::<T>();
+      let old_s = size_of::<T>() * old_c as usize;
       let old_l = unsafe { Layout::from_size_align_unchecked(old_s, align_of::<T>()) };
       let new_c = old_c * 2;
       let new_s = new_c as usize * size_of::<T>();
       let new_l = unsafe { Layout::from_size_align_unchecked(new_s, align_of::<T>()) };
-      let new_p = unsafe { alloc(new_l) } as *mut T;
+      let new_p = unsafe { pop::realloc(old_p, old_l, new_s) };
+
       if new_p.is_null () {
-        match handle_alloc_error(new_l) { /* ! */ }
+        match handle_alloc_error(new_l) {
+        }
       }
-      unsafe { ptr::copy_nonoverlapping(old_p, new_p, old_c as usize) };
-      unsafe { dealloc(old_p as *mut u8, old_l) };
+
       return (new_p, new_c);
     }
-  */
   }
 
   #[inline(always)]
