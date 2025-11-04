@@ -1,25 +1,22 @@
 extern crate alloc;
 
+use alloc::alloc::alloc;
+use alloc::alloc::dealloc;
 use alloc::alloc::handle_alloc_error;
+use alloc::alloc::realloc;
 use core::alloc::Layout;
 use core::iter::FusedIterator;
 use core::marker::PhantomData;
 use core::mem::needs_drop;
 use core::ops::Index;
 use core::ops::IndexMut;
-use pop::ptr;
+use pop::v2::ptr;
 
 pub struct Buf<T> {
-  ptr: ptr,
+  ptr: ptr<T>,
   cap: u32,
   len: u32,
   _phantom_data: PhantomData<T>,
-}
-
-unsafe impl<T: Send> Send for Buf<T> {
-}
-
-unsafe impl<T: Sync> Sync for Buf<T> {
 }
 
 #[inline(always)]
@@ -35,7 +32,7 @@ fn increment_size_class(n: usize) -> usize {
 impl<T> Buf<T> {
   pub const fn new() -> Self {
     return Self {
-      ptr: ptr::NULL,
+      ptr: ptr::null(),
       cap: if size_of::<T>() == 0 { u32::MAX } else { 0 },
       len: 0,
       _phantom_data: PhantomData,
@@ -54,7 +51,7 @@ impl<T> Buf<T> {
 
   #[inline(never)]
   #[cold]
-  fn grow(old_p: ptr, old_c: u32) -> (ptr, u32) {
+  fn grow(old_p: ptr<T>, old_c: u32) -> (ptr<T>, u32) {
     assert!(size_of::<T>() != 0);
 
     let max_c =
@@ -69,7 +66,7 @@ impl<T> Buf<T> {
 
       let new_s = size_of::<T>() * new_c;
       let new_l = unsafe { Layout::from_size_align_unchecked(new_s, align_of::<T>()) };
-      let new_p = unsafe { pop::alloc(new_l) };
+      let new_p = unsafe { ptr::from(alloc(new_l)).cast() };
 
       if new_p.is_null() {
         match handle_alloc_error(new_l) {
@@ -86,7 +83,7 @@ impl<T> Buf<T> {
 
       let new_s = new_c * size_of::<T>();
       let new_l = unsafe { Layout::from_size_align_unchecked(new_s, align_of::<T>()) };
-      let new_p = unsafe { pop::realloc(old_p, old_l, new_s) };
+      let new_p = unsafe { ptr::from(realloc(old_p.cast().as_mut_ptr(), old_l, new_s)).cast() };
 
       if new_p.is_null () {
         match handle_alloc_error(new_l) {
@@ -107,9 +104,9 @@ impl<T> Buf<T> {
       let (p, c) = Self::grow(p, c);
       self.ptr = p;
       self.cap = c;
-      unsafe { (p + size_of::<T>() * n as usize).write(value) };
+      unsafe { (p + n as usize).write(value) };
     } else {
-      unsafe { (p + size_of::<T>() * n as usize).write(value) };
+      unsafe { (p + n as usize).write(value) };
     }
 
     self.len = n + 1;
@@ -124,7 +121,7 @@ impl<T> Buf<T> {
 
     self.len = n - 1;
 
-    return unsafe { (p + size_of::<T>() * (n as usize - 1)).read::<T>() };
+    return unsafe { (p + (n - 1) as usize).read() };
   }
 
   pub fn pop_list(&mut self, k: u32) -> PopList<'_, T> {
@@ -135,9 +132,7 @@ impl<T> Buf<T> {
 
     self.len = n - k;
 
-    let p = p + size_of::<T>() * (n - k) as usize;
-
-    return PopList { ptr: p, len: k, _phantom_data: PhantomData };
+    return PopList { ptr: p + (n - k) as usize, len: k, _phantom_data: PhantomData };
   }
 
   #[inline(always)]
@@ -147,7 +142,7 @@ impl<T> Buf<T> {
 
     assert!(n != 0);
 
-    return unsafe { (p + size_of::<T>() * (n as usize - 1)).as_ref::<T>() };
+    return unsafe { (p + (n - 1) as usize).as_ref() };
   }
 
   #[inline(always)]
@@ -157,7 +152,7 @@ impl<T> Buf<T> {
 
     assert!(n != 0);
 
-    return unsafe { (p + size_of::<T>() * (n as usize - 1)).as_mut_ref::<T>() };
+    return unsafe { (p + (n - 1) as usize).as_mut_ref() };
   }
 
   pub fn reset(&mut self) {
@@ -165,7 +160,7 @@ impl<T> Buf<T> {
     let c = self.cap;
     let n = self.len;
 
-    self.ptr = ptr::NULL;
+    self.ptr = ptr::null();
     self.cap = if size_of::<T>() == 0 { u32::MAX } else { 0 };
     self.len = 0;
 
@@ -173,8 +168,8 @@ impl<T> Buf<T> {
       let mut a = p;
       let mut n = n;
       while n > 0 {
-        unsafe { a.drop_in_place::<T>() };
-        a = a + size_of::<T>();
+        unsafe { a.drop_in_place() };
+        a = a + 1usize;
         n = n - 1;
       }
     }
@@ -182,7 +177,7 @@ impl<T> Buf<T> {
     if size_of::<T>() != 0 && c != 0 {
       let size = size_of::<T>() * c as usize;
       let layout = unsafe { Layout::from_size_align_unchecked(size, align_of::<T>()) };
-      unsafe { pop::dealloc(p, layout) };
+      unsafe { dealloc(p.cast().as_mut_ptr(), layout) };
     }
   }
 
@@ -207,7 +202,7 @@ impl<T> Index<u32> for Buf<T> {
 
     assert!(index < n);
 
-    return unsafe { (p + size_of::<T>() * index as usize).as_ref::<T>() }
+    return unsafe { (p + index as usize).as_ref() }
   }
 }
 
@@ -219,18 +214,18 @@ impl<T> IndexMut<u32> for Buf<T> {
 
     assert!(index < n);
 
-    return unsafe { (p + size_of::<T>() * index as usize).as_mut_ref::<T>() }
+    return unsafe { (p + index as usize).as_mut_ref() }
   }
 }
 
 pub struct Iter<'a, T> {
-  ptr: ptr,
+  ptr: ptr<T>,
   len: u32,
   _phantom_data: PhantomData<&'a T>,
 }
 
 pub struct PopList<'a, T> {
-  ptr: ptr,
+  ptr: ptr<T>,
   len: u32,
   _phantom_data: PhantomData<&'a mut T>,
 }
@@ -256,10 +251,10 @@ impl<'a, T> Iterator for Iter<'a, T> {
       return None;
     }
 
-    self.ptr = p + size_of::<T>();
+    self.ptr = p + 1usize;
     self.len = n - 1;
 
-    return Some(unsafe { p.as_ref::<T>() });
+    return Some(unsafe { p.as_ref() });
   }
 
   #[inline(always)]
@@ -282,11 +277,10 @@ impl<'a, T> Iterator for PopList<'a, T> {
       return None;
     }
 
-    self.ptr = p + size_of::<T>();
+    self.ptr = p + 1usize;
     self.len = n - 1;
 
-    return Some(unsafe { p.read::<T>() });
-
+    return Some(unsafe { p.read() });
   }
 
   #[inline(always)]
