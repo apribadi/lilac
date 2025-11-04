@@ -166,6 +166,10 @@ impl<T> Buf<T> {
       unsafe { pop::dealloc(p, layout) };
     }
   }
+
+  pub fn iter(&self) -> Iter<'_, T> {
+    return Iter { ptr: self.ptr, len: self.len, _phantom_data: PhantomData };
+  }
 }
 
 impl<T> Drop for Buf<T> {
@@ -202,6 +206,12 @@ impl<T> IndexMut<Idx> for Buf<T> {
   }
 }
 
+pub struct Iter<'a, T> {
+  ptr: ptr,
+  len: u32,
+  _phantom_data: PhantomData<&'a T>,
+}
+
 pub struct PopList<'a, T> {
   ptr: ptr,
   len: u32,
@@ -211,14 +221,35 @@ pub struct PopList<'a, T> {
 impl<'a, T> Drop for PopList<'a, T> {
   fn drop(&mut self) {
     if needs_drop::<T>() {
-      let mut a = self.ptr;
-      let mut n = self.len;
-      while n > 0 {
-        unsafe { a.drop_in_place::<T>() };
-        a = a + size_of::<T>();
-        n = n - 1;
+      for _ in self {
       }
     }
+  }
+}
+
+impl<'a, T> Iterator for Iter<'a, T> {
+  type Item = &'a T;
+
+  #[inline(always)]
+  fn next(&mut self) -> Option<&'a T> {
+    let p = self.ptr;
+    let n = self.len;
+
+    if n == 0 {
+      return None;
+    }
+
+    self.ptr = p + size_of::<T>();
+    self.len = n - 1;
+
+    return Some(unsafe { p.as_ref::<T>() });
+  }
+
+  #[inline(always)]
+  fn size_hint(&self) -> (usize, Option<usize>) {
+    let n = self.len;
+
+    return (n as usize, Some(n as usize));
   }
 }
 
@@ -234,12 +265,11 @@ impl<'a, T> Iterator for PopList<'a, T> {
       return None;
     }
 
-    let value = unsafe { p.read::<T>() };
-
     self.ptr = p + size_of::<T>();
     self.len = n - 1;
 
-    return Some(value);
+    return Some(unsafe { p.read::<T>() });
+
   }
 
   #[inline(always)]

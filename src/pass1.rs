@@ -16,7 +16,7 @@ pub fn compile<'a>(source: &[u8], arena: &mut Arena<'a>) -> Vec<Inst> {
   let mut e = Env::new();
   let mut o = Out::new();
 
-  for Item::Fundef(f) in item_list {
+  for Item::Fundef(f) in item_list.iter() {
     let _ = o.emit(Inst::Entry(f.args.len() as u32));
 
     for x in f.args {

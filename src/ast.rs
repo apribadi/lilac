@@ -1,3 +1,4 @@
+use crate::buf::Buf;
 use crate::lexer::Lexer;
 use crate::ir1::Op1;
 use crate::ir1::Op2;
@@ -56,7 +57,7 @@ pub enum Stmt<'a> {
   While(Expr<'a>, &'a [Stmt<'a>]),
 }
 
-pub fn parse<'a>(source: &[u8], arena: &mut Arena<'a>) -> Vec<Item<'a>> {
+pub fn parse<'a>(source: &[u8], arena: &mut Arena<'a>) -> Buf<Item<'a>> {
   let mut e = ToAst::new(arena);
   parse::parse(&mut Lexer::new(source), &mut e);
   return e.items;
@@ -64,20 +65,20 @@ pub fn parse<'a>(source: &[u8], arena: &mut Arena<'a>) -> Vec<Item<'a>> {
 
 struct ToAst<'a, 'b> {
   arena: &'b mut Arena<'a>,
-  items: Vec<Item<'a>>,
-  binds: Vec<Bind>,
-  exprs: Vec<Expr<'a>>,
-  stmts: Vec<Stmt<'a>>,
+  items: Buf<Item<'a>>,
+  binds: Buf<Bind>,
+  exprs: Buf<Expr<'a>>,
+  stmts: Buf<Stmt<'a>>,
 }
 
 impl<'a, 'b> ToAst<'a, 'b> {
   fn new(arena: &'b mut Arena<'a>) -> Self {
     Self {
       arena,
-      items: Vec::new(),
-      binds: Vec::new(),
-      exprs: Vec::new(),
-      stmts: Vec::new(),
+      items: Buf::new(),
+      binds: Buf::new(),
+      exprs: Buf::new(),
+      stmts: Buf::new(),
     }
   }
 
@@ -86,38 +87,35 @@ impl<'a, 'b> ToAst<'a, 'b> {
   }
 
   fn put_item(&mut self, x: Item<'a>) {
-    self.items.push(x);
+    let _ = self.items.put(x);
   }
 
   fn put_bind(&mut self, x: Bind) {
-    self.binds.push(x);
+    let _ = self.binds.put(x);
   }
 
   fn pop_bind_list(&mut self, n: usize) -> &'a [Bind] {
-    let x = self.binds.drain(self.binds.len() - n ..);
-    return self.arena.slice_from_iter(x);
+    return self.arena.slice_from_iter(self.binds.pop_list(n as u32));
   }
 
   fn put_expr(&mut self, x: Expr<'a>) {
-    self.exprs.push(x);
+    let _ = self.exprs.put(x);
   }
 
   fn pop_expr(&mut self) -> Expr<'a> {
-    return self.exprs.pop().unwrap();
+    return self.exprs.pop();
   }
 
   fn pop_expr_list(&mut self, n: usize) -> &'a [Expr<'a>] {
-    let x = self.exprs.drain(self.exprs.len() - n ..);
-    return self.arena.slice_from_iter(x);
+    return self.arena.slice_from_iter(self.exprs.pop_list(n as u32));
   }
 
   fn put_stmt(&mut self, x: Stmt<'a>) {
-    self.stmts.push(x);
+    let _ = self.stmts.put(x);
   }
 
   fn pop_stmt_list(&mut self, n: usize) -> &'a [Stmt<'a>] {
-    let x = self.stmts.drain(self.stmts.len() - n ..);
-    return self.arena.slice_from_iter(x);
+    return self.arena.slice_from_iter(self.stmts.pop_list(n as u32));
   }
 }
 
