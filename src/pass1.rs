@@ -182,10 +182,9 @@ impl Out {
     return Point { index: i, arity };
   }
 
-  fn emit_label(&mut self, arity: usize, ps: impl IntoIterator<Item = Point>) -> Label {
-    let n = arity as u32;
-    let a = self.emit(Inst::Label(n));
-    let a = Label { index: a, arity: n};
+  fn emit_label(&mut self, arity: u32, ps: impl IntoIterator<Item = Point>) -> Label {
+    let a = self.emit(Inst::Label(arity));
+    let a = Label { index: a, arity };
     patch_point_list(a, ps, self);
     return a;
   }
@@ -245,7 +244,7 @@ impl What {
     }
   }
 
-  fn into_value_list(self, arity: usize, e: &mut Env, o: &mut Out) {
+  fn into_value_list(self, arity: u32, e: &mut Env, o: &mut Out) {
     match self {
       What::NumPoints(n_points) => {
         let _ = o.emit_label(arity, e.points.pop_list(n_points));
@@ -255,11 +254,11 @@ impl What {
         }
       }
       What::NumValues(n_values) => {
-        if arity as u32 != n_values {
+        if arity != n_values {
           // error, arity mismatch
           let _ = e.values.pop_list(n_values);
           let _ = o.emit(Inst::GotoStaticError);
-          let _ = o.emit(Inst::Label(arity as u32));
+          let _ = o.emit(Inst::Label(arity));
           for _ in 0 .. arity {
             let x = o.emit(Inst::Pop);
             e.values.put(x);
@@ -567,7 +566,7 @@ fn compile_stmt<'a>(x: Stmt<'a>, e: &mut Env, o: &mut Out) -> What {
       let n = xs.len() as u32;
       // NB: we do the bindings from left to right, so later bindings shadow
       // earlier ones.
-      compile_expr_list(ys, e, o).into_value_list(xs.len(), e, o);
+      compile_expr_list(ys, e, o).into_value_list(n, e, o);
       for (&x, y) in zip(xs, e.values.pop_list(n)) {
         if let Some(x) = x.name {
           put_referent(x, Referent::Let(y), &mut e.scopes);
