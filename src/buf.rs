@@ -26,6 +26,16 @@ unsafe impl<T: Send> Send for Buf<T> {
 unsafe impl<T: Sync> Sync for Buf<T> {
 }
 
+#[inline(always)]
+fn increment_size_class(n: usize) -> usize {
+  debug_assert!(2 <= n && n <= isize::MAX as usize);
+  let m = 2 * n - 1;
+  let k = usize::BITS - 1 - m.leading_zeros();
+  let a = 1 << k;
+  let b = a >> 1;
+  return a | b & m;
+}
+
 impl<T> Buf<T> {
   pub const fn new() -> Self {
     return Self {
@@ -41,18 +51,22 @@ impl<T> Buf<T> {
     return self.len;
   }
 
-  // const MAX_CAP: u32 = isize::MAX as usize / size_of::<T>();
-
   #[inline(never)]
   #[cold]
   fn grow(old_p: ptr, old_c: u32) -> (ptr, u32) {
     assert!(size_of::<T>() != 0);
 
-    // TODO: check max capacity!!!
+    let max_c =
+      usize::min(
+        u32::MAX as usize,
+        isize::MAX as usize / size_of::<T>());
 
     if old_c == 0 {
       let new_c = 16;
-      let new_s = size_of::<T>() * new_c as usize;
+
+      assert!(new_c <= max_c);
+
+      let new_s = size_of::<T>() * new_c;
       let new_l = unsafe { Layout::from_size_align_unchecked(new_s, align_of::<T>()) };
       let new_p = unsafe { pop::alloc(new_l) };
 
@@ -61,12 +75,15 @@ impl<T> Buf<T> {
         }
       }
 
-      return (new_p, new_c);
+      return (new_p, new_c as u32);
     } else {
       let old_s = size_of::<T>() * old_c as usize;
       let old_l = unsafe { Layout::from_size_align_unchecked(old_s, align_of::<T>()) };
-      let new_c = old_c * 2;
-      let new_s = new_c as usize * size_of::<T>();
+      let new_c = increment_size_class(old_s) / size_of::<T>();
+
+      assert!(new_c <= max_c);
+
+      let new_s = new_c * size_of::<T>();
       let new_l = unsafe { Layout::from_size_align_unchecked(new_s, align_of::<T>()) };
       let new_p = unsafe { pop::realloc(old_p, old_l, new_s) };
 
@@ -75,7 +92,7 @@ impl<T> Buf<T> {
         }
       }
 
-      return (new_p, new_c);
+      return (new_p, new_c as u32);
     }
   }
 
@@ -233,12 +250,12 @@ impl<'a, T> Iterator for PopMulti<'a, T> {
   }
 }
 
-impl<'a, T> FusedIterator for PopMulti<'a, T> {
-}
-
 impl<'a, T> ExactSizeIterator for PopMulti<'a, T> {
   #[inline(always)]
   fn len(&self) -> usize {
     return self.len as usize;
   }
+}
+
+impl<'a, T> FusedIterator for PopMulti<'a, T> {
 }
