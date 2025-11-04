@@ -1,9 +1,5 @@
 extern crate alloc;
 
-use alloc::alloc::alloc;
-use alloc::alloc::dealloc;
-use alloc::alloc::handle_alloc_error;
-use alloc::alloc::realloc;
 use core::alloc::Layout;
 use core::iter::FusedIterator;
 use core::marker::PhantomData;
@@ -166,7 +162,7 @@ impl<T> Buf<T> {
     if size_of::<T>() != 0 && c != 0 {
       let size = size_of::<T>() * c as usize;
       let layout = unsafe { Layout::from_size_align_unchecked(size, align_of::<T>()) };
-      unsafe { dealloc(p.cast().as_mut_ptr(), layout) };
+      unsafe { pop::dealloc(p.cast(), layout) };
     }
   }
 
