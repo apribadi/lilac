@@ -4,6 +4,8 @@ pub mod infer;
 pub mod ir1;
 pub mod lexer;
 pub mod parse;
+pub mod parse_ast;
+pub mod parse_sexp;
 pub mod pass1;
 pub mod sexp;
 pub mod symbol;

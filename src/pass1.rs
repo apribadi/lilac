@@ -1,7 +1,7 @@
 use crate::ast::Expr;
 use crate::ast::Item;
 use crate::ast::Stmt;
-use crate::ast::parse;
+use crate::parse_ast::parse;
 use crate::buf::Buf;
 use crate::ir1::Inst;
 use crate::symbol::Symbol;

@@ -1,6 +1,6 @@
 #[allow(dead_code)]
 fn parse(source: &str) {
-  let mut buf = lilac::parse::parse_sexp(source.as_bytes());
+  let mut buf = lilac::parse_sexp::parse(source.as_bytes());
   for f in buf.pop_list(buf.len()) {
     print!("{}\n", f);
   }

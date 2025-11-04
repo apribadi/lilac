@@ -4,12 +4,12 @@ pub enum Sexp {
 }
 
 impl Sexp {
-  pub fn from_bytes(x: &[u8]) -> Self {
-    Self::Atom(Box::from(x))
+  pub fn atom(x: impl AsRef<[u8]>) -> Self {
+    Self::Atom(Box::from(x.as_ref()))
   }
 
-  pub fn from_array<const N: usize>(x: [Self; N]) -> Self {
-    Self::List(Box::from(x))
+  pub fn list(x: impl IntoIterator<IntoIter: ExactSizeIterator<Item = Self>>) -> Self {
+    Self::List(x.into_iter().collect())
   }
 }
 
