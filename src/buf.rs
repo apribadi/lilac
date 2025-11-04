@@ -43,6 +43,11 @@ impl<T> Buf<T> {
   }
 
   #[inline(always)]
+  pub fn is_empty(&self) -> bool {
+    return self.len == 0;
+  }
+
+  #[inline(always)]
   pub fn len(&self) -> u32 {
     return self.len;
   }
@@ -133,6 +138,26 @@ impl<T> Buf<T> {
     let p = p + size_of::<T>() * (n - k) as usize;
 
     return PopList { ptr: p, len: k, _phantom_data: PhantomData };
+  }
+
+  #[inline(always)]
+  pub fn last(&self) -> &T {
+    let p = self.ptr;
+    let n = self.len;
+
+    assert!(n != 0);
+
+    return unsafe { (p + size_of::<T>() * (n as usize - 1)).as_ref::<T>() };
+  }
+
+  #[inline(always)]
+  pub fn last_mut(&mut self) -> &mut T {
+    let p = self.ptr;
+    let n = self.len;
+
+    assert!(n != 0);
+
+    return unsafe { (p + size_of::<T>() * (n as usize - 1)).as_mut_ref::<T>() };
   }
 
   pub fn reset(&mut self) {

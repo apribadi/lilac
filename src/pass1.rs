@@ -89,17 +89,17 @@ impl Scopes {
 }
 
 struct Loops {
-  labels: Vec<Label>,
-  break_counts: Vec<Option<usize>>,
-  break_points: Vec<Point>,
+  labels: Buf<Label>,
+  break_counts: Buf<Option<u32>>,
+  break_points: Buf<Point>,
 }
 
 impl Loops {
   fn new() -> Self {
     Self {
-      labels: Vec::new(),
-      break_counts: Vec::new(),
-      break_points: Vec::new(),
+      labels: Buf::new(),
+      break_counts: Buf::new(),
+      break_points: Buf::new(),
     }
   }
 }
@@ -125,27 +125,27 @@ fn get_referent(s: Symbol, t: &Scopes) -> Option<&Referent> {
 }
 
 fn put_loop(a: Label, t: &mut Loops) {
-  t.labels.push(a);
-  t.break_counts.push(Some(0));
+  t.labels.put(a);
+  t.break_counts.put(Some(0));
 }
 
 fn pop_loop(t: &mut Loops, points: &mut Buf<Point>) -> u32 {
-  let _ = t.labels.pop().unwrap();
-  let n = t.break_counts.pop().unwrap().unwrap();
-  for i in pop_list(n, &mut t.break_points) {
+  let _ = t.labels.pop();
+  let n = t.break_counts.pop().unwrap();
+  for i in t.break_points.pop_list(n) {
     points.put(i);
   }
-  return n as u32;
+  return n;
 }
 
 fn put_loop_tail(a: Label, t: &mut Loops) {
-  t.labels.push(a);
-  t.break_counts.push(None);
+  t.labels.put(a);
+  t.break_counts.put(None);
 }
 
 fn pop_loop_tail(t: &mut Loops) {
-  let _ = t.labels.pop().unwrap();
-  let _ = t.break_counts.pop().unwrap();
+  let _ = t.labels.pop();
+  let _ = t.break_counts.pop();
 }
 
 fn put_scope(t: &mut Scopes) {
@@ -166,8 +166,8 @@ fn pop_scope(t: &mut Scopes) {
 }
 
 fn put_break(i: Point, t: &mut Loops) {
-  let n = t.break_counts.last_mut().unwrap().as_mut().unwrap();
-  t.break_points.push(i);
+  let n = t.break_counts.last_mut().as_mut().unwrap();
+  t.break_points.put(i);
   *n += 1;
 }
 
@@ -541,16 +541,15 @@ fn compile_stmt<'a>(x: Stmt<'a>, e: &mut Env, o: &mut Out) -> What {
       return compile_expr_list(xs, e, o);
     }
     Stmt::Break(xs) => {
-      match e.loops.break_counts.last() {
-        None => {
-          // error, break is not inside loop
-          let _ = o.emit(Inst::GotoStaticError);
-        }
-        Some(None) => {
+      if e.loops.break_counts.is_empty() {
+        // error, break is not inside loop
+        let _ = o.emit(Inst::GotoStaticError);
+      } else {
+        let break_count: &Option<u32> = e.loops.break_counts.last();
+        if break_count.is_none() {
           // loop is in tail position
           compile_expr_list_tail(xs, e, o);
-        }
-        Some(Some(_)) => {
+        } else {
           // loop is in non-tail position
           let n = compile_expr_list(xs, e, o).into_point_list(e, o);
           for i in e.points.pop_list(n) {
@@ -561,15 +560,13 @@ fn compile_stmt<'a>(x: Stmt<'a>, e: &mut Env, o: &mut Out) -> What {
       return What::NEVER;
     }
     Stmt::Continue => {
-      match e.loops.labels.last() {
-        None => {
-          // error, break is not inside loop
-          let _ = o.emit(Inst::GotoStaticError);
-        }
-        Some(a) => {
-          // NB: all loop headers have arity zero
-          let _ = o.emit(Inst::Goto(a.index));
-        }
+      if e.loops.labels.is_empty() {
+        // error, break is not inside loop
+        let _ = o.emit(Inst::GotoStaticError);
+      } else {
+        let a = e.loops.labels.last();
+        // NB: all loop headers have arity zero
+        let _ = o.emit(Inst::Goto(a.index));
       }
       return What::NEVER;
     }
