@@ -63,7 +63,6 @@ fn main() {
     }
   ");
 
-  /*
   compile("
     fun foo(x, y) {
       let a = x + y
@@ -120,7 +119,6 @@ fn main() {
       let _ = f(x + y)
       let _ = f(x - y)
     }");
-  */
 
   compile("fun foo() { loop { break 1 } }");
   compile("fun foo() { loop { continue } }");
