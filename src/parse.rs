@@ -584,8 +584,8 @@ impl Out for ToSexp {
   }
 
   fn on_call(&mut self, arity: u32) {
-    let x = self.pop_list(1 + arity).collect();
-    self.put(Sexp::List(x));
+    let x = Sexp::List(self.pop_list(1 + arity).collect());
+    self.put(x);
   }
 
   fn on_loop(&mut self, n_stmts: u32) {
@@ -600,10 +600,9 @@ impl Out for ToSexp {
   }
 
   fn on_break(&mut self, arity: u32) {
-    let mut r = Vec::new();
-    r.push(Sexp::from_bytes(b"break"));
-    r.extend(self.pop_list(arity));
-    self.put(Sexp::List(r.into_boxed_slice()));
+    let x = Sexp::from_bytes(b"break");
+    let y = Sexp::List(self.pop_list(arity).collect());
+    self.put(Sexp::from_array([x, y]));
   }
 
   fn on_continue(&mut self) {
@@ -617,10 +616,9 @@ impl Out for ToSexp {
   }
 
   fn on_return(&mut self, arity: u32) {
-    let mut r = Vec::new();
-    r.push(Sexp::from_bytes(b"return"));
-    r.extend(self.pop_list(arity));
-    self.put(Sexp::List(r.into_boxed_slice()));
+    let x = Sexp::from_bytes(b"return");
+    let y = Sexp::List(self.pop_list(arity).collect());
+    self.put(Sexp::from_array([x, y]));
   }
 
   fn on_set(&mut self, symbol: &[u8]) {
