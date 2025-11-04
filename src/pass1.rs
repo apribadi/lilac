@@ -2,6 +2,7 @@ use crate::ast::Expr;
 use crate::ast::Item;
 use crate::ast::Stmt;
 use crate::ast::parse;
+use crate::buf::Buf;
 use crate::ir1::Inst;
 use crate::symbol::Symbol;
 use oxcart::Arena;
@@ -29,7 +30,7 @@ pub fn compile<'a>(source: &[u8], arena: &mut Arena<'a>) -> Vec<Inst> {
     compile_block_tail(f.body, &mut e, &mut o);
   }
 
-  return o.0;
+  return o.0.iter().map(|inst| *inst).collect::<Vec<_>>();
 }
 
 enum What {
@@ -174,18 +175,15 @@ fn put_break(i: Point, t: &mut Loops) {
   *n += 1;
 }
 
-struct Out(Vec<Inst>);
+struct Out(Buf<Inst>);
 
 impl Out {
   fn new() -> Self {
-    Self(Vec::new())
+    Self(Buf::new())
   }
 
   fn emit(&mut self, inst: Inst) -> u32 {
-    let n = self.0.len();
-    assert!(n < u32::MAX as usize);
-    self.0.push(inst);
-    return n as u32;
+    return self.0.put(inst);
   }
 
   fn emit_point(&mut self, arity: Option<usize>) -> Point {
@@ -207,9 +205,9 @@ fn patch_point_list(a: Label, ps: impl IntoIterator<Item = Point>, o: &mut Out) 
   for i in ps {
     if let Some(n) = i.arity && n != a.arity {
       // error, arity mismatch
-      o.0[i.index as usize] = Inst::GotoStaticError;
+      o.0[i.index] = Inst::GotoStaticError;
     } else {
-      o.0[i.index as usize] = Inst::Goto(a.index);
+      o.0[i.index] = Inst::Goto(a.index);
     }
   }
 }

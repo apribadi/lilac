@@ -5,13 +5,9 @@ use core::alloc::Layout;
 use core::iter::FusedIterator;
 use core::marker::PhantomData;
 use core::mem::needs_drop;
-use core::num::NonZeroU32;
 use core::ops::Index;
 use core::ops::IndexMut;
 use pop::ptr;
-
-#[derive(Clone, Copy)]
-pub struct Idx(NonZeroU32);
 
 pub struct Buf<T> {
   ptr: ptr,
@@ -97,7 +93,7 @@ impl<T> Buf<T> {
   }
 
   #[inline(always)]
-  pub fn put(&mut self, value: T) -> Idx {
+  pub fn put(&mut self, value: T) -> u32 {
     let p = self.ptr;
     let c = self.cap;
     let n = self.len;
@@ -113,7 +109,7 @@ impl<T> Buf<T> {
 
     self.len = n + 1;
 
-    return Idx(unsafe { NonZeroU32::new_unchecked(n + 1) });
+    return n;
   }
 
   #[inline(always)]
@@ -178,31 +174,29 @@ impl<T> Drop for Buf<T> {
   }
 }
 
-impl<T> Index<Idx> for Buf<T> {
+impl<T> Index<u32> for Buf<T> {
   type Output = T;
 
   #[inline(always)]
-  fn index(&self, index: Idx) -> &Self::Output {
+  fn index(&self, index: u32) -> &Self::Output {
     let p = self.ptr;
     let n = self.len;
-    let i = index.0.get();
 
-    assert!(i <= n);
+    assert!(index < n);
 
-    return unsafe { (p + size_of::<T>() * (i - 1) as usize).as_ref::<T>() }
+    return unsafe { (p + size_of::<T>() * index as usize).as_ref::<T>() }
   }
 }
 
-impl<T> IndexMut<Idx> for Buf<T> {
+impl<T> IndexMut<u32> for Buf<T> {
   #[inline(always)]
-  fn index_mut(&mut self, index: Idx) -> &mut Self::Output {
+  fn index_mut(&mut self, index: u32) -> &mut Self::Output {
     let p = self.ptr;
     let n = self.len;
-    let i = index.0.get();
 
-    assert!(i <= n);
+    assert!(index < n);
 
-    return unsafe { (p + size_of::<T>() * (i - 1) as usize).as_mut_ref::<T>() }
+    return unsafe { (p + size_of::<T>() * index as usize).as_mut_ref::<T>() }
   }
 }
 
