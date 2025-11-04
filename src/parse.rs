@@ -8,7 +8,7 @@ use crate::buf::Buf;
 pub trait Out {
   // TODO: sort trait members
 
-  fn on_fundef(&mut self, name: &[u8], n_args: usize, n_stmts: usize);
+  fn on_fundef(&mut self, name: &[u8], n_args: u32, n_stmts: u32);
 
   // TODO: optional type for binding
   fn on_bind(&mut self, name: Option<&[u8]>);
@@ -33,23 +33,23 @@ pub trait Out {
 
   fn on_index(&mut self);
 
-  fn on_if(&mut self, n_stmts: usize);
+  fn on_if(&mut self, n_stmts: u32);
 
-  fn on_if_else(&mut self, n_stmts_then: usize, n_stmts_else: usize);
+  fn on_if_else(&mut self, n_stmts_then: u32, n_stmts_else: u32);
 
-  fn on_call(&mut self, arity: usize);
+  fn on_call(&mut self, arity: u32);
 
-  fn on_loop(&mut self, n_stmts: usize);
+  fn on_loop(&mut self, n_stmts: u32);
 
-  fn on_stmt_expr_list(&mut self, n_exprs: usize);
+  fn on_stmt_expr_list(&mut self, n_exprs: u32);
 
-  fn on_break(&mut self, arity: usize);
+  fn on_break(&mut self, arity: u32);
 
   fn on_continue(&mut self);
 
-  fn on_let(&mut self, n_binds: usize, n_exprs: usize);
+  fn on_let(&mut self, n_binds: u32, n_exprs: u32);
 
-  fn on_return(&mut self, arity: usize);
+  fn on_return(&mut self, arity: u32);
 
   fn on_set(&mut self, symbol: &[u8]);
 
@@ -59,7 +59,7 @@ pub trait Out {
 
   fn on_var(&mut self, symbol: &[u8]);
 
-  fn on_while(&mut self, n_stmts: usize);
+  fn on_while(&mut self, n_stmts: u32);
 
   fn on_error_missing_expected_token(&mut self, token: Token);
 
@@ -127,7 +127,7 @@ fn parse_bind<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O) {
   }
 }
 
-fn parse_bind_list<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O, stop: Token) -> usize {
+fn parse_bind_list<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O, stop: Token) -> u32 {
   let mut n_binds = 0;
   if t.token() != stop {
     loop {
@@ -144,7 +144,7 @@ fn parse_expr<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O) {
   parse_expr_prec(t, o, 0x00);
 }
 
-fn parse_expr_list<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O, stop: Token) -> usize {
+fn parse_expr_list<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O, stop: Token) -> u32 {
   let mut n_exprs = 0;
   if t.token() != stop {
     loop {
@@ -157,11 +157,11 @@ fn parse_expr_list<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O, stop: Token) -> usi
   return n_exprs;
 }
 
-fn parse_expr_prec<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O, n: usize) {
+fn parse_expr_prec<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O, n: u32) {
   let _: bool = parse_prec(t, o, n, false);
 }
 
-fn parse_prec<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O, n: usize, is_stmt: bool) -> bool {
+fn parse_prec<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O, n: u32, is_stmt: bool) -> bool {
   match t.token() {
     Token::LParen => {
       t.next();
@@ -362,7 +362,7 @@ fn parse_prec<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O, n: usize, is_stmt: bool)
   }
 }
 
-fn parse_block<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O) -> usize {
+fn parse_block<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O) -> u32 {
   expect(t, o, Token::LBrace);
 
   let mut n_stmts = 0;
@@ -485,13 +485,13 @@ impl ToSexp {
     return self.0.pop();
   }
 
-  fn pop_list(&mut self, n: usize) -> impl Iterator<Item = Sexp> {
-    return self.0.pop_list(n as u32);
+  fn pop_list(&mut self, n: u32) -> impl Iterator<Item = Sexp> {
+    return self.0.pop_list(n);
   }
 }
 
 impl Out for ToSexp {
-  fn on_fundef(&mut self, name: &[u8], n_args: usize, n_stmts: usize) {
+  fn on_fundef(&mut self, name: &[u8], n_args: u32, n_stmts: u32) {
     let z = Sexp::List(self.pop_list(n_stmts).collect());
     let y = Sexp::List(self.pop_list(n_args).collect());
     let x = Sexp::from_bytes(name);
@@ -568,14 +568,14 @@ impl Out for ToSexp {
     self.put(Sexp::from_array([t, x, y]));
   }
 
-  fn on_if(&mut self, n_stmts: usize) {
+  fn on_if(&mut self, n_stmts: u32) {
     let y = Sexp::List(self.pop_list(n_stmts).collect());
     let x = self.pop();
     let t = Sexp::from_bytes(b"if");
     self.put(Sexp::from_array([t, x, y]));
   }
 
-  fn on_if_else(&mut self, n_stmts_then: usize, n_stmts_else: usize) {
+  fn on_if_else(&mut self, n_stmts_then: u32, n_stmts_else: u32) {
     let z = Sexp::List(self.pop_list(n_stmts_else).collect());
     let y = Sexp::List(self.pop_list(n_stmts_then).collect());
     let x = self.pop();
@@ -583,23 +583,23 @@ impl Out for ToSexp {
     self.put(Sexp::from_array([t, x, y, z]));
   }
 
-  fn on_call(&mut self, arity: usize) {
+  fn on_call(&mut self, arity: u32) {
     let x = self.pop_list(1 + arity).collect();
     self.put(Sexp::List(x));
   }
 
-  fn on_loop(&mut self, n_stmts: usize) {
+  fn on_loop(&mut self, n_stmts: u32) {
     let x = Sexp::List(self.pop_list(n_stmts).collect());
     let t = Sexp::from_bytes(b"loop");
     self.put(Sexp::from_array([t, x]));
   }
 
-  fn on_stmt_expr_list(&mut self, n_exprs: usize) {
+  fn on_stmt_expr_list(&mut self, n_exprs: u32) {
     let x = Sexp::List(self.pop_list(n_exprs).collect());
     self.put(x);
   }
 
-  fn on_break(&mut self, arity: usize) {
+  fn on_break(&mut self, arity: u32) {
     let mut r = Vec::new();
     r.push(Sexp::from_bytes(b"break"));
     r.extend(self.pop_list(arity));
@@ -610,13 +610,13 @@ impl Out for ToSexp {
     self.put(Sexp::from_bytes(b"continue"));
   }
 
-  fn on_let(&mut self, n_binds: usize, n_exprs: usize) {
+  fn on_let(&mut self, n_binds: u32, n_exprs: u32) {
     let y = Sexp::List(self.pop_list(n_exprs).collect());
     let x = Sexp::List(self.pop_list(n_binds).collect());
     self.put(Sexp::from_array([Sexp::from_bytes(b"let"), x, y]));
   }
 
-  fn on_return(&mut self, arity: usize) {
+  fn on_return(&mut self, arity: u32) {
     let mut r = Vec::new();
     r.push(Sexp::from_bytes(b"return"));
     r.extend(self.pop_list(arity));
@@ -652,7 +652,7 @@ impl Out for ToSexp {
     self.put(Sexp::from_array([t, s, x]));
   }
 
-  fn on_while(&mut self, n_stmts: usize) {
+  fn on_while(&mut self, n_stmts: u32) {
     let y = Sexp::List(self.pop_list(n_stmts).collect());
     let x = self.pop();
     let t = Sexp::from_bytes(b"while");

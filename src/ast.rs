@@ -94,8 +94,8 @@ impl<'a, 'b> ToAst<'a, 'b> {
     let _ = self.binds.put(x);
   }
 
-  fn pop_bind_list(&mut self, n: usize) -> &'a [Bind] {
-    return self.arena.slice_from_iter(self.binds.pop_list(n as u32));
+  fn pop_bind_list(&mut self, n: u32) -> &'a [Bind] {
+    return self.arena.slice_from_iter(self.binds.pop_list(n));
   }
 
   fn put_expr(&mut self, x: Expr<'a>) {
@@ -106,21 +106,21 @@ impl<'a, 'b> ToAst<'a, 'b> {
     return self.exprs.pop();
   }
 
-  fn pop_expr_list(&mut self, n: usize) -> &'a [Expr<'a>] {
-    return self.arena.slice_from_iter(self.exprs.pop_list(n as u32));
+  fn pop_expr_list(&mut self, n: u32) -> &'a [Expr<'a>] {
+    return self.arena.slice_from_iter(self.exprs.pop_list(n));
   }
 
   fn put_stmt(&mut self, x: Stmt<'a>) {
     let _ = self.stmts.put(x);
   }
 
-  fn pop_stmt_list(&mut self, n: usize) -> &'a [Stmt<'a>] {
-    return self.arena.slice_from_iter(self.stmts.pop_list(n as u32));
+  fn pop_stmt_list(&mut self, n: u32) -> &'a [Stmt<'a>] {
+    return self.arena.slice_from_iter(self.stmts.pop_list(n));
   }
 }
 
 impl<'a, 'b> parse::Out for ToAst<'a, 'b> {
-  fn on_fundef(&mut self, name: &[u8], n_args: usize, n_stmts: usize) {
+  fn on_fundef(&mut self, name: &[u8], n_args: u32, n_stmts: u32) {
     let z = self.pop_stmt_list(n_stmts);
     let y = self.pop_bind_list(n_args);
     let x = Symbol::from_bytes(name);
@@ -203,14 +203,14 @@ impl<'a, 'b> parse::Out for ToAst<'a, 'b> {
     self.put_expr(x);
   }
 
-  fn on_if(&mut self, n_stmts: usize) {
+  fn on_if(&mut self, n_stmts: u32) {
     let y = self.pop_stmt_list(n_stmts);
     let x = self.pop_expr();
     let x = Expr::If(self.alloc((x, y)));
     self.put_expr(x);
   }
 
-  fn on_if_else(&mut self, n_stmts_then: usize, n_stmts_else: usize) {
+  fn on_if_else(&mut self, n_stmts_then: u32, n_stmts_else: u32) {
     let z = self.pop_stmt_list(n_stmts_else);
     let y = self.pop_stmt_list(n_stmts_then);
     let x = self.pop_expr();
@@ -218,24 +218,24 @@ impl<'a, 'b> parse::Out for ToAst<'a, 'b> {
     self.put_expr(x);
   }
 
-  fn on_call(&mut self, arity: usize) {
+  fn on_call(&mut self, arity: u32) {
     let x = self.pop_expr_list(arity);
     let f = self.pop_expr();
     let x = Expr::Call(self.alloc((f, x)));
     self.put_expr(x);
   }
 
-  fn on_loop(&mut self, n_stmts: usize) {
+  fn on_loop(&mut self, n_stmts: u32) {
     let x = self.pop_stmt_list(n_stmts);
     self.put_expr(Expr::Loop(x));
   }
 
-  fn on_stmt_expr_list(&mut self, n_exprs: usize) {
+  fn on_stmt_expr_list(&mut self, n_exprs: u32) {
     let x = self.pop_expr_list(n_exprs);
     self.put_stmt(Stmt::ExprList(x));
   }
 
-  fn on_break(&mut self, arity: usize) {
+  fn on_break(&mut self, arity: u32) {
     let x = self.pop_expr_list(arity);
     self.put_stmt(Stmt::Break(x));
   }
@@ -244,13 +244,13 @@ impl<'a, 'b> parse::Out for ToAst<'a, 'b> {
     self.put_stmt(Stmt::Continue);
   }
 
-  fn on_let(&mut self, n_binds: usize, n_exprs: usize) {
+  fn on_let(&mut self, n_binds: u32, n_exprs: u32) {
     let y = self.pop_expr_list(n_exprs);
     let x = self.pop_bind_list(n_binds);
     self.put_stmt(Stmt::Let(x, y));
   }
 
-  fn on_return(&mut self, arity: usize) {
+  fn on_return(&mut self, arity: u32) {
     let x = self.pop_expr_list(arity);
     self.put_stmt(Stmt::Return(x));
   }
@@ -281,7 +281,7 @@ impl<'a, 'b> parse::Out for ToAst<'a, 'b> {
     self.put_stmt(Stmt::Var(s, x));
   }
 
-  fn on_while(&mut self, n_stmts: usize) {
+  fn on_while(&mut self, n_stmts: u32) {
     let y = self.pop_stmt_list(n_stmts);
     let x = self.pop_expr();
     self.put_stmt(Stmt::While(x, y));
