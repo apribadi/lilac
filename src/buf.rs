@@ -104,9 +104,9 @@ impl<T> Buf<T> {
       let (p, c) = Self::grow(p, c);
       self.ptr = p;
       self.cap = c;
-      unsafe { (p + n as usize).write(value) };
+      unsafe { (p + n).write(value) };
     } else {
-      unsafe { (p + n as usize).write(value) };
+      unsafe { (p + n).write(value) };
     }
 
     self.len = n + 1;
@@ -121,7 +121,7 @@ impl<T> Buf<T> {
 
     self.len = n - 1;
 
-    return unsafe { (p + (n - 1) as usize).read() };
+    return unsafe { (p + (n - 1)).read() };
   }
 
   pub fn pop_list(&mut self, k: u32) -> PopList<'_, T> {
@@ -132,7 +132,7 @@ impl<T> Buf<T> {
 
     self.len = n - k;
 
-    return PopList { ptr: p + (n - k) as usize, len: k, _phantom_data: PhantomData };
+    return PopList { ptr: p + (n - k), len: k, _phantom_data: PhantomData };
   }
 
   #[inline(always)]
@@ -142,7 +142,7 @@ impl<T> Buf<T> {
 
     assert!(n != 0);
 
-    return unsafe { (p + (n - 1) as usize).as_ref() };
+    return unsafe { (p + (n - 1)).as_ref() };
   }
 
   #[inline(always)]
@@ -152,7 +152,7 @@ impl<T> Buf<T> {
 
     assert!(n != 0);
 
-    return unsafe { (p + (n - 1) as usize).as_mut_ref() };
+    return unsafe { (p + (n - 1)).as_mut_ref() };
   }
 
   pub fn reset(&mut self) {
@@ -169,7 +169,7 @@ impl<T> Buf<T> {
       let mut n = n;
       while n > 0 {
         unsafe { a.drop_in_place() };
-        a = a + 1usize;
+        a = a + 1;
         n = n - 1;
       }
     }
@@ -202,7 +202,7 @@ impl<T> Index<u32> for Buf<T> {
 
     assert!(index < n);
 
-    return unsafe { (p + index as usize).as_ref() }
+    return unsafe { (p + index).as_ref() }
   }
 }
 
@@ -214,7 +214,7 @@ impl<T> IndexMut<u32> for Buf<T> {
 
     assert!(index < n);
 
-    return unsafe { (p + index as usize).as_mut_ref() }
+    return unsafe { (p + index).as_mut_ref() }
   }
 }
 
@@ -251,7 +251,7 @@ impl<'a, T> Iterator for Iter<'a, T> {
       return None;
     }
 
-    self.ptr = p + 1usize;
+    self.ptr = p + 1;
     self.len = n - 1;
 
     return Some(unsafe { p.as_ref() });
@@ -277,7 +277,7 @@ impl<'a, T> Iterator for PopList<'a, T> {
       return None;
     }
 
-    self.ptr = p + 1usize;
+    self.ptr = p + 1;
     self.len = n - 1;
 
     return Some(unsafe { p.read() });
