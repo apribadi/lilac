@@ -18,6 +18,7 @@ pub fn compile<'a>(source: &[u8], arena: &mut Arena<'a>) -> Box<[Inst]> {
   let mut o = Out::new();
 
   for Item::Fundef(f) in item_list.iter() {
+    put_scope(&mut e.scopes);
     let _ = o.emit(Inst::Entry(f.args.len() as u32));
 
     for x in f.args {
@@ -28,6 +29,7 @@ pub fn compile<'a>(source: &[u8], arena: &mut Arena<'a>) -> Box<[Inst]> {
     }
 
     compile_block_tail(f.body, &mut e, &mut o);
+    pop_scope(&mut e.scopes);
   }
 
   return o.0.iter().map(|inst| *inst).collect::<Box<[_]>>();
@@ -73,16 +75,16 @@ impl Env {
 }
 
 struct Scopes {
-  counts: Vec<usize>,
-  undo: Vec<(Symbol, Option<Referent>)>,
+  counts: Buf<u32>,
+  undo: Buf<(Symbol, Option<Referent>)>,
   table: HashMap<Symbol, Referent>,
 }
 
 impl Scopes {
   fn new() -> Self {
     Self {
-      counts: Vec::new(),
-      undo: Vec::new(),
+      counts: Buf::new(),
+      undo: Buf::new(),
       table: HashMap::new()
     }
   }
@@ -104,20 +106,11 @@ impl Loops {
   }
 }
 
-fn pop<T>(x: &mut Vec<T>) -> T {
-  return x.pop().unwrap();
-}
-
-fn pop_list<T>(n: usize, x: &mut Vec<T>) -> impl Iterator<Item = T> {
-  return x.drain(x.len() - n ..);
-}
-
 fn put_referent(s: Symbol, x: Referent, t: &mut Scopes) {
   let y = t.table.insert(s, x);
-  if let Some(n) = t.counts.last_mut() {
-    t.undo.push((s, y));
-    *n += 1;
-  }
+  let n = t.counts.last_mut();
+  t.undo.put((s, y));
+  *n += 1;
 }
 
 fn get_referent(s: Symbol, t: &Scopes) -> Option<&Referent> {
@@ -149,11 +142,11 @@ fn pop_loop_tail(t: &mut Loops) {
 }
 
 fn put_scope(t: &mut Scopes) {
-  t.counts.push(0);
+  t.counts.put(0);
 }
 
 fn pop_scope(t: &mut Scopes) {
-  for (s, x) in pop_list(pop(&mut t.counts), &mut t.undo) {
+  for (s, x) in t.undo.pop_list(t.counts.pop()) {
     match x {
       None => {
         let _ = t.table.remove(s);
