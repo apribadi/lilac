@@ -128,7 +128,7 @@ impl<T> Buf<T> {
     return unsafe { (p + size_of::<T>() * (n as usize - 1)).read::<T>() };
   }
 
-  pub fn pop_multi(&mut self, k: u32) -> PopMulti<'_, T> {
+  pub fn pop_list(&mut self, k: u32) -> PopList<'_, T> {
     let p = self.ptr;
     let n = self.len;
 
@@ -138,7 +138,7 @@ impl<T> Buf<T> {
 
     let p = p + size_of::<T>() * (n - k) as usize;
 
-    return PopMulti { ptr: p, len: k, _phantom_data: PhantomData };
+    return PopList { ptr: p, len: k, _phantom_data: PhantomData };
   }
 
   pub fn reset(&mut self) {
@@ -202,13 +202,13 @@ impl<T> IndexMut<Idx> for Buf<T> {
   }
 }
 
-pub struct PopMulti<'a, T> {
+pub struct PopList<'a, T> {
   ptr: ptr,
   len: u32,
   _phantom_data: PhantomData<&'a mut T>,
 }
 
-impl<'a, T> Drop for PopMulti<'a, T> {
+impl<'a, T> Drop for PopList<'a, T> {
   fn drop(&mut self) {
     if needs_drop::<T>() {
       let mut a = self.ptr;
@@ -222,7 +222,7 @@ impl<'a, T> Drop for PopMulti<'a, T> {
   }
 }
 
-impl<'a, T> Iterator for PopMulti<'a, T> {
+impl<'a, T> Iterator for PopList<'a, T> {
   type Item = T;
 
   #[inline(always)]
@@ -250,12 +250,12 @@ impl<'a, T> Iterator for PopMulti<'a, T> {
   }
 }
 
-impl<'a, T> ExactSizeIterator for PopMulti<'a, T> {
+impl<'a, T> ExactSizeIterator for PopList<'a, T> {
   #[inline(always)]
   fn len(&self) -> usize {
     return self.len as usize;
   }
 }
 
-impl<'a, T> FusedIterator for PopMulti<'a, T> {
+impl<'a, T> FusedIterator for PopList<'a, T> {
 }

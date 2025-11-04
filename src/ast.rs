@@ -93,7 +93,7 @@ impl<'a, 'b> ToAst<'a, 'b> {
     self.binds.push(x);
   }
 
-  fn pop_bind_multi(&mut self, n: usize) -> &'a [Bind] {
+  fn pop_bind_list(&mut self, n: usize) -> &'a [Bind] {
     let x = self.binds.drain(self.binds.len() - n ..);
     return self.arena.slice_from_iter(x);
   }
@@ -106,7 +106,7 @@ impl<'a, 'b> ToAst<'a, 'b> {
     return self.exprs.pop().unwrap();
   }
 
-  fn pop_expr_multi(&mut self, n: usize) -> &'a [Expr<'a>] {
+  fn pop_expr_list(&mut self, n: usize) -> &'a [Expr<'a>] {
     let x = self.exprs.drain(self.exprs.len() - n ..);
     return self.arena.slice_from_iter(x);
   }
@@ -115,7 +115,7 @@ impl<'a, 'b> ToAst<'a, 'b> {
     self.stmts.push(x);
   }
 
-  fn pop_stmt_multi(&mut self, n: usize) -> &'a [Stmt<'a>] {
+  fn pop_stmt_list(&mut self, n: usize) -> &'a [Stmt<'a>] {
     let x = self.stmts.drain(self.stmts.len() - n ..);
     return self.arena.slice_from_iter(x);
   }
@@ -123,8 +123,8 @@ impl<'a, 'b> ToAst<'a, 'b> {
 
 impl<'a, 'b> parse::Out for ToAst<'a, 'b> {
   fn on_fundef(&mut self, name: &[u8], n_args: usize, n_stmts: usize) {
-    let z = self.pop_stmt_multi(n_stmts);
-    let y = self.pop_bind_multi(n_args);
+    let z = self.pop_stmt_list(n_stmts);
+    let y = self.pop_bind_list(n_args);
     let x = Symbol::from_bytes(name);
     let x = Item::Fundef(Fundef { name: x, args: y, body: z });
     self.put_item(x);
@@ -206,39 +206,39 @@ impl<'a, 'b> parse::Out for ToAst<'a, 'b> {
   }
 
   fn on_if(&mut self, n_stmts: usize) {
-    let y = self.pop_stmt_multi(n_stmts);
+    let y = self.pop_stmt_list(n_stmts);
     let x = self.pop_expr();
     let x = Expr::If(self.alloc((x, y)));
     self.put_expr(x);
   }
 
   fn on_if_else(&mut self, n_stmts_then: usize, n_stmts_else: usize) {
-    let z = self.pop_stmt_multi(n_stmts_else);
-    let y = self.pop_stmt_multi(n_stmts_then);
+    let z = self.pop_stmt_list(n_stmts_else);
+    let y = self.pop_stmt_list(n_stmts_then);
     let x = self.pop_expr();
     let x = Expr::IfElse(self.alloc((x, y, z)));
     self.put_expr(x);
   }
 
   fn on_call(&mut self, arity: usize) {
-    let x = self.pop_expr_multi(arity);
+    let x = self.pop_expr_list(arity);
     let f = self.pop_expr();
     let x = Expr::Call(self.alloc((f, x)));
     self.put_expr(x);
   }
 
   fn on_loop(&mut self, n_stmts: usize) {
-    let x = self.pop_stmt_multi(n_stmts);
+    let x = self.pop_stmt_list(n_stmts);
     self.put_expr(Expr::Loop(x));
   }
 
   fn on_stmt_expr_list(&mut self, n_exprs: usize) {
-    let x = self.pop_expr_multi(n_exprs);
+    let x = self.pop_expr_list(n_exprs);
     self.put_stmt(Stmt::ExprList(x));
   }
 
   fn on_break(&mut self, arity: usize) {
-    let x = self.pop_expr_multi(arity);
+    let x = self.pop_expr_list(arity);
     self.put_stmt(Stmt::Break(x));
   }
 
@@ -247,13 +247,13 @@ impl<'a, 'b> parse::Out for ToAst<'a, 'b> {
   }
 
   fn on_let(&mut self, n_binds: usize, n_exprs: usize) {
-    let y = self.pop_expr_multi(n_exprs);
-    let x = self.pop_bind_multi(n_binds);
+    let y = self.pop_expr_list(n_exprs);
+    let x = self.pop_bind_list(n_binds);
     self.put_stmt(Stmt::Let(x, y));
   }
 
   fn on_return(&mut self, arity: usize) {
-    let x = self.pop_expr_multi(arity);
+    let x = self.pop_expr_list(arity);
     self.put_stmt(Stmt::Return(x));
   }
 
@@ -284,7 +284,7 @@ impl<'a, 'b> parse::Out for ToAst<'a, 'b> {
   }
 
   fn on_while(&mut self, n_stmts: usize) {
-    let y = self.pop_stmt_multi(n_stmts);
+    let y = self.pop_stmt_list(n_stmts);
     let x = self.pop_expr();
     self.put_stmt(Stmt::While(x, y));
   }

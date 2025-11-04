@@ -485,15 +485,15 @@ impl ToSexp {
     return self.0.pop();
   }
 
-  fn pop_multi(&mut self, n: usize) -> impl Iterator<Item = Sexp> {
-    return self.0.pop_multi(n as u32);
+  fn pop_list(&mut self, n: usize) -> impl Iterator<Item = Sexp> {
+    return self.0.pop_list(n as u32);
   }
 }
 
 impl Out for ToSexp {
   fn on_fundef(&mut self, name: &[u8], n_args: usize, n_stmts: usize) {
-    let z = Sexp::List(self.pop_multi(n_stmts).collect());
-    let y = Sexp::List(self.pop_multi(n_args).collect());
+    let z = Sexp::List(self.pop_list(n_stmts).collect());
+    let y = Sexp::List(self.pop_list(n_args).collect());
     let x = Sexp::from_bytes(name);
     let t = Sexp::from_bytes(b"fun");
     self.put(Sexp::from_array([t, x, y, z]));
@@ -569,40 +569,40 @@ impl Out for ToSexp {
   }
 
   fn on_if(&mut self, n_stmts: usize) {
-    let y = Sexp::List(self.pop_multi(n_stmts).collect());
+    let y = Sexp::List(self.pop_list(n_stmts).collect());
     let x = self.pop();
     let t = Sexp::from_bytes(b"if");
     self.put(Sexp::from_array([t, x, y]));
   }
 
   fn on_if_else(&mut self, n_stmts_then: usize, n_stmts_else: usize) {
-    let z = Sexp::List(self.pop_multi(n_stmts_else).collect());
-    let y = Sexp::List(self.pop_multi(n_stmts_then).collect());
+    let z = Sexp::List(self.pop_list(n_stmts_else).collect());
+    let y = Sexp::List(self.pop_list(n_stmts_then).collect());
     let x = self.pop();
     let t = Sexp::from_bytes(b"if");
     self.put(Sexp::from_array([t, x, y, z]));
   }
 
   fn on_call(&mut self, arity: usize) {
-    let x = self.pop_multi(1 + arity).collect();
+    let x = self.pop_list(1 + arity).collect();
     self.put(Sexp::List(x));
   }
 
   fn on_loop(&mut self, n_stmts: usize) {
-    let x = Sexp::List(self.pop_multi(n_stmts).collect());
+    let x = Sexp::List(self.pop_list(n_stmts).collect());
     let t = Sexp::from_bytes(b"loop");
     self.put(Sexp::from_array([t, x]));
   }
 
   fn on_stmt_expr_list(&mut self, n_exprs: usize) {
-    let x = Sexp::List(self.pop_multi(n_exprs).collect());
+    let x = Sexp::List(self.pop_list(n_exprs).collect());
     self.put(x);
   }
 
   fn on_break(&mut self, arity: usize) {
     let mut r = Vec::new();
     r.push(Sexp::from_bytes(b"break"));
-    r.extend(self.pop_multi(arity));
+    r.extend(self.pop_list(arity));
     self.put(Sexp::List(r.into_boxed_slice()));
   }
 
@@ -611,15 +611,15 @@ impl Out for ToSexp {
   }
 
   fn on_let(&mut self, n_binds: usize, n_exprs: usize) {
-    let y = Sexp::List(self.pop_multi(n_exprs).collect());
-    let x = Sexp::List(self.pop_multi(n_binds).collect());
+    let y = Sexp::List(self.pop_list(n_exprs).collect());
+    let x = Sexp::List(self.pop_list(n_binds).collect());
     self.put(Sexp::from_array([Sexp::from_bytes(b"let"), x, y]));
   }
 
   fn on_return(&mut self, arity: usize) {
     let mut r = Vec::new();
     r.push(Sexp::from_bytes(b"return"));
-    r.extend(self.pop_multi(arity));
+    r.extend(self.pop_list(arity));
     self.put(Sexp::List(r.into_boxed_slice()));
   }
 
@@ -653,7 +653,7 @@ impl Out for ToSexp {
   }
 
   fn on_while(&mut self, n_stmts: usize) {
-    let y = Sexp::List(self.pop_multi(n_stmts).collect());
+    let y = Sexp::List(self.pop_list(n_stmts).collect());
     let x = self.pop();
     let t = Sexp::from_bytes(b"while");
     self.put(Sexp::from_array([t, x, y]));
