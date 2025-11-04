@@ -93,7 +93,7 @@ impl<T> Buf<T> {
   }
 
   #[inline(always)]
-  pub fn put(&mut self, value: T) -> u32 {
+  pub fn put(&mut self, value: T) {
     let p = self.ptr;
     let c = self.cap;
     let n = self.len;
@@ -108,8 +108,6 @@ impl<T> Buf<T> {
     }
 
     self.len = n + 1;
-
-    return n;
   }
 
   #[inline(always)]
