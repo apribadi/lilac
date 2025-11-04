@@ -10,7 +10,7 @@ use core::marker::PhantomData;
 use core::mem::needs_drop;
 use core::ops::Index;
 use core::ops::IndexMut;
-use pop::v2::ptr;
+use pop::ptr;
 
 pub struct Buf<T> {
   ptr: ptr<T>,
@@ -66,14 +66,9 @@ impl<T> Buf<T> {
 
       let new_s = size_of::<T>() * new_c;
       let new_l = unsafe { Layout::from_size_align_unchecked(new_s, align_of::<T>()) };
-      let new_p = unsafe { ptr::from(alloc(new_l)).cast() };
+      let Ok(new_p) = unsafe { pop::alloc(new_l) };
 
-      if new_p.is_null() {
-        match handle_alloc_error(new_l) {
-        }
-      }
-
-      return (new_p, new_c as u32);
+      return (new_p.cast(), new_c as u32);
     } else {
       let old_s = size_of::<T>() * old_c as usize;
       let old_l = unsafe { Layout::from_size_align_unchecked(old_s, align_of::<T>()) };
@@ -82,15 +77,9 @@ impl<T> Buf<T> {
       assert!(new_c <= max_c);
 
       let new_s = new_c * size_of::<T>();
-      let new_l = unsafe { Layout::from_size_align_unchecked(new_s, align_of::<T>()) };
-      let new_p = unsafe { ptr::from(realloc(old_p.cast().as_mut_ptr(), old_l, new_s)).cast() };
+      let Ok(new_p) = unsafe { pop::realloc(old_p.cast(), old_l, new_s) };
 
-      if new_p.is_null () {
-        match handle_alloc_error(new_l) {
-        }
-      }
-
-      return (new_p, new_c as u32);
+      return (new_p.cast(), new_c as u32);
     }
   }
 
