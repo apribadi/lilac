@@ -6,6 +6,7 @@ use core::marker::PhantomData;
 use core::mem::needs_drop;
 use core::ops::Index;
 use core::ops::IndexMut;
+use pop::global;
 use pop::ptr;
 
 pub struct Buf<T> {
@@ -62,7 +63,7 @@ impl<T> Buf<T> {
 
       let new_s = size_of::<T>() * new_c;
       let new_l = unsafe { Layout::from_size_align_unchecked(new_s, align_of::<T>()) };
-      let Ok(new_p) = unsafe { pop::alloc(new_l) };
+      let Ok(new_p) = unsafe { global::alloc(new_l) };
 
       return (new_p.cast(), new_c as u32);
     } else {
@@ -73,7 +74,7 @@ impl<T> Buf<T> {
       assert!(new_c <= max_c);
 
       let new_s = new_c * size_of::<T>();
-      let Ok(new_p) = unsafe { pop::realloc(old_p.cast(), old_l, new_s) };
+      let Ok(new_p) = unsafe { global::realloc(old_p.cast(), old_l, new_s) };
 
       return (new_p.cast(), new_c as u32);
     }
@@ -162,7 +163,7 @@ impl<T> Buf<T> {
     if size_of::<T>() != 0 && c != 0 {
       let size = size_of::<T>() * c as usize;
       let layout = unsafe { Layout::from_size_align_unchecked(size, align_of::<T>()) };
-      unsafe { pop::dealloc(p.cast(), layout) };
+      unsafe { global::dealloc(p.cast(), layout) };
     }
   }
 
