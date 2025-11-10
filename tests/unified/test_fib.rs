@@ -52,7 +52,7 @@ fn test_fib() {
       %28 = %26 - %27
       %29 [ %6 ] <- %28
       %30 ==> GOTO %8
-  "#]].assert_eq(&std::mem::take(&mut out));
+  "#]].assert_eq(out.drain(..).as_ref());
 
   util::dump(&mut out, "
     fun fib(n) {
@@ -99,5 +99,5 @@ fn test_fib() {
       %27 LABEL 0
       %28 PUT %11
       %29 RET
-  "#]].assert_eq(&std::mem::take(&mut out));
+  "#]].assert_eq(out.drain(..).as_ref());
 }
