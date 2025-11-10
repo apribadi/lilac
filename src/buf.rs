@@ -61,13 +61,13 @@ impl<T> Buf<T> {
 
       assert!(new_c <= max_c);
 
-      let new_s = size_of::<T>() * new_c;
+      let new_s = new_c * size_of::<T>();
       let new_l = unsafe { Layout::from_size_align_unchecked(new_s, align_of::<T>()) };
       let Ok(new_p) = unsafe { global::alloc(new_l) };
 
       return (new_p, new_c as u32);
     } else {
-      let old_s = size_of::<T>() * old_c as usize;
+      let old_s = old_c as usize * size_of::<T>();
       let old_l = unsafe { Layout::from_size_align_unchecked(old_s, align_of::<T>()) };
       let new_c = increment_size_class(old_s) / size_of::<T>();
 
@@ -161,7 +161,7 @@ impl<T> Buf<T> {
     }
 
     if size_of::<T>() != 0 && c != 0 {
-      let size = size_of::<T>() * c as usize;
+      let size = c as usize * size_of::<T>();
       let layout = unsafe { Layout::from_size_align_unchecked(size, align_of::<T>()) };
       unsafe { global::dealloc(p, layout) };
     }

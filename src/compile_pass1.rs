@@ -1,3 +1,7 @@
+//! pass 1
+//!
+//! source -> linearized code
+
 use crate::ast::Expr;
 use crate::ast::Item;
 use crate::ast::Stmt;

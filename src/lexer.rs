@@ -102,11 +102,11 @@ static TRANSITION: [[u8; 16]; 256] = {
 };
 
 fn is_start(x: u8) -> bool {
-  return STATE_INFO[(x & 0b1111) as usize] & 1 != 0;
+  return STATE_INFO[(x & 0b1111) as usize] == 1;
 }
 
 fn is_continue(x: u8) -> bool {
-  return STATE_INFO[(x & 0b1111) as usize] & 2 != 0;
+  return STATE_INFO[(x & 0b1111) as usize] == 2;
 }
 
 impl<'a> Lexer<'a> {
