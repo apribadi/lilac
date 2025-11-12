@@ -1,6 +1,8 @@
 //! pass 1
 //!
-//! source -> linearized code
+//! source text -> linearized bytecode
+//!
+//! operates on a single file
 
 use crate::ast::Expr;
 use crate::ast::Item;

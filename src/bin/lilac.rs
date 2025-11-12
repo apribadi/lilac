@@ -35,21 +35,6 @@ fn main() {
       }
     }
   ");
-
-  compile("
-    fun fib(n) {
-      aux(1, 0, n)
-    }
-
-    fun aux(a, b, n) {
-      if n <= 0 {
-        b
-      } else {
-        aux(b, a + b, n - 1)
-      }
-    }
-  ");
-
   /*
 
   compile("
@@ -108,10 +93,5 @@ fn main() {
       let _ = f(x + y)
       let _ = f(x - y)
     }");
-
-  compile("fun foo() { loop { break 1 } }");
-  compile("fun foo() { loop { continue } }");
-  compile("fun foo() { loop { return 1 } }");
-  compile("fun foo() { let x = loop { break 1 } return x }");
   */
 }

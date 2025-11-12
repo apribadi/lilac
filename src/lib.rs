@@ -10,6 +10,7 @@ pub mod parse_sexp;
 pub mod sexp;
 pub mod symbol;
 pub mod token;
+pub mod union_find;
 
 // syntax ideas - use something in { :, @, ` } to denote symbol/label ?
 //

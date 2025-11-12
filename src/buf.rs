@@ -141,6 +141,26 @@ impl<T> Buf<T> {
     return unsafe { (p + (n - 1)).as_mut_ref() };
   }
 
+  #[inline(always)]
+  unsafe fn get_unchecked(&self, index: u32) -> &T {
+    let p = self.ptr;
+    let n = self.len;
+
+    debug_assert!(index < n);
+
+    return unsafe { (p + index).as_ref() }
+  }
+
+  #[inline(always)]
+  unsafe fn get_unchecked_mut(&mut self, index: u32) -> &mut T {
+    let p = self.ptr;
+    let n = self.len;
+
+    debug_assert!(index < n);
+
+    return unsafe { (p + index).as_mut_ref() }
+  }
+
   pub fn reset(&mut self) {
     let p = self.ptr;
     let c = self.cap;
@@ -182,7 +202,7 @@ impl<T> Index<u32> for Buf<T> {
   type Output = T;
 
   #[inline(always)]
-  fn index(&self, index: u32) -> &Self::Output {
+  fn index(&self, index: u32) -> &T {
     let p = self.ptr;
     let n = self.len;
 
@@ -194,7 +214,7 @@ impl<T> Index<u32> for Buf<T> {
 
 impl<T> IndexMut<u32> for Buf<T> {
   #[inline(always)]
-  fn index_mut(&mut self, index: u32) -> &mut Self::Output {
+  fn index_mut(&mut self, index: u32) -> &mut T {
     let p = self.ptr;
     let n = self.len;
 
