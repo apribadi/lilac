@@ -19,6 +19,7 @@ pub struct Buf<T> {
 #[inline(always)]
 fn increment_size_class(n: usize) -> usize {
   debug_assert!(2 <= n && n <= isize::MAX as usize);
+
   let m = 2 * n - 1;
   let k = usize::BITS - 1 - m.leading_zeros();
   let a = 1 << k;
@@ -61,22 +62,21 @@ impl<T> Buf<T> {
 
       assert!(new_c <= max_c);
 
-      let new_s = new_c * size_of::<T>();
-      let new_l = unsafe { Layout::from_size_align_unchecked(new_s, align_of::<T>()) };
-      let Ok(new_p) = unsafe { global::alloc(new_l) };
+      let new_p = unsafe { global::alloc_slice::<T>(new_c) };
+      let new_c = new_c as u32;
 
-      return (new_p, new_c as u32);
+      return (new_p, new_c);
     } else {
-      let old_s = old_c as usize * size_of::<T>();
-      let old_l = unsafe { Layout::from_size_align_unchecked(old_s, align_of::<T>()) };
+      let old_c = old_c as usize;
+      let old_s = old_c * size_of::<T>();
       let new_c = increment_size_class(old_s) / size_of::<T>();
 
       assert!(new_c <= max_c);
 
-      let new_s = new_c * size_of::<T>();
-      let Ok(new_p) = unsafe { global::realloc(old_p, old_l, new_s) };
+      let new_p = unsafe { global::realloc_slice::<T>(old_p, old_c, new_c) };
+      let new_c = new_c as u32;
 
-      return (new_p, new_c as u32);
+      return (new_p, new_c);
     }
   }
 
@@ -142,7 +142,7 @@ impl<T> Buf<T> {
   }
 
   #[inline(always)]
-  unsafe fn get_unchecked(&self, index: u32) -> &T {
+  pub unsafe fn get_unchecked(&self, index: u32) -> &T {
     let p = self.ptr;
     let n = self.len;
 
@@ -152,7 +152,7 @@ impl<T> Buf<T> {
   }
 
   #[inline(always)]
-  unsafe fn get_unchecked_mut(&mut self, index: u32) -> &mut T {
+  pub unsafe fn get_unchecked_mut(&mut self, index: u32) -> &mut T {
     let p = self.ptr;
     let n = self.len;
 
@@ -181,9 +181,7 @@ impl<T> Buf<T> {
     }
 
     if size_of::<T>() != 0 && c != 0 {
-      let size = c as usize * size_of::<T>();
-      let layout = unsafe { Layout::from_size_align_unchecked(size, align_of::<T>()) };
-      unsafe { global::dealloc(p, layout) };
+      unsafe { global::dealloc_slice(p, c as usize) };
     }
   }
 
@@ -202,7 +200,7 @@ impl<T> Index<u32> for Buf<T> {
   type Output = T;
 
   #[inline(always)]
-  fn index(&self, index: u32) -> &T {
+  fn index(&self, index: u32) -> &Self::Output {
     let p = self.ptr;
     let n = self.len;
 
@@ -214,7 +212,7 @@ impl<T> Index<u32> for Buf<T> {
 
 impl<T> IndexMut<u32> for Buf<T> {
   #[inline(always)]
-  fn index_mut(&mut self, index: u32) -> &mut T {
+  fn index_mut(&mut self, index: u32) -> &mut Self::Output {
     let p = self.ptr;
     let n = self.len;
 
@@ -249,7 +247,7 @@ impl<'a, T> Iterator for Iter<'a, T> {
   type Item = &'a T;
 
   #[inline(always)]
-  fn next(&mut self) -> Option<&'a T> {
+  fn next(&mut self) -> Option<Self::Item> {
     let p = self.ptr;
     let n = self.len;
 
@@ -275,7 +273,7 @@ impl<'a, T> Iterator for PopList<'a, T> {
   type Item = T;
 
   #[inline(always)]
-  fn next(&mut self) -> Option<T> {
+  fn next(&mut self) -> Option<Self::Item> {
     let p = self.ptr;
     let n = self.len;
 
