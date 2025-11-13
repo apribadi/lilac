@@ -72,10 +72,10 @@ impl<T> UnionFind<T> {
 
     assert!(index < n && other < n);
 
-    // index by rank - all links point to lower indices
-
     let i = unsafe { self.find_unchecked(index) };
     let j = unsafe { self.find_unchecked(other) };
+
+    // index by rank - all links point to lower indices
 
     if i == j {
       return (unsafe { self.get_root_unchecked_mut(i) }, None);
@@ -87,6 +87,17 @@ impl<T> UnionFind<T> {
       let a = replace(unsafe { self.0.get_unchecked_mut(j) }, a);
       return (unsafe { self.get_root_unchecked_mut(j) }, Some(unsafe { a.root_unchecked() }));
     }
+  }
+
+  pub fn is_equivalent(&self, index: u32, other: u32) -> bool {
+    let n = self.0.len();
+
+    assert!(index < n && other < n);
+
+    let i = unsafe { self.find_unchecked(index) };
+    let j = unsafe { self.find_unchecked(other) };
+
+    return i == j;
   }
 
   unsafe fn get_root_unchecked(&self, index: u32) -> &T {
