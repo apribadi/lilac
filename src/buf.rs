@@ -1,6 +1,5 @@
 extern crate alloc;
 
-use core::alloc::Layout;
 use core::iter::FusedIterator;
 use core::marker::PhantomData;
 use core::mem::needs_drop;
