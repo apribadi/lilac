@@ -6,9 +6,10 @@ use crate::buf::Buf;
 
 pub struct UnionFind<T>(Buf<Node<T>>);
 
+#[derive(Debug)]
 enum Node<T> {
-  Root(T),
   Link(Cell<u32>),
+  Root(T),
 }
 
 impl<T> Node<T> {
@@ -129,4 +130,18 @@ impl<T> IndexMut<u32> for UnionFind<T> {
 
 pub fn foo(t: &mut UnionFind<u32>, i: u32) -> &mut u32 {
   return &mut t[i];
+}
+
+impl<T: std::fmt::Display> std::fmt::Display for UnionFind<T> {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    for i in 0 .. self.0.len() {
+      write!(f, "{}: ", i)?;
+      match &self.0[i] {
+        Node::Link(a) => write!(f, "=> {}\n", a.get())?,
+        Node::Root(a) => write!(f, "{}\n", a)?,
+      }
+    }
+
+    return Ok(());
+  }
 }
