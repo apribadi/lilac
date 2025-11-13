@@ -1,6 +1,5 @@
 use expect_test::expect;
 use lilac::union_find::UnionFind;
-use std::fmt::Write;
 
 fn init(n: u32, x: impl IntoIterator<Item = (u32, u32)>) -> UnionFind<String> {
   let mut t = UnionFind::new();
@@ -70,7 +69,7 @@ fn test_3() {
 
 #[test]
 fn test_4() {
-  let mut t =
+  let t =
     init(10, [
       (9, 8),
       (8, 7),
