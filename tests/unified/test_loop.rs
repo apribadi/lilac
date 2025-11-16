@@ -16,7 +16,7 @@ fn test_loop() {
       %0 ENTRY 0
       %1 ==> GOTO %2
       %2 LABEL 0
-      %3 = 1
+      %3 = 1 : I64
       %4 PUT %3
       %5 RET
       %6 ENTRY 0
@@ -26,21 +26,21 @@ fn test_loop() {
       %10 ENTRY 0
       %11 ==> GOTO %12
       %12 LABEL 0
-      %13 = 1
+      %13 = 1 : I64
       %14 PUT %13
       %15 RET
       %16 ENTRY 0
       %17 ==> GOTO %18
       %18 LABEL 0
-      %19 = 1
-      %20 = 2
+      %19 = 1 : I64
+      %20 = 2 : I64
       %21 PUT %19
       %22 PUT %20
       %23 ==> GOTO %24
       %24 LABEL 2
-      %25 = POP
-      %26 = POP
-      %27 = %25 + %26
+      %25 = POP : Abstract
+      %26 = POP : Abstract
+      %27 = %25 + %26 : Abstract
       %28 PUT %27
       %29 RET
   "#]].assert_eq(out.drain(..).as_ref());

@@ -16,8 +16,6 @@ fn compile(source: &str) {
   }
 
   print!("\n");
-
-  lilac::compile_pass2::compile(&code);
 }
 
 fn main() {

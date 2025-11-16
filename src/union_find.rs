@@ -42,6 +42,12 @@ impl<T> UnionFind<T> {
     self.0.put(Node::Root(value));
   }
 
+  pub fn emit(&mut self, value: T) -> u32 {
+    let n = self.len();
+    self.put(value);
+    return n;
+  }
+
   unsafe fn find_unchecked(&self, index: u32) -> u32 {
     debug_assert!(index < self.0.len());
 

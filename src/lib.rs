@@ -1,7 +1,6 @@
 pub mod ast;
 pub mod buf;
 pub mod compile_pass1;
-pub mod compile_pass2;
 pub mod ir1;
 pub mod lexer;
 pub mod parse;
@@ -10,6 +9,7 @@ pub mod parse_sexp;
 pub mod sexp;
 pub mod symbol;
 pub mod token;
+pub mod typecheck;
 pub mod union_find;
 
 // syntax ideas - use something in { :, @, ` } to denote symbol/label ?
