@@ -7,7 +7,7 @@ use crate::buf::Buf;
 use crate::union_find::UnionFind;
 
 #[derive(Clone, Copy)]
-pub struct TypeVar(pub u32);
+pub struct TypeVar(u32);
 
 #[derive(Clone, Copy)]
 pub enum InstType {
@@ -17,11 +17,11 @@ pub enum InstType {
 }
 
 pub struct TypeMap {
-  pub inst: Buf<InstType>,
+  insts: Buf<InstType>,
 }
 
 pub struct TypeSolver {
-  pub valtypes: UnionFind<ValType>,
+  valtypes: UnionFind<ValType>,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -39,21 +39,25 @@ struct Env {
 
 impl TypeMap {
   fn new() -> Self {
-    return Self { inst: Buf::new() };
+    return Self { insts: Buf::new() };
   }
 
   fn put(&mut self, x: InstType) {
-    self.inst.put(x);
+    self.insts.put(x);
   }
 
   fn local(&self, i: u32) -> TypeVar {
-    let InstType::Local(x) = self.inst[i] else { unreachable!() };
+    let InstType::Local(x) = self.insts[i] else { unreachable!() };
     return x;
   }
 
   fn value(&self, i: u32) -> TypeVar {
-    let InstType::Value(x) = self.inst[i] else { unreachable!() };
+    let InstType::Value(x) = self.insts[i] else { unreachable!() };
     return x;
+  }
+
+  pub fn insts(&self) -> impl Iterator<Item = InstType> {
+    return self.insts.iter().map(|x| *x);
   }
 }
 
@@ -80,6 +84,10 @@ impl TypeSolver {
     if let (y, Some(x)) = self.valtypes.union(y.0, x.0) {
       unify(y, x);
     }
+  }
+
+  pub fn valtype(&self, x: TypeVar) -> ValType {
+    return self.valtypes[x.0];
   }
 }
 
