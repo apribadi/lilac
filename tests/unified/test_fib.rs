@@ -43,7 +43,7 @@ fn test_fib() {
       %19 LABEL 0
       %20 = [ %3 ] : Value I64
       %21 = [ %5 ] : Value I64
-      %22 = %20 + %21 : Value Abstract
+      %22 = %20 + %21 : Value I64
       %23 = [ %5 ] : Value I64
       %24 [ %3 ] <- %23
       %25 [ %5 ] <- %22
