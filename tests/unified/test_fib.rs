@@ -22,34 +22,34 @@ fn test_fib() {
 
   expect![[r#"
       %0 ENTRY 1
-      %1 = POP : Val Abstract
-      %2 = 1 : Val I64
-      %3 = DEF-LOCAL %2 : Var I64
-      %4 = 0 : Val I64
-      %5 = DEF-LOCAL %4 : Var I64
-      %6 = DEF-LOCAL %1 : Var Abstract
+      %1 = POP : Value Abstract
+      %2 = 1 : Value I64
+      %3 = DEF-LOCAL %2 : Local I64
+      %4 = 0 : Value I64
+      %5 = DEF-LOCAL %4 : Local I64
+      %6 = DEF-LOCAL %1 : Local Abstract
       %7 ==> GOTO %8
       %8 LABEL 0
-      %9 = [ %6 ] : Val Abstract
-      %10 = 0 : Val I64
-      %11 = %9 <= %10 : Val Bool
+      %9 = [ %6 ] : Value Abstract
+      %10 = 0 : Value I64
+      %11 = %9 <= %10 : Value Bool
       %12 COND %11
       %13 ==> GOTO %19
       %14 ==> GOTO %15
       %15 LABEL 0
-      %16 = [ %5 ] : Val I64
+      %16 = [ %5 ] : Value I64
       %17 PUT %16
       %18 RET
       %19 LABEL 0
-      %20 = [ %3 ] : Val I64
-      %21 = [ %5 ] : Val I64
-      %22 = %20 + %21 : Val Abstract
-      %23 = [ %5 ] : Val I64
+      %20 = [ %3 ] : Value I64
+      %21 = [ %5 ] : Value I64
+      %22 = %20 + %21 : Value Abstract
+      %23 = [ %5 ] : Value I64
       %24 [ %3 ] <- %23
       %25 [ %5 ] <- %22
-      %26 = [ %6 ] : Val Abstract
-      %27 = 1 : Val I64
-      %28 = %26 - %27 : Val Abstract
+      %26 = [ %6 ] : Value Abstract
+      %27 = 1 : Value I64
+      %28 = %26 - %27 : Value Abstract
       %29 [ %6 ] <- %28
       %30 ==> GOTO %8
   "#]].assert_eq(out.drain(..).as_ref());
@@ -70,28 +70,28 @@ fn test_fib() {
 
   expect![[r#"
       %0 ENTRY 1
-      %1 = POP : Val Abstract
-      %2 = CONST aux : Val Abstract
-      %3 = 1 : Val I64
-      %4 = 0 : Val I64
+      %1 = POP : Value Abstract
+      %2 = CONST aux : Value Abstract
+      %3 = 1 : Value I64
+      %4 = 0 : Value I64
       %5 PUT %3
       %6 PUT %4
       %7 PUT %1
       %8 TAIL-CALL %2
       %9 ENTRY 3
-      %10 = POP : Val Abstract
-      %11 = POP : Val Abstract
-      %12 = POP : Val Abstract
-      %13 = 0 : Val I64
-      %14 = %12 <= %13 : Val Bool
+      %10 = POP : Value Abstract
+      %11 = POP : Value Abstract
+      %12 = POP : Value Abstract
+      %13 = 0 : Value I64
+      %14 = %12 <= %13 : Value Bool
       %15 COND %14
       %16 ==> GOTO %18
       %17 ==> GOTO %27
       %18 LABEL 0
-      %19 = CONST aux : Val Abstract
-      %20 = %10 + %11 : Val Abstract
-      %21 = 1 : Val I64
-      %22 = %12 - %21 : Val Abstract
+      %19 = CONST aux : Value Abstract
+      %20 = %10 + %11 : Value Abstract
+      %21 = 1 : Value I64
+      %22 = %12 - %21 : Value Abstract
       %23 PUT %11
       %24 PUT %20
       %25 PUT %22
