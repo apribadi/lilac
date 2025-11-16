@@ -13,8 +13,11 @@ pub(crate) fn dump(out: &mut impl std::fmt::Write, source: &str) {
       lilac::typecheck::Typing::Nil => {
         write!(out, "%{} {}\n", i, inst).unwrap();
       }
-      lilac::typecheck::Typing::ValType(ty) => {
-        write!(out, "%{} {} : {:?}\n", i, inst, valtypes[*ty]).unwrap();
+      lilac::typecheck::Typing::Val(ty) => {
+        write!(out, "%{} {} : Val {:?}\n", i, inst, valtypes[*ty]).unwrap();
+      }
+      lilac::typecheck::Typing::Var(ty) => {
+        write!(out, "%{} {} : Var {:?}\n", i, inst, valtypes[*ty]).unwrap();
       }
     }
   }
