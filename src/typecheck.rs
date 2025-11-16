@@ -6,20 +6,22 @@ use crate::ir1::Inst;
 use crate::buf::Buf;
 use crate::union_find::UnionFind;
 
-type TypeVar = u32;
+#[derive(Clone, Copy)]
+pub struct TypeVar(pub u32);
 
+#[derive(Clone, Copy)]
 pub enum InstType {
   Local(TypeVar),
   Nil,
   Value(TypeVar),
 }
 
-struct TypeMap {
-  inst: Buf<InstType>,
+pub struct TypeMap {
+  pub inst: Buf<InstType>,
 }
 
-struct TypeSolver {
-  typevars: UnionFind<ValType>,
+pub struct TypeSolver {
+  pub valtypes: UnionFind<ValType>,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -57,33 +59,39 @@ impl TypeMap {
 
 impl TypeSolver {
   fn new() -> Self {
-    return Self { typevars: UnionFind::new() };
+    return Self { valtypes: UnionFind::new() };
   }
 
   fn put(&mut self) -> TypeVar {
-    return self.typevars.put(ValType::Abstract);
+    return TypeVar(self.valtypes.put(ValType::Abstract));
   }
 
-  fn constrain(&mut self, x: TypeVar, y: ValType) {
-    let x = &mut self.typevars[x];
-    *x = unify(*x, y);
+  fn flow_tv(&mut self, x: ValType, y: TypeVar) {
+    let y = &mut self.valtypes[y.0];
+    unify(y, x);
   }
 
-  fn flow(&mut self, x: u32, y: u32) {
-    if let (y, Some(x)) = self.typevars.union(y, x) {
-      *y = unify(*y, x);
+  fn flow_vt(&mut self, x: TypeVar, y: ValType) {
+    let x = &mut self.valtypes[x.0];
+    unify(x, y);
+  }
+
+  fn flow_vv(&mut self, x: TypeVar, y: TypeVar) {
+    if let (y, Some(x)) = self.valtypes.union(y.0, x.0) {
+      unify(y, x);
     }
   }
 }
 
-fn unify(x: ValType, y: ValType) -> ValType {
-  match (x, y) {
-    (ValType::Abstract, _) => y,
-    (_, ValType::Abstract) => x,
-    (ValType::Bool, ValType::Bool) => ValType::Bool,
-    (ValType::I64, ValType::I64) => ValType::I64,
-    (_, _) => ValType::TypeError,
-  }
+fn unify(x: &mut ValType, y: ValType) {
+  *x =
+    match (*x, y) {
+      (ValType::Abstract, _) => y,
+      (_, ValType::Abstract) => *x,
+      (ValType::Bool, ValType::Bool) => ValType::Bool,
+      (ValType::I64, ValType::I64) => ValType::I64,
+      (_, _) => ValType::TypeError,
+    };
 }
 
 impl Env {
@@ -95,7 +103,7 @@ impl Env {
   }
 }
 
-pub fn typecheck(code: &[Inst]) -> (Buf<InstType>, UnionFind<ValType>) {
+pub fn typecheck(code: &[Inst]) -> (TypeMap, TypeSolver) {
   let mut env = Env::new();
 
   for &inst in code.iter() {
@@ -123,22 +131,21 @@ pub fn typecheck(code: &[Inst]) -> (Buf<InstType>, UnionFind<ValType>) {
     let i = i as u32;
     match inst {
       Inst::Cond(x) =>
-        env.solver.constrain(env.map.value(x), ValType::Bool),
+        env.solver.flow_vt(env.map.value(x), ValType::Bool),
       Inst::ConstBool(_) =>
-        env.solver.constrain(env.map.value(i), ValType::Bool),
+        env.solver.flow_tv(ValType::Bool, env.map.value(i)),
       Inst::ConstInt(_) =>
-        env.solver.constrain(env.map.value(i), ValType::I64),
+        env.solver.flow_tv(ValType::I64, env.map.value(i)),
       Inst::DefLocal(x) =>
-        env.solver.flow(env.map.value(x), env.map.local(i)),
+        env.solver.flow_vv(env.map.value(x), env.map.local(i)),
       Inst::Local(x) =>
-        env.solver.flow(env.map.local(x), env.map.value(i)),
+        env.solver.flow_vv(env.map.local(x), env.map.value(i)),
       Inst::SetLocal(x, y) =>
-        env.solver.flow(env.map.value(y), env.map.local(x)),
+        env.solver.flow_vv(env.map.value(y), env.map.local(x)),
       _ => {
       }
     }
   }
 
-
-  return (env.map.inst, env.solver.typevars);
+  return (env.map, env.solver);
 }

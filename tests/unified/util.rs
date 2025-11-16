@@ -6,18 +6,18 @@ pub(crate) fn dump(out: &mut impl std::fmt::Write, source: &str) {
 
   let code = lilac::compile_pass1::compile(source.as_bytes(), &mut arena);
 
-  let (typing, valtypes) = lilac::typecheck::typecheck(&code);
+  let (typemap, solver) = lilac::typecheck::typecheck(&code);
 
-  for (i, (inst, ty)) in zip(code.iter(), typing.iter()).enumerate() {
-    match ty {
+  for (i, (&inst, &insttype)) in zip(code.iter(), typemap.inst.iter()).enumerate() {
+    match insttype {
       lilac::typecheck::InstType::Nil => {
         write!(out, "%{} {}\n", i, inst).unwrap();
       }
-      lilac::typecheck::InstType::Value(ty) => {
-        write!(out, "%{} {} : Value {:?}\n", i, inst, valtypes[*ty]).unwrap();
+      lilac::typecheck::InstType::Value(typevar) => {
+        write!(out, "%{} {} : Value {:?}\n", i, inst, solver.valtypes[typevar.0]).unwrap();
       }
-      lilac::typecheck::InstType::Local(ty) => {
-        write!(out, "%{} {} : Local {:?}\n", i, inst, valtypes[*ty]).unwrap();
+      lilac::typecheck::InstType::Local(typevar) => {
+        write!(out, "%{} {} : Local {:?}\n", i, inst, solver.valtypes[typevar.0]).unwrap();
       }
     }
   }
