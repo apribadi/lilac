@@ -8,6 +8,7 @@ fn test_combinator() {
   util::dump(&mut out, "
     fun select(p, x, y) { p ? x : y }
     fun max(x, y) { x >= y ? x : y }
+    fun foo(x, y) { x >= 0 ? y : 0 }
   ");
 
   expect![[r#"
