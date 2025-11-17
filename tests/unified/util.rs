@@ -14,10 +14,10 @@ pub(crate) fn dump(out: &mut impl std::fmt::Write, source: &str) {
         write!(out, "%{} {}\n", i, inst).unwrap();
       }
       lilac::typecheck::InstType::Value(x) => {
-        write!(out, "%{} {} : Value {:?}\n", i, inst, solver.valtype(x)).unwrap();
+        write!(out, "%{} {} : Value {:?}\n", i, inst, solver.resolve(x)).unwrap();
       }
       lilac::typecheck::InstType::Local(x) => {
-        write!(out, "%{} {} : Local {:?}\n", i, inst, solver.valtype(x)).unwrap();
+        write!(out, "%{} {} : Local {:?}\n", i, inst, solver.resolve(x)).unwrap();
       }
     }
   }

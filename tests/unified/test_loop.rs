@@ -38,9 +38,9 @@ fn test_loop() {
       %22 PUT %20
       %23 ==> GOTO %24
       %24 LABEL 2
-      %25 = POP : Value Abstract
-      %26 = POP : Value Abstract
-      %27 = %25 + %26 : Value Abstract
+      %25 = POP : Value I64
+      %26 = POP : Value I64
+      %27 = %25 + %26 : Value I64
       %28 PUT %27
       %29 RET
   "#]].assert_eq(out.drain(..).as_ref());
