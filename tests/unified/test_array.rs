@@ -13,6 +13,15 @@ fn test_array() {
   ");
 
   expect![[r#"
+      %0 ENTRY 1
+      %1 = POP : Value Array(I64)
+      %2 = 0 : Value I64
+      %3 = 13 : Value I64
+      %4 %1 [ %2 ] <- %3
+      %5 = 1 : Value I64
+      %6 = %1 [ %5 ] : Value I64
+      %7 PUT %6
+      %8 RET
   "#]].assert_eq(out.drain(..).as_ref());
 
   util::dump(&mut out, "

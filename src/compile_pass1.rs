@@ -137,7 +137,7 @@ fn pop_scope(t: &mut ScopeStack) {
 
 fn put_referent(s: Symbol, x: Referent, t: &mut ScopeStack) {
   let y = t.table.insert(s, x);
-  let n = t.counts.last_mut();
+  let n = t.counts.top_mut();
   t.undo.put((s, y));
   *n += 1;
 }
@@ -535,14 +535,14 @@ fn compile_stmt<'a>(x: Stmt<'a>, e: &mut Env, o: &mut Out) -> What {
       return compile_expr_list(xs, e, o);
     }
     Stmt::Break(xs) => {
-      match e.loops.info.last() {
+      match e.loops.info.top() {
         LoopInfo::TopLevel => {
           // error, break is not inside loop
           let _ = o.emit(Inst::GotoStaticError);
         }
         LoopInfo::NonTail { .. } => {
           let n = compile_expr_list(xs, e, o).into_point_list(e, o);
-          let LoopInfo::NonTail { n_breaks, .. } = e.loops.info.last_mut() else { unreachable!() };
+          let LoopInfo::NonTail { n_breaks, .. } = e.loops.info.top_mut() else { unreachable!() };
           for p in e.points.pop_list(n) {
             e.loops.breaks.put(p);
             *n_breaks += 1;
@@ -555,7 +555,7 @@ fn compile_stmt<'a>(x: Stmt<'a>, e: &mut Env, o: &mut Out) -> What {
       return What::NEVER;
     }
     Stmt::Continue => {
-      match e.loops.info.last() {
+      match e.loops.info.top() {
         LoopInfo::TopLevel => {
           // error, break is not inside loop
           let _ = o.emit(Inst::GotoStaticError);

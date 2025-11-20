@@ -38,6 +38,7 @@ pub enum ValType {
 }
 
 struct Env {
+  args: Buf<TypeVar>,
   map: TypeMap,
   solver: TypeSolver,
 }
@@ -66,18 +67,19 @@ impl TypeMap {
   }
 }
 
-fn unify(x: &mut ValType, y: ValType, todo: &mut Buf<(TypeVar, TypeVar)>) {
+fn unify_impl(x: &mut ValType, y: ValType, todo: &mut Buf<(TypeVar, TypeVar)>) {
+  use ValType::*;
+
   *x =
     match (*x, y) {
-      (ValType::Abstract, y) => y,
-      (x, ValType::Abstract) => x,
-      (ValType::Bool, ValType::Bool) => ValType::Bool,
-      (ValType::I64, ValType::I64) => ValType::I64,
-      (ValType::Array(x), ValType::Array(y)) => {
+      (Abstract, t) | (t, Abstract) => t,
+      (Bool, Bool) => Bool,
+      (I64, I64) => I64,
+      (Array(x), Array(y)) => {
         todo.put((x, y));
-        ValType::Array(x)
+        Array(x)
       }
-      (_, _) => ValType::TypeError,
+      (_, _) => TypeError,
     };
 }
 
@@ -93,25 +95,20 @@ impl TypeSolver {
     return TypeVar(self.valtypes.put(ValType::Abstract));
   }
 
-  fn flow_tv(&mut self, x: ValType, y: TypeVar) {
-    unify(&mut self.valtypes[y.0], x, &mut self.todo);
+  fn bound(&mut self, x: TypeVar, t: ValType) {
+    unify_impl(&mut self.valtypes[x.0], t, &mut self.todo);
   }
 
-  fn flow_vt(&mut self, x: TypeVar, y: ValType) {
-    unify(&mut self.valtypes[x.0], y, &mut self.todo);
-  }
-
-  fn flow_vv(&mut self, x: TypeVar, y: TypeVar) {
-    if let (y, Some(x)) = self.valtypes.union(y.0, x.0) {
-      unify(y, x, &mut self.todo);
+  fn unify(&mut self, x: TypeVar, y: TypeVar) {
+    if let (x, Some(y)) = self.valtypes.union(x.0, y.0) {
+      unify_impl(x, y, &mut self.todo);
     }
   }
 
   fn propagate(&mut self) {
-    while ! self.todo.is_empty() {
-      let (x, y) = self.todo.pop();
+    while let Some((x, y)) = self.todo.pop_if_nonempty() {
       if let (x, Some(y)) = self.valtypes.union(x.0, y.0) {
-        unify(x, y, &mut self.todo);
+        unify_impl(x, y, &mut self.todo);
       }
     }
   }
@@ -132,6 +129,7 @@ impl TypeSolver {
 impl Env {
   fn new() -> Self {
     return Self {
+      args: Buf::new(),
       map: TypeMap::new(),
       solver: TypeSolver::new(),
     }
@@ -140,6 +138,8 @@ impl Env {
 
 pub fn typecheck(code: &[Inst]) -> (TypeMap, TypeSolver) {
   let mut env = Env::new();
+
+  // assign type variables for all relevant program points
 
   for &inst in code.iter() {
     match inst {
@@ -151,52 +151,67 @@ pub fn typecheck(code: &[Inst]) -> (TypeMap, TypeSolver) {
       | Inst::Index(..)
       | Inst::Local(..)
       | Inst::Op1(..)
-      | Inst::Op2(..) => {
-        env.map.put(InstType::Value(env.solver.fresh()));
-      }
-      | Inst::DefLocal(..) => {
-        env.map.put(InstType::Local(env.solver.fresh()));
-      }
-      _ =>
+      | Inst::Op2(..) =>
+        env.map.put(InstType::Value(env.solver.fresh())),
+      | Inst::DefLocal(..) =>
+        env.map.put(InstType::Local(env.solver.fresh())),
+      | Inst::GotoStaticError
+      | Inst::Entry(..)
+      | Inst::Label(..)
+      | Inst::Put(..)
+      | Inst::Goto(..)
+      | Inst::Cond(..)
+      | Inst::Ret
+      | Inst::Call(..)
+      | Inst::TailCall(..)
+      | Inst::SetField(..)
+      | Inst::SetIndex(..)
+      | Inst::SetLocal(..) =>
         env.map.put(InstType::Nil),
     }
   }
 
+  // apply initial type constraints
+
   for (i, &inst) in code.iter().enumerate() {
     let i = i as u32;
     match inst {
+      Inst::Entry(..) | Inst::Label(..) =>
+        env.args.clear(),
+      Inst::Put(x) =>
+        env.args.put(env.map.value(x)),
       Inst::Cond(x) =>
-        env.solver.flow_vt(env.map.value(x), ValType::Bool),
+        env.solver.bound(env.map.value(x), ValType::Bool),
       Inst::ConstBool(_) =>
-        env.solver.flow_tv(ValType::Bool, env.map.value(i)),
+        env.solver.bound(env.map.value(i), ValType::Bool),
       Inst::ConstInt(_) =>
-        env.solver.flow_tv(ValType::I64, env.map.value(i)),
+        env.solver.bound(env.map.value(i), ValType::I64),
       Inst::Index(x, y) => {
         let a = env.solver.fresh();
-        env.solver.flow_vt(env.map.value(x), ValType::Array(a));
-        env.solver.flow_vt(env.map.value(y), ValType::I64);
-        env.solver.flow_vv(a, env.map.value(i));
+        env.solver.bound(env.map.value(x), ValType::Array(a));
+        env.solver.bound(env.map.value(y), ValType::I64);
+        env.solver.unify(a, env.map.value(i));
       }
       Inst::SetIndex(x, y, z) => {
         let a = env.solver.fresh();
-        env.solver.flow_vt(env.map.value(x), ValType::Array(a));
-        env.solver.flow_vt(env.map.value(y), ValType::I64);
-        env.solver.flow_vv(env.map.value(z), a);
+        env.solver.bound(env.map.value(x), ValType::Array(a));
+        env.solver.bound(env.map.value(y), ValType::I64);
+        env.solver.unify(env.map.value(z), a);
       }
       Inst::DefLocal(x) =>
-        env.solver.flow_vv(env.map.value(x), env.map.local(i)),
+        env.solver.unify(env.map.value(x), env.map.local(i)),
       Inst::Local(x) =>
-        env.solver.flow_vv(env.map.local(x), env.map.value(i)),
+        env.solver.unify(env.map.local(x), env.map.value(i)),
       Inst::SetLocal(x, y) =>
-        env.solver.flow_vv(env.map.value(y), env.map.local(x)),
+        env.solver.unify(env.map.value(y), env.map.local(x)),
       Inst::Op1(f, x) => {
         let (a, b) =
           match f {
             | Op1::Neg => (ValType::I64, ValType::I64),
             | Op1::Not => (ValType::Bool, ValType::Bool),
           };
-        env.solver.flow_vt(env.map.value(x), a);
-        env.solver.flow_tv(b, env.map.value(i));
+        env.solver.bound(env.map.value(x), a);
+        env.solver.bound(env.map.value(i), b);
       }
       Inst::Op2(f, x, y) => {
         let (a, b, c) =
@@ -221,14 +236,24 @@ pub fn typecheck(code: &[Inst]) -> (TypeMap, TypeSolver) {
             | Op2::CmpLt
               => (ValType::I64, ValType::I64, ValType::Bool),
           };
-        env.solver.flow_vt(env.map.value(x), a);
-        env.solver.flow_vt(env.map.value(y), b);
-        env.solver.flow_tv(c, env.map.value(i));
+        env.solver.bound(env.map.value(x), a);
+        env.solver.bound(env.map.value(y), b);
+        env.solver.bound(env.map.value(i), c);
       }
-      _ => {
+      | Inst::Pop
+      | Inst::Const(..)
+      | Inst::Field(..)
+      | Inst::GotoStaticError
+      | Inst::Goto(..)
+      | Inst::Ret
+      | Inst::Call(..)
+      | Inst::TailCall(..)
+      | Inst::SetField(..) => {
       }
     }
   }
+
+  // solve all type constraints
 
   env.solver.propagate();
 

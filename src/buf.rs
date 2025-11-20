@@ -121,7 +121,19 @@ impl<T> Buf<T> {
   }
 
   #[inline(always)]
-  pub fn last(&self) -> &T {
+  pub fn pop_if_nonempty(&mut self) -> Option<T> {
+    let p = self.ptr;
+    let n = self.len;
+
+    if n == 0 { return None; }
+
+    self.len = n - 1;
+
+    return Some(unsafe { (p + (n - 1)).read() });
+  }
+
+  #[inline(always)]
+  pub fn top(&self) -> &T {
     let p = self.ptr;
     let n = self.len;
 
@@ -131,7 +143,7 @@ impl<T> Buf<T> {
   }
 
   #[inline(always)]
-  pub fn last_mut(&mut self) -> &mut T {
+  pub fn top_mut(&mut self) -> &mut T {
     let p = self.ptr;
     let n = self.len;
 
@@ -158,6 +170,23 @@ impl<T> Buf<T> {
     debug_assert!(index < n);
 
     return unsafe { (p + index).as_mut_ref() }
+  }
+
+  pub fn clear(&mut self) {
+    let p = self.ptr;
+    let n = self.len;
+
+    self.len = 0;
+
+    if needs_drop::<T>() {
+      let mut a = p;
+      let mut n = n;
+      while n > 0 {
+        unsafe { a.drop_in_place() };
+        a = a + 1;
+        n = n - 1;
+      }
+    }
   }
 
   pub fn reset(&mut self) {

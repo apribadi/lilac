@@ -38,5 +38,20 @@ fn test_combinator() {
       %23 LABEL 0
       %24 PUT %14
       %25 RET
+      %26 ENTRY 2
+      %27 = POP : Value I64
+      %28 = POP : Value Abstract
+      %29 = 0 : Value I64
+      %30 = %27 >= %29 : Value Bool
+      %31 COND %30
+      %32 ==> GOTO %34
+      %33 ==> GOTO %38
+      %34 LABEL 0
+      %35 = 0 : Value I64
+      %36 PUT %35
+      %37 RET
+      %38 LABEL 0
+      %39 PUT %28
+      %40 RET
   "#]].assert_eq(out.drain(..).as_ref());
 }
