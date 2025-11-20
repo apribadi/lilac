@@ -41,6 +41,7 @@ struct Env {
   args: Buf<TypeVar>,
   map: TypeMap,
   solver: TypeSolver,
+  is_call: bool,
 }
 
 impl TypeMap {
@@ -121,7 +122,7 @@ impl TypeSolver {
       ValType::Array(a) => ir1::ValType::Array(Box::new(self.resolve(a))),
       ValType::Bool => ir1::ValType::Bool,
       ValType::I64 => ir1::ValType::I64,
-      ValType::TypeError => unimplemented!(),
+      ValType::TypeError => ir1::ValType::TypeError, // ???
     }
   }
 }
@@ -132,6 +133,7 @@ impl Env {
       args: Buf::new(),
       map: TypeMap::new(),
       solver: TypeSolver::new(),
+      is_call: false,
     }
   }
 }
@@ -176,10 +178,6 @@ pub fn typecheck(code: &[Inst]) -> (TypeMap, TypeSolver) {
   for (i, &inst) in code.iter().enumerate() {
     let i = i as u32;
     match inst {
-      Inst::Entry(..) | Inst::Label(..) =>
-        env.args.clear(),
-      Inst::Put(x) =>
-        env.args.put(env.map.value(x)),
       Inst::Cond(x) =>
         env.solver.bound(env.map.value(x), ValType::Bool),
       Inst::ConstBool(_) =>
@@ -240,13 +238,31 @@ pub fn typecheck(code: &[Inst]) -> (TypeMap, TypeSolver) {
         env.solver.bound(env.map.value(y), b);
         env.solver.bound(env.map.value(i), c);
       }
+      Inst::Entry(..) | Inst::Label(..) => {
+        env.args.clear();
+        env.is_call = false;
+      }
+      Inst::Put(x) =>
+        env.args.put(env.map.value(x)),
+      Inst::Goto(target) => {
+        // TODO
+        if ! env.is_call {
+          let n = env.args.len();
+          for i in 0 .. n {
+            let Inst::Pop = code[(target + 1 + i) as usize] else { unreachable!() };
+            env.solver.unify(env.args[i], env.map.value(target + 1 + i));
+          }
+        }
+      }
+      Inst::Call(..) => {
+        env.args.clear();
+        env.is_call = true; // TODO
+      }
       | Inst::Pop
       | Inst::Const(..)
       | Inst::Field(..)
       | Inst::GotoStaticError
-      | Inst::Goto(..)
       | Inst::Ret
-      | Inst::Call(..)
       | Inst::TailCall(..)
       | Inst::SetField(..) => {
       }

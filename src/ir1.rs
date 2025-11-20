@@ -73,6 +73,7 @@ pub enum ValType {
   Bool,
   F64,
   I64,
+  TypeError, // ???
 }
 
 impl std::fmt::Display for Inst {

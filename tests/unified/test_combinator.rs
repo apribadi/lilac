@@ -9,6 +9,7 @@ fn test_combinator() {
     fun select(p, x, y) { p ? x : y }
     fun max(x, y) { x >= y ? x : y }
     fun foo(x, y) { x >= 0 ? y : 0 }
+    fun bar(x, y) { let z = x >= 0 ? y : 0 return z }
   ");
 
   expect![[r#"
@@ -53,5 +54,24 @@ fn test_combinator() {
       %38 LABEL 0
       %39 PUT %28
       %40 RET
+      %41 ENTRY 2
+      %42 = POP : Value I64
+      %43 = POP : Value I64
+      %44 = 0 : Value I64
+      %45 = %42 >= %44 : Value Bool
+      %46 COND %45
+      %47 ==> GOTO %49
+      %48 ==> GOTO %53
+      %49 LABEL 0
+      %50 = 0 : Value I64
+      %51 PUT %50
+      %52 ==> GOTO %56
+      %53 LABEL 0
+      %54 PUT %43
+      %55 ==> GOTO %56
+      %56 LABEL 1
+      %57 = POP : Value I64
+      %58 PUT %57
+      %59 RET
   "#]].assert_eq(out.drain(..).as_ref());
 }
