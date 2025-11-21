@@ -20,7 +20,7 @@ fn test_array() {
       %4 %1 [ %2 ] <- %3
       %5 = 1 : Value I64
       %6 = %1 [ %5 ] : Value I64
-      %7 PUT %6
+      %7 PUT 0 %6
       %8 RET
   "#]].assert_eq(out.drain(..).as_ref());
 
@@ -50,7 +50,7 @@ fn test_array() {
       %4 = 0 : Value I64
       %5 = LOCAL %4 : Local I64
       %6 = CONST len : Value Fun([Array(I64)], None)
-      %7 PUT %1
+      %7 PUT 0 %1
       %8 CALL %6
       %9 ==> GOTO %10
       %10 LABEL 1 : [I64]
@@ -74,7 +74,7 @@ fn test_array() {
       %28 ==> GOTO %13
       %29 LABEL 0 : []
       %30 = [ %3 ] : Value I64
-      %31 PUT %30
+      %31 PUT 0 %30
       %32 RET
   "#]].assert_eq(out.drain(..).as_ref());
 }

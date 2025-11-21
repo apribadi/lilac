@@ -290,8 +290,8 @@ impl What {
         return n_points;
       }
       What::NumValues(n_values) => {
-        for x in e.values.pop_list(n_values) {
-          let _ = o.emit(Inst::Put(x));
+        for (i, x) in e.values.pop_list(n_values).enumerate() {
+          let _ = o.emit(Inst::Put(i as u32, x));
         }
         let p = o.emit_point(Some(n_values));
         e.points.put(p);
@@ -310,7 +310,7 @@ fn compile_expr<'a>(x: Expr<'a>, e: &mut Env, o: &mut Out) -> What {
       let q = o.emit_point(Some(0));
       let _ = o.emit_label(0, [p]);
       let x = o.emit(Inst::ConstBool(false));
-      let _ = o.emit(Inst::Put(x));
+      let _ = o.emit(Inst::Put(0, x));
       let r = o.emit_point(Some(1));
       e.points.put(r);
       let _ = o.emit_label(0, [q]);
@@ -329,8 +329,8 @@ fn compile_expr<'a>(x: Expr<'a>, e: &mut Env, o: &mut Out) -> What {
         let x = compile_expr(x, e, o).into_value(e, o);
         e.values.put(x);
       }
-      for x in e.values.pop_list(n) {
-        let _ = o.emit(Inst::Put(x));
+      for (i, x) in e.values.pop_list(n).enumerate() {
+        let _ = o.emit(Inst::Put(i as u32, x));
       }
       let _ = o.emit(Inst::Call(f));
       let p = o.emit_point(None);
@@ -407,7 +407,7 @@ fn compile_expr<'a>(x: Expr<'a>, e: &mut Env, o: &mut Out) -> What {
       let n = compile_expr(y, e, o).into_point_list(e, o);
       let _ = o.emit_label(0, [q]);
       let x = o.emit(Inst::ConstBool(true));
-      let _ = o.emit(Inst::Put(x));
+      let _ = o.emit(Inst::Put(0, x));
       let r = o.emit_point(Some(1));
       e.points.put(r);
       return What::NumPoints(n + 1);
@@ -459,7 +459,7 @@ fn compile_expr_tail<'a>(x: Expr<'a>, e: &mut Env, o: &mut Out) {
       let q = o.emit_point(Some(0));
       let _ = o.emit_label(0, [p]);
       let x = o.emit(Inst::ConstBool(false));
-      let _ = o.emit(Inst::Put(x));
+      let _ = o.emit(Inst::Put(0, x));
       let _ = o.emit(Inst::Ret);
       let _ = o.emit_label(0, [q]);
       compile_expr_tail(y, e, o);
@@ -471,8 +471,8 @@ fn compile_expr_tail<'a>(x: Expr<'a>, e: &mut Env, o: &mut Out) {
         let x = compile_expr(x, e, o).into_value(e, o);
         e.values.put(x);
       }
-      for x in e.values.pop_list(n) {
-        let _ = o.emit(Inst::Put(x));
+      for (i, x) in e.values.pop_list(n).enumerate() {
+        let _ = o.emit(Inst::Put(i as u32, x));
       }
       let _ = o.emit(Inst::TailCall(f));
     }
@@ -513,7 +513,7 @@ fn compile_expr_tail<'a>(x: Expr<'a>, e: &mut Env, o: &mut Out) {
       compile_expr_tail(y, e, o);
       let _ = o.emit_label(0, [q]);
       let x = o.emit(Inst::ConstBool(true));
-      let _ = o.emit(Inst::Put(x));
+      let _ = o.emit(Inst::Put(0, x));
       let _ = o.emit(Inst::Ret);
     }
     Expr::Ternary(&(x, y, z)) => {
@@ -537,7 +537,7 @@ fn compile_expr_tail<'a>(x: Expr<'a>, e: &mut Env, o: &mut Out) {
       | Expr::Variable(..)
     ) => {
       let What::NumValues(1) = compile_expr(x, e, o) else { unreachable!() };
-      let _ = o.emit(Inst::Put(e.values.pop()));
+      let _ = o.emit(Inst::Put(0, e.values.pop()));
       let _ = o.emit(Inst::Ret);
     }
   }
@@ -731,8 +731,8 @@ fn compile_expr_list_tail<'a>(xs: &'a [Expr<'a>], e: &mut Env, o: &mut Out) {
         let x = compile_expr(x, e, o).into_value(e, o);
         e.values.put(x);
       }
-      for x in e.values.pop_list(n) {
-        let _ = o.emit(Inst::Put(x));
+      for (i, x) in e.values.pop_list(n).enumerate() {
+        let _ = o.emit(Inst::Put(i as u32, x));
       }
       let _ = o.emit(Inst::Ret);
     }

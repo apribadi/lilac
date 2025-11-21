@@ -363,7 +363,7 @@ pub fn typecheck(module: &Module) -> (TypeMap, TypeSolver) {
         }
         Inst::Get(k) =>
           env.solver.unify(env.map.value(i), env.map.label(env.block)[k as usize]),
-        Inst::Put(x) =>
+        Inst::Put(_, x) =>
           env.outs.put(env.map.value(x)),
         Inst::Ret =>
           env.solver.bound_ret(rettypevar, env.outs.drain().collect()),

@@ -2,7 +2,7 @@ use crate::util;
 use expect_test::expect;
 
 #[test]
-fn test_fib() {
+fn test_fib_loop() {
   let mut out = String::new();
 
   util::dump(&mut out, "
@@ -38,7 +38,7 @@ fn test_fib() {
       %14 ==> GOTO %15
       %15 LABEL 0 : []
       %16 = [ %5 ] : Value I64
-      %17 PUT %16
+      %17 PUT 0 %16
       %18 RET
       %19 LABEL 0 : []
       %20 = [ %3 ] : Value I64
@@ -53,6 +53,12 @@ fn test_fib() {
       %29 [ %6 ] <- %28
       %30 ==> GOTO %8
   "#]].assert_eq(out.drain(..).as_ref());
+}
+
+
+#[test]
+fn test_fib_tailcall() {
+  let mut out = String::new();
 
   util::dump(&mut out, "
     fun aux(a, b, n) {
@@ -83,21 +89,21 @@ fn test_fib() {
       %11 = %1 + %2 : Value I64
       %12 = 1 : Value I64
       %13 = %3 - %12 : Value I64
-      %14 PUT %2
-      %15 PUT %11
-      %16 PUT %13
+      %14 PUT 0 %2
+      %15 PUT 1 %11
+      %16 PUT 2 %13
       %17 TAIL-CALL %10
       %18 LABEL 0 : []
-      %19 PUT %2
+      %19 PUT 0 %2
       %20 RET
       %21 ENTRY 1 : [Abstract] -> None
       %22 = GET 0 : Value Abstract
       %23 = CONST aux : Value Fun([I64, I64, Abstract], None)
       %24 = 1 : Value I64
       %25 = 0 : Value I64
-      %26 PUT %24
-      %27 PUT %25
-      %28 PUT %22
+      %26 PUT 0 %24
+      %27 PUT 1 %25
+      %28 PUT 2 %22
       %29 TAIL-CALL %23
   "#]].assert_eq(out.drain(..).as_ref());
 }
