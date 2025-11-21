@@ -261,7 +261,7 @@ pub fn typecheck(module: &Module) -> (TypeMap, TypeSolver) {
       | Inst::SetIndex(..)
       | Inst::SetLocal(..) =>
         env.map.put(InstType::Nil),
-      | Inst::Pop
+      | Inst::Get(..)
       | Inst::Const(..)
       | Inst::ConstBool(..)
       | Inst::ConstInt(..)
@@ -363,7 +363,7 @@ pub fn typecheck(module: &Module) -> (TypeMap, TypeSolver) {
           env.outs.clear();
           for &arg in env.map.label(i).iter().rev() { env.args.put(arg); }
         }
-        Inst::Pop =>
+        Inst::Get(..) =>
           env.solver.unify(env.map.value(i), env.args.pop()),
         Inst::Put(x) =>
           env.outs.put(env.map.value(x)),

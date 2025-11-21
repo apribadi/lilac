@@ -30,8 +30,8 @@ pub fn compile<'a>(source: &[u8], arena: &mut Arena<'a>) -> Module {
     put_scope(&mut e.scopes);
     let _ = o.emit(Inst::Entry(f.args.len() as u32));
 
-    for x in f.args {
-      let y = o.emit(Inst::Pop);
+    for (i, x) in f.args.iter().enumerate() {
+      let y = o.emit(Inst::Get(i as u32));
       if let Some(x) = x.name {
         put_referent(x, Referent::Let(y), &mut e.scopes);
       }
@@ -242,7 +242,7 @@ impl What {
     match self {
       What::NumPoints(n_points) => {
         let _ = o.emit_label(1, e.points.pop_list(n_points));
-        let x = o.emit(Inst::Pop);
+        let x = o.emit(Inst::Get(0));
         return x;
       }
       What::NumValues(n_values) => {
@@ -253,7 +253,7 @@ impl What {
           let _ = e.values.pop_list(n_values);
           let _ = o.emit(Inst::GotoStaticError);
           let _ = o.emit(Inst::Label(1));
-          let x = o.emit(Inst::Pop);
+          let x = o.emit(Inst::Get(0));
           return x;
         }
       }
@@ -264,8 +264,8 @@ impl What {
     match self {
       What::NumPoints(n_points) => {
         let _ = o.emit_label(arity, e.points.pop_list(n_points));
-        for _ in 0 .. arity {
-          let x = o.emit(Inst::Pop);
+        for i in 0 .. arity {
+          let x = o.emit(Inst::Get(i));
           e.values.put(x);
         }
       }
@@ -275,8 +275,8 @@ impl What {
           let _ = e.values.pop_list(n_values);
           let _ = o.emit(Inst::GotoStaticError);
           let _ = o.emit(Inst::Label(arity));
-          for _ in 0 .. arity {
-            let x = o.emit(Inst::Pop);
+          for i in 0 .. arity {
+            let x = o.emit(Inst::Get(i));
             e.values.put(x);
           }
         }
@@ -427,7 +427,7 @@ fn compile_expr<'a>(x: Expr<'a>, e: &mut Env, o: &mut Out) -> What {
       // error, evaluating undefined expression
       let _ = o.emit(Inst::GotoStaticError);
       let _ = o.emit(Inst::Label(1));
-      let x = o.emit(Inst::Pop);
+      let x = o.emit(Inst::Get(0));
       e.values.put(x);
       return What::NumValues(1);
     }
