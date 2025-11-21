@@ -12,6 +12,15 @@ type Value = u32;
 
 type Local = u32;
 
+pub struct Module {
+  pub code: Box<[Inst]>,
+  pub items: Box<[Item]>,
+}
+
+pub enum Item {
+  Fun { pos: u32, len: u32 }
+}
+
 // TODO: add type ascription
 
 #[derive(Clone, Copy)]
@@ -29,12 +38,12 @@ pub enum Inst {
   Const(Symbol),
   ConstBool(bool),
   ConstInt(i64),
-  DefLocal(Value),
+  Local(Value),
   Field(Value, Symbol),
   Index(Value, Value),
-  Local(Local),
   Op1(Op1, Value),
   Op2(Op2, Value, Value),
+  GetLocal(Local),
   SetField(Value, Symbol, Value),
   SetIndex(Value, Value, Value),
   SetLocal(Local, Value),
@@ -93,12 +102,12 @@ impl std::fmt::Display for Inst {
       Self::Const(s) => write!(f, "= CONST {}", s),
       Self::ConstBool(p) => write!(f, "= {}", p),
       Self::ConstInt(n) => write!(f, "= {}", n),
-      Self::DefLocal(x) => write!(f, "= DEF-LOCAL %{}", x),
+      Self::Local(x) => write!(f, "= LOCAL %{}", x),
       Self::Field(x, s) => write!(f, "= %{} [ .{} ]", x, s),
       Self::Index(x, y) => write!(f, "= %{} [ %{} ]", x, y),
-      Self::Local(v) => write!(f, "= [ %{} ]", v),
       Self::Op1(op, x) => write!(f, "= {} %{}", op, x),
       Self::Op2(op, x, y) => write!(f, "= %{} {} %{}", x, op, y),
+      Self::GetLocal(v) => write!(f, "= [ %{} ]", v),
       Self::SetField(x, s, y) => write!(f, "%{} [ .{} ] <- %{}", x, s, y),
       Self::SetIndex(x, y, z) => write!(f, "%{} [ %{} ] <- %{}", x, y, z),
       Self::SetLocal(v, x) => write!(f, "[ %{} ] <- %{}", v, x),

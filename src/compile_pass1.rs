@@ -5,11 +5,13 @@
 //! operates on a single file
 
 use crate::ast::Expr;
-use crate::ast::Item;
+use crate::ast;
 use crate::ast::Stmt;
 use crate::parse_ast::parse;
 use crate::buf::Buf;
 use crate::ir1::Inst;
+use crate::ir1::Item;
+use crate::ir1::Module;
 use crate::symbol::Symbol;
 use oxcart::Arena;
 use std::iter::zip;
@@ -17,13 +19,14 @@ use tangerine::map::HashMap;
 
 // TODO: consider special lowering for arguments to cond
 
-pub fn compile<'a>(source: &[u8], arena: &mut Arena<'a>) -> Box<[Inst]> {
+pub fn compile<'a>(source: &[u8], arena: &mut Arena<'a>) -> Module {
   let item_list = parse(source, arena);
 
   let mut e = Env::new();
   let mut o = Out::new();
 
-  for Item::Fundef(f) in item_list.iter() {
+  for ast::Item::Fun(f) in item_list.iter() {
+    let pos = o.code.len();
     put_scope(&mut e.scopes);
     let _ = o.emit(Inst::Entry(f.args.len() as u32));
 
@@ -36,9 +39,14 @@ pub fn compile<'a>(source: &[u8], arena: &mut Arena<'a>) -> Box<[Inst]> {
 
     compile_block_tail(f.body, &mut e, &mut o);
     pop_scope(&mut e.scopes);
+    o.items.put(Item::Fun { pos, len: o.code.len() - pos });
   }
 
-  return o.0.iter().map(|inst| *inst).collect::<Box<[_]>>();
+  return
+    Module {
+      code: o.code.drain().collect(),
+      items: o.items.drain().collect(),
+    };
 }
 
 enum What {
@@ -166,16 +174,22 @@ fn pop_loop_tail(t: &mut LoopStack) {
   let _ = t.info.pop();
 }
 
-struct Out(Buf<Inst>);
+struct Out {
+  code: Buf<Inst>,
+  items: Buf<Item>,
+}
 
 impl Out {
   fn new() -> Self {
-    Self(Buf::new())
+    Self {
+      code: Buf::new(),
+      items: Buf::new(),
+    }
   }
 
   fn emit(&mut self, inst: Inst) -> u32 {
-    let n = self.0.len();
-    self.0.put(inst);
+    let n = self.code.len();
+    self.code.put(inst);
     return n;
   }
 
@@ -196,9 +210,9 @@ fn patch_point_list(a: Label, ps: impl IntoIterator<Item = Point>, o: &mut Out) 
   for i in ps {
     if let Some(n) = i.arity && n != a.arity {
       // error, arity mismatch
-      o.0[i.index] = Inst::GotoStaticError;
+      o.code[i.index] = Inst::GotoStaticError;
     } else {
-      o.0[i.index] = Inst::Goto(a.index);
+      o.code[i.index] = Inst::Goto(a.index);
     }
   }
 }
@@ -427,7 +441,7 @@ fn compile_expr<'a>(x: Expr<'a>, e: &mut Env, o: &mut Out) -> What {
           e.values.put(x);
         }
         Some(&Referent::Var(x)) => {
-          let x = o.emit(Inst::Local(x));
+          let x = o.emit(Inst::GetLocal(x));
           e.values.put(x);
         }
       }
@@ -609,7 +623,7 @@ fn compile_stmt<'a>(x: Stmt<'a>, e: &mut Env, o: &mut Out) -> What {
     }
     Stmt::Var(s, x) => {
       let x = compile_expr(x, e, o).into_value(e, o);
-      let x = o.emit(Inst::DefLocal(x));
+      let x = o.emit(Inst::Local(x));
       put_referent(s, Referent::Var(x), &mut e.scopes);
       return What::NIL;
     }

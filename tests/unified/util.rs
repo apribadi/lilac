@@ -4,11 +4,11 @@ pub(crate) fn dump(out: &mut impl std::fmt::Write, source: &str) {
   let mut store = oxcart::Store::new();
   let mut arena = store.arena();
 
-  let code = lilac::compile_pass1::compile(source.as_bytes(), &mut arena);
+  let module = lilac::compile_pass1::compile(source.as_bytes(), &mut arena);
 
-  let (typemap, solver) = lilac::typecheck::typecheck(&code);
+  let (typemap, solver) = lilac::typecheck::typecheck(&module);
 
-  for (i, (&inst, insttype)) in zip(code.iter(), typemap.insts()).enumerate() {
+  for (i, (&inst, insttype)) in zip(module.code.iter(), typemap.insts()).enumerate() {
     match insttype {
       lilac::typecheck::InstType::Entry(xs, y) => {
         let xs = xs.iter().map(|x| solver.resolve(*x)).collect::<Box<[_]>>();

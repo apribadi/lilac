@@ -4,11 +4,11 @@ use crate::symbol::Symbol;
 
 #[derive(Clone, Copy)]
 pub enum Item<'a> {
-  Fundef(Fundef<'a>),
+  Fun(Fun<'a>),
 }
 
 #[derive(Clone, Copy)]
-pub struct Fundef<'a> {
+pub struct Fun<'a> {
   pub name: Symbol,
   pub args: &'a [Bind],
   pub body: &'a [Stmt<'a>],

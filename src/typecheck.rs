@@ -2,11 +2,13 @@
 //!
 //! linearized code -> typed code
 
-use crate::ir1;
+use crate::buf::Buf;
+use crate::ir1::Inst;
+use crate::ir1::Item;
+use crate::ir1::Module;
 use crate::ir1::Op1;
 use crate::ir1::Op2;
-use crate::ir1::Inst;
-use crate::buf::Buf;
+use crate::ir1;
 use crate::union_find::UnionFind;
 use std::iter::zip;
 use std::mem::replace;
@@ -52,7 +54,6 @@ pub struct TypeSolver {
 struct Env {
   args: Buf<TypeVar>,
   outs: Buf<TypeVar>,
-  ret: TypeVar,
   map: TypeMap,
   solver: TypeSolver,
   is_call: bool,
@@ -235,7 +236,6 @@ impl Env {
     return Self {
       args: Buf::new(),
       outs: Buf::new(),
-      ret: TypeVar(u32::MAX),
       map: TypeMap::new(),
       solver: TypeSolver::new(),
       is_call: false,
@@ -243,34 +243,13 @@ impl Env {
   }
 }
 
-pub fn typecheck(code: &[Inst]) -> (TypeMap, TypeSolver) {
+pub fn typecheck(module: &Module) -> (TypeMap, TypeSolver) {
   let mut env = Env::new();
 
   // assign type variables for all relevant program points
 
-  for &inst in code.iter() {
+  for &inst in module.code.iter() {
     match inst {
-      | Inst::Pop
-      | Inst::Const(..)
-      | Inst::ConstBool(..)
-      | Inst::ConstInt(..)
-      | Inst::Field(..)
-      | Inst::Index(..)
-      | Inst::Local(..)
-      | Inst::Op1(..)
-      | Inst::Op2(..) =>
-        env.map.put(InstType::Value(env.solver.fresh())),
-      | Inst::DefLocal(..) =>
-        env.map.put(InstType::Local(env.solver.fresh())),
-      | Inst::Entry(n) => {
-        let xs = (0 .. n).map(|_| env.solver.fresh()).collect();
-        let y = env.solver.fresh();
-        env.map.put(InstType::Entry(xs, y));
-      }
-      | Inst::Label(n) => {
-        let xs = (0 .. n).map(|_| env.solver.fresh()).collect();
-        env.map.put(InstType::Label(xs));
-      }
       | Inst::GotoStaticError
       | Inst::Put(..)
       | Inst::Goto(..)
@@ -282,129 +261,152 @@ pub fn typecheck(code: &[Inst]) -> (TypeMap, TypeSolver) {
       | Inst::SetIndex(..)
       | Inst::SetLocal(..) =>
         env.map.put(InstType::Nil),
+      | Inst::Pop
+      | Inst::Const(..)
+      | Inst::ConstBool(..)
+      | Inst::ConstInt(..)
+      | Inst::Field(..)
+      | Inst::Index(..)
+      | Inst::GetLocal(..)
+      | Inst::Op1(..)
+      | Inst::Op2(..) =>
+        env.map.put(InstType::Value(env.solver.fresh())),
+      | Inst::Local(..) =>
+        env.map.put(InstType::Local(env.solver.fresh())),
+      | Inst::Entry(n) => {
+        let xs = (0 .. n).map(|_| env.solver.fresh()).collect();
+        let y = env.solver.fresh();
+        env.map.put(InstType::Entry(xs, y));
+      }
+      | Inst::Label(n) => {
+        let xs = (0 .. n).map(|_| env.solver.fresh()).collect();
+        env.map.put(InstType::Label(xs));
+      }
     }
   }
 
-  // apply initial type constraints
+  for &Item::Fun { pos, len } in module.items.iter() {
+    let mut rettypevar = TypeVar(u32::MAX);
+    // apply initial type constraints
 
-  for (i, &inst) in code.iter().enumerate() {
-    let i = i as u32;
-    match inst {
-      Inst::ConstBool(_) =>
-        env.solver.bound(env.map.value(i), ValType::Bool),
-      Inst::ConstInt(_) =>
-        env.solver.bound(env.map.value(i), ValType::I64),
-      Inst::DefLocal(x) =>
-        env.solver.unify(env.map.value(x), env.map.local(i)),
-      Inst::Local(x) =>
-        env.solver.unify(env.map.local(x), env.map.value(i)),
-      Inst::SetLocal(x, y) =>
-        env.solver.unify(env.map.value(y), env.map.local(x)),
-      Inst::Index(x, y) => {
-        let a = env.solver.fresh();
-        env.solver.bound(env.map.value(x), ValType::Array(a));
-        env.solver.bound(env.map.value(y), ValType::I64);
-        env.solver.unify(a, env.map.value(i));
-      }
-      Inst::SetIndex(x, y, z) => {
-        let a = env.solver.fresh();
-        env.solver.bound(env.map.value(x), ValType::Array(a));
-        env.solver.bound(env.map.value(y), ValType::I64);
-        env.solver.unify(env.map.value(z), a);
-      }
-      Inst::Op1(f, x) => {
-        let (a, b) =
-          match f {
-            | Op1::Neg => (ValType::I64, ValType::I64),
-            | Op1::Not => (ValType::Bool, ValType::Bool),
-          };
-        env.solver.bound(env.map.value(x), a);
-        env.solver.bound(env.map.value(i), b);
-      }
-      Inst::Op2(f, x, y) => {
-        let (a, b, c) =
-          match f {
-            | Op2::Add
-            | Op2::Sub
-            | Op2::BitAnd
-            | Op2::BitOr
-            | Op2::BitXor
-            | Op2::Div
-            | Op2::Mul
-            | Op2::Rem
-              => (ValType::I64, ValType::I64, ValType::I64),
-            | Op2::Shl
-            | Op2::Shr
-              => (ValType::I64, ValType::I64, ValType::I64),
-            | Op2::CmpEq
-            | Op2::CmpNe
-            | Op2::CmpGe
-            | Op2::CmpGt
-            | Op2::CmpLe
-            | Op2::CmpLt
-              => (ValType::I64, ValType::I64, ValType::Bool),
-          };
-        env.solver.bound(env.map.value(x), a);
-        env.solver.bound(env.map.value(y), b);
-        env.solver.bound(env.map.value(i), c);
-      }
-      Inst::Entry(..) => {
-        env.is_call = false;
-        env.args.clear();
-        env.outs.clear();
-        let (args, ret) = env.map.entry(i);
-        for &arg in args.iter().rev() { env.args.put(arg); }
-        env.ret = ret;
-      }
-      Inst::Label(..) => {
-        env.is_call = false;
-        env.args.clear();
-        env.outs.clear();
-        for &arg in env.map.label(i).iter().rev() { env.args.put(arg); }
-      }
-      Inst::Pop =>
-        env.solver.unify(env.map.value(i), env.args.pop()),
-      Inst::Put(x) =>
-        env.outs.put(env.map.value(x)),
-      Inst::Ret =>
-        env.solver.bound_ret(env.ret, env.outs.drain().collect()),
-      Inst::Cond(x) =>
-        env.solver.bound(env.map.value(x), ValType::Bool),
-      Inst::Goto(a) => {
-        if env.is_call {
-          // TODO - handle call continuations
-          //
-          // unify function RetTypeVar with label argument types
+    for i in pos .. pos + len {
+      match module.code[i as usize] {
+        Inst::ConstBool(_) =>
+          env.solver.bound(env.map.value(i), ValType::Bool),
+        Inst::ConstInt(_) =>
+          env.solver.bound(env.map.value(i), ValType::I64),
+        Inst::Local(x) =>
+          env.solver.unify(env.map.value(x), env.map.local(i)),
+        Inst::GetLocal(x) =>
+          env.solver.unify(env.map.local(x), env.map.value(i)),
+        Inst::SetLocal(x, y) =>
+          env.solver.unify(env.map.value(y), env.map.local(x)),
+        Inst::Index(x, y) => {
+          let a = env.solver.fresh();
+          env.solver.bound(env.map.value(x), ValType::Array(a));
+          env.solver.bound(env.map.value(y), ValType::I64);
+          env.solver.unify(a, env.map.value(i));
+        }
+        Inst::SetIndex(x, y, z) => {
+          let a = env.solver.fresh();
+          env.solver.bound(env.map.value(x), ValType::Array(a));
+          env.solver.bound(env.map.value(y), ValType::I64);
+          env.solver.unify(env.map.value(z), a);
+        }
+        Inst::Op1(f, x) => {
+          let (a, b) =
+            match f {
+              | Op1::Neg => (ValType::I64, ValType::I64),
+              | Op1::Not => (ValType::Bool, ValType::Bool),
+            };
+          env.solver.bound(env.map.value(x), a);
+          env.solver.bound(env.map.value(i), b);
+        }
+        Inst::Op2(f, x, y) => {
+          let (a, b, c) =
+            match f {
+              | Op2::Add
+              | Op2::Sub
+              | Op2::BitAnd
+              | Op2::BitOr
+              | Op2::BitXor
+              | Op2::Div
+              | Op2::Mul
+              | Op2::Rem
+                => (ValType::I64, ValType::I64, ValType::I64),
+              | Op2::Shl
+              | Op2::Shr
+                => (ValType::I64, ValType::I64, ValType::I64),
+              | Op2::CmpEq
+              | Op2::CmpNe
+              | Op2::CmpGe
+              | Op2::CmpGt
+              | Op2::CmpLe
+              | Op2::CmpLt
+                => (ValType::I64, ValType::I64, ValType::Bool),
+            };
+          env.solver.bound(env.map.value(x), a);
+          env.solver.bound(env.map.value(y), b);
+          env.solver.bound(env.map.value(i), c);
+        }
+        Inst::Entry(..) => {
+          env.is_call = false;
+          env.args.clear();
+          env.outs.clear();
+          let (args, ret) = env.map.entry(i);
+          for &arg in args.iter().rev() { env.args.put(arg); }
+          rettypevar = ret;
+        }
+        Inst::Label(..) => {
+          env.is_call = false;
+          env.args.clear();
+          env.outs.clear();
+          for &arg in env.map.label(i).iter().rev() { env.args.put(arg); }
+        }
+        Inst::Pop =>
+          env.solver.unify(env.map.value(i), env.args.pop()),
+        Inst::Put(x) =>
+          env.outs.put(env.map.value(x)),
+        Inst::Ret =>
+          env.solver.bound_ret(rettypevar, env.outs.drain().collect()),
+        Inst::Cond(x) =>
+          env.solver.bound(env.map.value(x), ValType::Bool),
+        Inst::Goto(a) => {
+          if env.is_call {
+            // TODO - handle call continuations
+            //
+            // unify function RetTypeVar with label argument types
 
-        } else {
-          for (&x, &y) in zip(env.outs.iter(), env.map.label(a).iter()) {
-            env.solver.unify(x, y);
+          } else {
+            for (&x, &y) in zip(env.outs.iter(), env.map.label(a).iter()) {
+              env.solver.unify(x, y);
+            }
           }
         }
-      }
-      Inst::Call(f) => {
-        let xs = env.outs.drain().collect();
-        let y = env.solver.fresh(); // TODO
-        env.solver.bound(env.map.value(f), ValType::Fun(xs, y));
-        env.is_call = true; // TODO
-      }
-      Inst::TailCall(f) => {
-        let xs = env.outs.drain().collect();
-        let y = env.solver.fresh(); // TODO
-        env.solver.bound(env.map.value(f), ValType::Fun(xs, y));
-        env.is_call = true; // TODO
-      }
-      | Inst::Const(..)
-      | Inst::Field(..)
-      | Inst::GotoStaticError
-      | Inst::SetField(..) => {
+        Inst::Call(f) => {
+          let xs = env.outs.drain().collect();
+          let y = env.solver.fresh(); // TODO
+          env.solver.bound(env.map.value(f), ValType::Fun(xs, y));
+          env.is_call = true; // TODO
+        }
+        Inst::TailCall(f) => {
+          let xs = env.outs.drain().collect();
+          let y = env.solver.fresh(); // TODO
+          env.solver.bound(env.map.value(f), ValType::Fun(xs, y));
+          env.is_call = true; // TODO
+        }
+        | Inst::Const(..)
+        | Inst::Field(..)
+        | Inst::GotoStaticError
+        | Inst::SetField(..) => {
+        }
       }
     }
+
+    // solve all type constraints
+
+    env.solver.propagate();
   }
-
-  // solve all type constraints
-
-  env.solver.propagate();
 
   return (env.map, env.solver);
 }

@@ -1,6 +1,6 @@
 use crate::ast::Bind;
 use crate::ast::Expr;
-use crate::ast::Fundef;
+use crate::ast::Fun;
 use crate::ast::Item;
 use crate::ast::Stmt;
 use crate::buf::Buf;
@@ -79,7 +79,7 @@ impl<'a, 'b> parse::Out for ToAst<'a, 'b> {
     let z = self.pop_stmt_list(n_stmts);
     let y = self.pop_bind_list(n_args);
     let x = Symbol::from_bytes(name);
-    let x = Item::Fundef(Fundef { name: x, args: y, body: z });
+    let x = Item::Fun(Fun { name: x, args: y, body: z });
     self.put_item(x);
   }
 

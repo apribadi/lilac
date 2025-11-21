@@ -24,10 +24,10 @@ fn test_fib() {
       %0 ENTRY 1 : [I64] -> Some([I64])
       %1 = POP : Value I64
       %2 = 1 : Value I64
-      %3 = DEF-LOCAL %2 : Local I64
+      %3 = LOCAL %2 : Local I64
       %4 = 0 : Value I64
-      %5 = DEF-LOCAL %4 : Local I64
-      %6 = DEF-LOCAL %1 : Local I64
+      %5 = LOCAL %4 : Local I64
+      %6 = LOCAL %1 : Local I64
       %7 ==> GOTO %8
       %8 LABEL 0 : []
       %9 = [ %6 ] : Value I64
