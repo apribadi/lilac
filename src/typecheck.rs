@@ -222,12 +222,10 @@ impl TypeSolver {
 
   pub fn resolve_ret(&self, x: TypeVar) -> Option<Box<[ir1::ValType]>> {
     // ???
-    match &self.vars[x.0] {
-      TypeState::Abstract => None,
-      TypeState::TypeError => None,
-      TypeState::ValType(..) => None,
-      TypeState::RetType(xs) =>
-        Some(xs.iter().map(|x| self.resolve(*x)).collect()),
+    if let TypeState::RetType(xs) = &self.vars[x.0] {
+      return Some(xs.iter().map(|x| self.resolve(*x)).collect());
+    } else {
+      return None;
     }
   }
 }
@@ -296,6 +294,12 @@ pub fn typecheck(code: &[Inst]) -> (TypeMap, TypeSolver) {
         env.solver.bound(env.map.value(i), ValType::Bool),
       Inst::ConstInt(_) =>
         env.solver.bound(env.map.value(i), ValType::I64),
+      Inst::DefLocal(x) =>
+        env.solver.unify(env.map.value(x), env.map.local(i)),
+      Inst::Local(x) =>
+        env.solver.unify(env.map.local(x), env.map.value(i)),
+      Inst::SetLocal(x, y) =>
+        env.solver.unify(env.map.value(y), env.map.local(x)),
       Inst::Index(x, y) => {
         let a = env.solver.fresh();
         env.solver.bound(env.map.value(x), ValType::Array(a));
@@ -308,12 +312,6 @@ pub fn typecheck(code: &[Inst]) -> (TypeMap, TypeSolver) {
         env.solver.bound(env.map.value(y), ValType::I64);
         env.solver.unify(env.map.value(z), a);
       }
-      Inst::DefLocal(x) =>
-        env.solver.unify(env.map.value(x), env.map.local(i)),
-      Inst::Local(x) =>
-        env.solver.unify(env.map.local(x), env.map.value(i)),
-      Inst::SetLocal(x, y) =>
-        env.solver.unify(env.map.value(y), env.map.local(x)),
       Inst::Op1(f, x) => {
         let (a, b) =
           match f {
@@ -362,26 +360,21 @@ pub fn typecheck(code: &[Inst]) -> (TypeMap, TypeSolver) {
         env.is_call = false;
         env.args.clear();
         env.outs.clear();
-        let args = env.map.label(i);
-        for &arg in args.iter().rev() { env.args.put(arg); }
+        for &arg in env.map.label(i).iter().rev() { env.args.put(arg); }
       }
-      Inst::Pop => {
-        env.solver.unify(env.map.value(i), env.args.pop());
-      }
-      Inst::Put(x) => {
-        env.outs.put(env.map.value(x));
-      }
-      Inst::Ret => {
-        env.solver.bound_ret(env.ret, env.outs.drain().collect());
-      }
-      Inst::Cond(x) => {
-        env.solver.bound(env.map.value(x), ValType::Bool);
-      }
+      Inst::Pop =>
+        env.solver.unify(env.map.value(i), env.args.pop()),
+      Inst::Put(x) =>
+        env.outs.put(env.map.value(x)),
+      Inst::Ret =>
+        env.solver.bound_ret(env.ret, env.outs.drain().collect()),
+      Inst::Cond(x) =>
+        env.solver.bound(env.map.value(x), ValType::Bool),
       Inst::Goto(a) => {
         if env.is_call {
           // TODO - handle call continuations
           //
-          // unify function RetTypeVar with label argument types 
+          // unify function RetTypeVar with label argument types
 
         } else {
           for (&x, &y) in zip(env.outs.iter(), env.map.label(a).iter()) {
