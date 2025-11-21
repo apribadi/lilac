@@ -14,7 +14,7 @@ fn test_array() {
 
   expect![[r#"
       %0 ENTRY 1 : [Array(I64)] -> Some([I64])
-      %1 = POP : Value Array(I64)
+      %1 = GET 0 : Value Array(I64)
       %2 = 0 : Value I64
       %3 = 13 : Value I64
       %4 %1 [ %2 ] <- %3
@@ -44,7 +44,7 @@ fn test_array() {
 
   expect![[r#"
       %0 ENTRY 1 : [Array(I64)] -> Some([I64])
-      %1 = POP : Value Array(I64)
+      %1 = GET 0 : Value Array(I64)
       %2 = 0 : Value I64
       %3 = LOCAL %2 : Local I64
       %4 = 0 : Value I64
@@ -54,7 +54,7 @@ fn test_array() {
       %8 CALL %6
       %9 ==> GOTO %10
       %10 LABEL 1 : [I64]
-      %11 = POP : Value I64
+      %11 = GET 0 : Value I64
       %12 ==> GOTO %13
       %13 LABEL 0 : []
       %14 = [ %5 ] : Value I64

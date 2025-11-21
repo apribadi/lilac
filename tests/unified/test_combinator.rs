@@ -11,9 +11,9 @@ fn test_combinator() {
 
   expect![[r#"
       %0 ENTRY 3 : [Bool, Abstract, Abstract] -> Some([Abstract])
-      %1 = POP : Value Bool
-      %2 = POP : Value Abstract
-      %3 = POP : Value Abstract
+      %1 = GET 0 : Value Bool
+      %2 = GET 1 : Value Abstract
+      %3 = GET 2 : Value Abstract
       %4 COND %1
       %5 ==> GOTO %7
       %6 ==> GOTO %10
@@ -37,14 +37,14 @@ fn test_combinator() {
 
   expect![[r#"
       %0 ENTRY 3 : [Abstract, Fun([Abstract], None), Fun([Abstract], None)] -> Some([Abstract])
-      %1 = POP : Value Abstract
-      %2 = POP : Value Fun([Abstract], None)
-      %3 = POP : Value Fun([Abstract], None)
+      %1 = GET 0 : Value Abstract
+      %2 = GET 1 : Value Fun([Abstract], None)
+      %3 = GET 2 : Value Fun([Abstract], None)
       %4 PUT %1
       %5 CALL %2
       %6 ==> GOTO %7
       %7 LABEL 1 : [Bool]
-      %8 = POP : Value Bool
+      %8 = GET 0 : Value Bool
       %9 COND %8
       %10 ==> GOTO %12
       %11 ==> GOTO %15

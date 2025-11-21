@@ -22,7 +22,7 @@ fn test_fib() {
 
   expect![[r#"
       %0 ENTRY 1 : [I64] -> Some([I64])
-      %1 = POP : Value I64
+      %1 = GET 0 : Value I64
       %2 = 1 : Value I64
       %3 = LOCAL %2 : Local I64
       %4 = 0 : Value I64
@@ -70,9 +70,9 @@ fn test_fib() {
 
   expect![[r#"
       %0 ENTRY 3 : [I64, I64, I64] -> Some([I64])
-      %1 = POP : Value I64
-      %2 = POP : Value I64
-      %3 = POP : Value I64
+      %1 = GET 0 : Value I64
+      %2 = GET 1 : Value I64
+      %3 = GET 2 : Value I64
       %4 = 0 : Value I64
       %5 = %3 <= %4 : Value Bool
       %6 COND %5
@@ -91,7 +91,7 @@ fn test_fib() {
       %19 PUT %2
       %20 RET
       %21 ENTRY 1 : [Abstract] -> None
-      %22 = POP : Value Abstract
+      %22 = GET 0 : Value Abstract
       %23 = CONST aux : Value Fun([I64, I64, Abstract], None)
       %24 = 1 : Value I64
       %25 = 0 : Value I64

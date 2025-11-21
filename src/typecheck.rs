@@ -52,7 +52,7 @@ pub struct TypeSolver {
 }
 
 struct Env {
-  args: Buf<TypeVar>,
+  block: u32,
   outs: Buf<TypeVar>,
   map: TypeMap,
   solver: TypeSolver,
@@ -74,7 +74,7 @@ impl TypeMap {
   }
 
   fn label(&self, i: u32) -> &[TypeVar] {
-    let InstType::Label(ref xs) = self.insts[i] else { unreachable!() };
+    let (InstType::Label(ref xs) | InstType::Entry(ref xs, _)) = self.insts[i] else { unreachable!() };
     return xs;
   }
 
@@ -234,7 +234,7 @@ impl TypeSolver {
 impl Env {
   fn new() -> Self {
     return Self {
-      args: Buf::new(),
+      block: u32::MAX,
       outs: Buf::new(),
       map: TypeMap::new(),
       solver: TypeSolver::new(),
@@ -350,21 +350,19 @@ pub fn typecheck(module: &Module) -> (TypeMap, TypeSolver) {
           env.solver.bound(env.map.value(i), c);
         }
         Inst::Entry(..) => {
+          env.block = i;
           env.is_call = false;
-          env.args.clear();
           env.outs.clear();
-          let (args, ret) = env.map.entry(i);
-          for &arg in args.iter().rev() { env.args.put(arg); }
+          let (_, ret) = env.map.entry(i);
           rettypevar = ret;
         }
         Inst::Label(..) => {
+          env.block = i;
           env.is_call = false;
-          env.args.clear();
           env.outs.clear();
-          for &arg in env.map.label(i).iter().rev() { env.args.put(arg); }
         }
-        Inst::Get(..) =>
-          env.solver.unify(env.map.value(i), env.args.pop()),
+        Inst::Get(k) =>
+          env.solver.unify(env.map.value(i), env.map.label(env.block)[k as usize]),
         Inst::Put(x) =>
           env.outs.put(env.map.value(x)),
         Inst::Ret =>

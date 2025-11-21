@@ -38,8 +38,8 @@ fn test_loop() {
       %22 PUT %20
       %23 ==> GOTO %24
       %24 LABEL 2 : [I64, I64]
-      %25 = POP : Value I64
-      %26 = POP : Value I64
+      %25 = GET 0 : Value I64
+      %26 = GET 1 : Value I64
       %27 = %25 + %26 : Value I64
       %28 PUT %27
       %29 RET
