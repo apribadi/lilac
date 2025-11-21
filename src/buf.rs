@@ -109,6 +109,18 @@ impl<T> Buf<T> {
     return unsafe { (p + (n - 1)).read() };
   }
 
+  #[inline(always)]
+  pub fn pop_if_nonempty(&mut self) -> Option<T> {
+    let p = self.ptr;
+    let n = self.len;
+
+    if n == 0 { return None; }
+
+    self.len = n - 1;
+
+    return Some(unsafe { (p + (n - 1)).read() });
+  }
+
   pub fn pop_list(&mut self, k: u32) -> PopList<'_, T> {
     let p = self.ptr;
     let n = self.len;
@@ -120,16 +132,13 @@ impl<T> Buf<T> {
     return PopList { ptr: p + (n - k), len: k, _phantom_data: PhantomData };
   }
 
-  #[inline(always)]
-  pub fn pop_if_nonempty(&mut self) -> Option<T> {
+  pub fn drain(&mut self) -> PopList<'_, T> {
     let p = self.ptr;
     let n = self.len;
 
-    if n == 0 { return None; }
+    self.len = 0;
 
-    self.len = n - 1;
-
-    return Some(unsafe { (p + (n - 1)).read() });
+    return PopList { ptr: p, len: n, _phantom_data: PhantomData };
   }
 
   #[inline(always)]

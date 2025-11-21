@@ -21,7 +21,7 @@ fn test_fib() {
   ");
 
   expect![[r#"
-      %0 ENTRY 1
+      %0 ENTRY 1 : [I64] -> Some([I64])
       %1 = POP : Value I64
       %2 = 1 : Value I64
       %3 = DEF-LOCAL %2 : Local I64
@@ -29,18 +29,18 @@ fn test_fib() {
       %5 = DEF-LOCAL %4 : Local I64
       %6 = DEF-LOCAL %1 : Local I64
       %7 ==> GOTO %8
-      %8 LABEL 0
+      %8 LABEL 0 : []
       %9 = [ %6 ] : Value I64
       %10 = 0 : Value I64
       %11 = %9 <= %10 : Value Bool
       %12 COND %11
       %13 ==> GOTO %19
       %14 ==> GOTO %15
-      %15 LABEL 0
+      %15 LABEL 0 : []
       %16 = [ %5 ] : Value I64
       %17 PUT %16
       %18 RET
-      %19 LABEL 0
+      %19 LABEL 0 : []
       %20 = [ %3 ] : Value I64
       %21 = [ %5 ] : Value I64
       %22 = %20 + %21 : Value I64
@@ -55,10 +55,6 @@ fn test_fib() {
   "#]].assert_eq(out.drain(..).as_ref());
 
   util::dump(&mut out, "
-    fun fib(n) {
-      aux(1, 0, n)
-    }
-
     fun aux(a, b, n) {
       if n <= 0 {
         b
@@ -66,38 +62,42 @@ fn test_fib() {
         aux(b, a + b, n - 1)
       }
     }
+
+    fun fib(n) {
+      aux(1, 0, n)
+    }
   ");
 
   expect![[r#"
-      %0 ENTRY 1
-      %1 = POP : Value Abstract
-      %2 = CONST aux : Value Abstract
-      %3 = 1 : Value I64
+      %0 ENTRY 3 : [I64, I64, I64] -> Some([I64])
+      %1 = POP : Value I64
+      %2 = POP : Value I64
+      %3 = POP : Value I64
       %4 = 0 : Value I64
-      %5 PUT %3
-      %6 PUT %4
-      %7 PUT %1
-      %8 TAIL-CALL %2
-      %9 ENTRY 3
-      %10 = POP : Value I64
-      %11 = POP : Value I64
-      %12 = POP : Value I64
-      %13 = 0 : Value I64
-      %14 = %12 <= %13 : Value Bool
-      %15 COND %14
-      %16 ==> GOTO %18
-      %17 ==> GOTO %27
-      %18 LABEL 0
-      %19 = CONST aux : Value Abstract
-      %20 = %10 + %11 : Value I64
-      %21 = 1 : Value I64
-      %22 = %12 - %21 : Value I64
-      %23 PUT %11
-      %24 PUT %20
-      %25 PUT %22
-      %26 TAIL-CALL %19
-      %27 LABEL 0
-      %28 PUT %11
-      %29 RET
+      %5 = %3 <= %4 : Value Bool
+      %6 COND %5
+      %7 ==> GOTO %9
+      %8 ==> GOTO %18
+      %9 LABEL 0 : []
+      %10 = CONST aux : Value Fun([I64, I64, I64], None)
+      %11 = %1 + %2 : Value I64
+      %12 = 1 : Value I64
+      %13 = %3 - %12 : Value I64
+      %14 PUT %2
+      %15 PUT %11
+      %16 PUT %13
+      %17 TAIL-CALL %10
+      %18 LABEL 0 : []
+      %19 PUT %2
+      %20 RET
+      %21 ENTRY 1 : [Abstract] -> None
+      %22 = POP : Value Abstract
+      %23 = CONST aux : Value Fun([I64, I64, Abstract], None)
+      %24 = 1 : Value I64
+      %25 = 0 : Value I64
+      %26 PUT %24
+      %27 PUT %25
+      %28 PUT %22
+      %29 TAIL-CALL %23
   "#]].assert_eq(out.drain(..).as_ref());
 }

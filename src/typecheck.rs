@@ -8,15 +8,27 @@ use crate::ir1::Op2;
 use crate::ir1::Inst;
 use crate::buf::Buf;
 use crate::union_find::UnionFind;
+use std::iter::zip;
+use std::mem::replace;
 
 #[derive(Clone, Copy, Debug)]
 pub struct TypeVar(u32);
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
+pub struct RetTypeVar(u32);
+
+#[derive(Clone)]
 pub enum InstType {
+  Entry(Box<[TypeVar]>, RetTypeVar),
+  Label(Box<[TypeVar]>),
   Local(TypeVar),
   Nil,
   Value(TypeVar),
+}
+
+enum Todo {
+  ValType(TypeVar, TypeVar),
+  RetType(RetTypeVar, RetTypeVar),
 }
 
 pub struct TypeMap {
@@ -25,20 +37,31 @@ pub struct TypeMap {
 
 pub struct TypeSolver {
   valtypes: UnionFind<ValType>,
-  todo: Buf<(TypeVar, TypeVar)>,
+  rettypes: UnionFind<RetType>,
+  todo: Buf<Todo>,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub enum ValType {
   Abstract,
   Array(TypeVar),
   Bool,
+  Fun(Box<[TypeVar]>, RetTypeVar),
   I64,
+  TypeError,
+}
+
+#[derive(Clone, Debug)]
+pub enum RetType {
+  Abstract,
+  Values(Box<[TypeVar]>),
   TypeError,
 }
 
 struct Env {
   args: Buf<TypeVar>,
+  outs: Buf<TypeVar>,
+  ret: RetTypeVar,
   map: TypeMap,
   solver: TypeSolver,
   is_call: bool,
@@ -53,6 +76,16 @@ impl TypeMap {
     self.insts.put(x);
   }
 
+  fn entry(&self, i: u32) -> (&[TypeVar], RetTypeVar) {
+    let InstType::Entry(ref xs, y) = self.insts[i] else { unreachable!() };
+    return (xs, y);
+  }
+
+  fn label(&self, i: u32) -> &[TypeVar] {
+    let InstType::Label(ref xs) = self.insts[i] else { unreachable!() };
+    return xs;
+  }
+
   fn local(&self, i: u32) -> TypeVar {
     let InstType::Local(x) = self.insts[i] else { unreachable!() };
     return x;
@@ -63,24 +96,56 @@ impl TypeMap {
     return x;
   }
 
-  pub fn insts(&self) -> impl Iterator<Item = InstType> {
-    return self.insts.iter().map(|x| *x);
+  pub fn insts(&self) -> impl Iterator<Item = &InstType> {
+    return self.insts.iter();
   }
 }
 
-fn unify_impl(x: &mut ValType, y: ValType, todo: &mut Buf<(TypeVar, TypeVar)>) {
+fn unify_impl(x: &mut ValType, y: ValType, todo: &mut Buf<Todo>) {
   use ValType::*;
 
   *x =
-    match (*x, y) {
-      (Abstract, t) | (t, Abstract) => t,
+    match (replace(x, Abstract), y) {
+      (Abstract, t) => t,
+      (t, Abstract) => t,
       (Bool, Bool) => Bool,
       (I64, I64) => I64,
       (Array(x), Array(y)) => {
-        todo.put((x, y));
+        todo.put(Todo::ValType(x, y));
         Array(x)
       }
+      (Fun(xs, u), Fun(ys, v)) => {
+        if xs.len() != ys.len() {
+          TypeError
+        } else {
+          for (x, y) in zip(xs.iter(), ys.iter()) {
+            todo.put(Todo::ValType(*x, *y));
+          }
+          todo.put(Todo::RetType(u, v));
+          Fun(xs, u)
+        }
+      }
       (_, _) => TypeError,
+    };
+}
+
+fn unify_ret_impl(x: &mut RetType, y: RetType, todo: &mut Buf<Todo>) {
+  *x =
+    match (replace(x, RetType::Abstract), y) {
+      (RetType::Abstract, t) | (t, RetType::Abstract) =>
+        t,
+      (RetType::TypeError, _) | (_, RetType::TypeError) =>
+        RetType::TypeError,
+      (RetType::Values(xs), RetType::Values(ys)) => {
+        if xs.len() != ys.len() {
+          RetType::TypeError
+        } else {
+          for (&x, &y) in zip(xs.iter(), ys.iter()) {
+            todo.put(Todo::ValType(x, y));
+          }
+          RetType::Values(xs)
+        }
+      }
     };
 }
 
@@ -88,6 +153,7 @@ impl TypeSolver {
   fn new() -> Self {
     return Self {
       valtypes: UnionFind::new(),
+      rettypes: UnionFind::new(),
       todo: Buf::new(),
     };
   }
@@ -96,8 +162,16 @@ impl TypeSolver {
     return TypeVar(self.valtypes.put(ValType::Abstract));
   }
 
+  fn fresh_ret(&mut self) -> RetTypeVar {
+    return RetTypeVar(self.rettypes.put(RetType::Abstract));
+  }
+
   fn bound(&mut self, x: TypeVar, t: ValType) {
     unify_impl(&mut self.valtypes[x.0], t, &mut self.todo);
+  }
+
+  fn bound_ret(&mut self, x: RetTypeVar, t: Box<[TypeVar]>) {
+    unify_ret_impl(&mut self.rettypes[x.0], RetType::Values(t), &mut self.todo);
   }
 
   fn unify(&mut self, x: TypeVar, y: TypeVar) {
@@ -107,9 +181,18 @@ impl TypeSolver {
   }
 
   fn propagate(&mut self) {
-    while let Some((x, y)) = self.todo.pop_if_nonempty() {
-      if let (x, Some(y)) = self.valtypes.union(x.0, y.0) {
-        unify_impl(x, y, &mut self.todo);
+    while let Some(todo) = self.todo.pop_if_nonempty() {
+      match todo {
+        Todo::ValType(x, y) => {
+          if let (x, Some(y)) = self.valtypes.union(x.0, y.0) {
+            unify_impl(x, y, &mut self.todo);
+          }
+        }
+        Todo::RetType(x, y) => {
+          if let (x, Some(y)) = self.rettypes.union(x.0, y.0) {
+            unimplemented!()
+          }
+        }
       }
     }
   }
@@ -117,12 +200,26 @@ impl TypeSolver {
   pub fn resolve(&self, x: TypeVar) -> ir1::ValType {
     // recursive types?
 
-    match self.valtypes[x.0] {
+    match &self.valtypes[x.0] {
       ValType::Abstract => ir1::ValType::Abstract,
-      ValType::Array(a) => ir1::ValType::Array(Box::new(self.resolve(a))),
+      ValType::Array(a) => ir1::ValType::Array(Box::new(self.resolve(*a))),
       ValType::Bool => ir1::ValType::Bool,
       ValType::I64 => ir1::ValType::I64,
+      ValType::Fun(xs, y) =>
+        ir1::ValType::Fun(
+          xs.iter().map(|x| self.resolve(*x)).collect(),
+          self.resolve_ret(*y)),
       ValType::TypeError => ir1::ValType::TypeError, // ???
+    }
+  }
+
+  pub fn resolve_ret(&self, x: RetTypeVar) -> Option<Box<[ir1::ValType]>> {
+    // ???
+    match &self.rettypes[x.0] {
+      RetType::Abstract => None,
+      RetType::TypeError => None,
+      RetType::Values(xs) =>
+        Some(xs.iter().map(|x| self.resolve(*x)).collect()),
     }
   }
 }
@@ -131,6 +228,8 @@ impl Env {
   fn new() -> Self {
     return Self {
       args: Buf::new(),
+      outs: Buf::new(),
+      ret: RetTypeVar(u32::MAX),
       map: TypeMap::new(),
       solver: TypeSolver::new(),
       is_call: false,
@@ -157,9 +256,16 @@ pub fn typecheck(code: &[Inst]) -> (TypeMap, TypeSolver) {
         env.map.put(InstType::Value(env.solver.fresh())),
       | Inst::DefLocal(..) =>
         env.map.put(InstType::Local(env.solver.fresh())),
+      | Inst::Entry(n) => {
+        let xs = (0 .. n).map(|_| env.solver.fresh()).collect();
+        let y = env.solver.fresh_ret();
+        env.map.put(InstType::Entry(xs, y));
+      }
+      | Inst::Label(n) => {
+        let xs = (0 .. n).map(|_| env.solver.fresh()).collect();
+        env.map.put(InstType::Label(xs));
+      }
       | Inst::GotoStaticError
-      | Inst::Entry(..)
-      | Inst::Label(..)
       | Inst::Put(..)
       | Inst::Goto(..)
       | Inst::Cond(..)
@@ -178,8 +284,6 @@ pub fn typecheck(code: &[Inst]) -> (TypeMap, TypeSolver) {
   for (i, &inst) in code.iter().enumerate() {
     let i = i as u32;
     match inst {
-      Inst::Cond(x) =>
-        env.solver.bound(env.map.value(x), ValType::Bool),
       Inst::ConstBool(_) =>
         env.solver.bound(env.map.value(i), ValType::Bool),
       Inst::ConstInt(_) =>
@@ -238,32 +342,56 @@ pub fn typecheck(code: &[Inst]) -> (TypeMap, TypeSolver) {
         env.solver.bound(env.map.value(y), b);
         env.solver.bound(env.map.value(i), c);
       }
-      Inst::Entry(..) | Inst::Label(..) => {
-        env.args.clear();
+      Inst::Entry(..) => {
         env.is_call = false;
+        env.args.clear();
+        env.outs.clear();
+        let (args, ret) = env.map.entry(i);
+        for &arg in args.iter().rev() { env.args.put(arg); }
+        env.ret = ret;
       }
-      Inst::Put(x) =>
-        env.args.put(env.map.value(x)),
-      Inst::Goto(target) => {
-        // TODO
+      Inst::Label(..) => {
+        env.is_call = false;
+        env.args.clear();
+        env.outs.clear();
+        let args = env.map.label(i);
+        for &arg in args.iter().rev() { env.args.put(arg); }
+      }
+      Inst::Pop => {
+        env.solver.unify(env.map.value(i), env.args.pop());
+      }
+      Inst::Put(x) => {
+        env.outs.put(env.map.value(x));
+      }
+      Inst::Ret => {
+        env.solver.bound_ret(env.ret, env.outs.drain().collect());
+      }
+      Inst::Cond(x) => {
+        env.solver.bound(env.map.value(x), ValType::Bool);
+      }
+      Inst::Goto(a) => {
+        // TODO - handle call continuations
         if ! env.is_call {
-          let n = env.args.len();
-          for i in 0 .. n {
-            let Inst::Pop = code[(target + 1 + i) as usize] else { unreachable!() };
-            env.solver.unify(env.args[i], env.map.value(target + 1 + i));
+          for (&x, &y) in zip(env.outs.iter(), env.map.label(a).iter()) {
+            env.solver.unify(x, y);
           }
         }
       }
-      Inst::Call(..) => {
-        env.args.clear();
+      Inst::Call(f) => {
+        let xs = env.outs.drain().collect();
+        let y = env.solver.fresh_ret(); // TODO
+        env.solver.bound(env.map.value(f), ValType::Fun(xs, y));
         env.is_call = true; // TODO
       }
-      | Inst::Pop
+      Inst::TailCall(f) => {
+        let xs = env.outs.drain().collect();
+        let y = env.solver.fresh_ret(); // TODO
+        env.solver.bound(env.map.value(f), ValType::Fun(xs, y));
+        env.is_call = true; // TODO
+      }
       | Inst::Const(..)
       | Inst::Field(..)
       | Inst::GotoStaticError
-      | Inst::Ret
-      | Inst::TailCall(..)
       | Inst::SetField(..) => {
       }
     }

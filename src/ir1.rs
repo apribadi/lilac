@@ -72,6 +72,7 @@ pub enum ValType {
   Array(Box<ValType>),
   Bool,
   F64,
+  Fun(Box<[ValType]>, Option<Box<[ValType]>>),
   I64,
   TypeError, // ???
 }
