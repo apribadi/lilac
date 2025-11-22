@@ -58,7 +58,7 @@ struct Env {
   block: u32,
   outs: Buf<TypeVar>,
   solver: TypeSolver,
-  is_call: bool,
+  call: Option<TypeVar>,
 }
 
 impl TypeMap {
@@ -236,7 +236,7 @@ impl Env {
       block: u32::MAX,
       outs: Buf::new(),
       solver: TypeSolver::new(),
-      is_call: false,
+      call: None,
     }
   }
 }
@@ -348,7 +348,7 @@ pub fn typecheck(module: &Module) -> (HashMap<Symbol, TypeVar>, TypeMap, TypeSol
         }
         Inst::Label(..) => {
           env.block = i;
-          env.is_call = false;
+          env.call = None;
           env.outs.clear();
         }
         Inst::Get(k) =>
@@ -360,14 +360,16 @@ pub fn typecheck(module: &Module) -> (HashMap<Symbol, TypeVar>, TypeMap, TypeSol
         Inst::Cond(x) =>
           env.solver.bound(env.insts.value(x), ValType::Bool),
         Inst::Goto(a) => {
-          if env.is_call {
-            // TODO - handle call continuations
-            //
-            // unify function RetTypeVar with label argument types
-
-          } else {
-            for (&x, &y) in zip(env.outs.iter(), env.insts.label(a).iter()) {
-              env.solver.unify(x, y);
+          match env.call {
+            None => {
+              for (&x, &y) in zip(env.outs.iter(), env.insts.label(a).iter()) {
+                env.solver.unify(x, y);
+              }
+            }
+            Some(_ret) =>  {
+              // TODO - handle call continuations
+              //
+              // unify function RetTypeVar with label argument types
             }
           }
         }
@@ -375,13 +377,13 @@ pub fn typecheck(module: &Module) -> (HashMap<Symbol, TypeVar>, TypeMap, TypeSol
           let xs = env.outs.drain().collect();
           let y = env.solver.fresh(); // TODO
           env.solver.bound(env.insts.value(f), ValType::Fun(xs, y));
-          env.is_call = true; // TODO
+          env.call = Some(y);
         }
         Inst::TailCall(f) => {
           let xs = env.outs.drain().collect();
-          let y = env.solver.fresh(); // TODO
+          let y = env.solver.fresh();
           env.solver.bound(env.insts.value(f), ValType::Fun(xs, y));
-          env.is_call = true; // TODO
+          env.solver.unify(rettypevar, y);
         }
         | Inst::Const(..)
         | Inst::Field(..)

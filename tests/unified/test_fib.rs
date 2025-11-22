@@ -88,7 +88,7 @@ fn test_fib_tailcall() {
       %7 ==> GOTO %9
       %8 ==> GOTO %18
       %9 LABEL 0 : []
-      %10 = CONST aux : Value Fun([I64, I64, I64], None)
+      %10 = CONST aux : Value Fun([I64, I64, I64], Some([I64]))
       %11 = %1 + %2 : Value I64
       %12 = 1 : Value I64
       %13 = %3 - %12 : Value I64
