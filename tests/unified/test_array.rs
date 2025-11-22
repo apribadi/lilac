@@ -13,7 +13,7 @@ fn test_array() {
   ");
 
   expect![[r#"
-      FUN foo %0
+      FUN foo %0 : Fun([Array(I64)], Some([I64]))
       %0 LABEL 1 : [Array(I64)]
       %1 = GET 0 : Value Array(I64)
       %2 = 0 : Value I64
@@ -44,7 +44,7 @@ fn test_array() {
   ");
 
   expect![[r#"
-      FUN sum %0
+      FUN sum %0 : Fun([Array(I64)], Some([I64]))
       %0 LABEL 1 : [Array(I64)]
       %1 = GET 0 : Value Array(I64)
       %2 = 0 : Value I64

@@ -21,7 +21,7 @@ fn test_fib_loop() {
   ");
 
   expect![[r#"
-      FUN fib %0
+      FUN fib %0 : Fun([I64], Some([I64]))
       %0 LABEL 1 : [I64]
       %1 = GET 0 : Value I64
       %2 = 1 : Value I64
@@ -76,8 +76,8 @@ fn test_fib_tailcall() {
   ");
 
   expect![[r#"
-      FUN aux %0
-      FUN fib %21
+      FUN aux %0 : Fun([I64, I64, I64], Some([I64]))
+      FUN fib %21 : Fun([Abstract], None)
       %0 LABEL 3 : [I64, I64, I64]
       %1 = GET 0 : Value I64
       %2 = GET 1 : Value I64

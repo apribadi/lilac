@@ -6,13 +6,13 @@ pub(crate) fn dump(out: &mut impl std::fmt::Write, source: &str) {
 
   let module = lilac::compile_pass1::compile(source.as_bytes(), &mut arena);
 
-  let (typemap, solver) = lilac::typecheck::typecheck(&module);
+  let (item_types, inst_types, solver) = lilac::typecheck::typecheck(&module);
 
-  for lilac::ir1::Item::Fun { name, pos, .. } in module.items.iter() {
-    write!(out, "FUN {} %{}\n", name, pos).unwrap();
+  for &lilac::ir1::Item::Fun { name, pos, .. } in module.items.iter() {
+    write!(out, "FUN {} %{} : {:?}\n", name, pos, solver.resolve(item_types[name])).unwrap();
   }
 
-  for (i, (&inst, insttype)) in zip(module.code.iter(), typemap.insts()).enumerate() {
+  for (i, (&inst, insttype)) in zip(module.code.iter(), inst_types.insts()).enumerate() {
     match insttype {
       lilac::typecheck::InstType::Label(xs) => {
         let xs = xs.iter().map(|x| solver.resolve(*x)).collect::<Box<[_]>>();

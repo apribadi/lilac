@@ -9,9 +9,11 @@ use crate::ir1::Module;
 use crate::ir1::Op1;
 use crate::ir1::Op2;
 use crate::ir1;
+use crate::symbol::Symbol;
 use crate::union_find::UnionFind;
 use std::iter::zip;
 use std::mem::replace;
+use tangerine::map::HashMap;
 
 #[derive(Clone, Copy, Debug)]
 pub struct TypeVar(u32);
@@ -51,9 +53,10 @@ pub struct TypeSolver {
 }
 
 struct Env {
+  items: HashMap<Symbol, TypeVar>,
+  insts: TypeMap,
   block: u32,
   outs: Buf<TypeVar>,
-  map: TypeMap,
   solver: TypeSolver,
   is_call: bool,
 }
@@ -67,7 +70,7 @@ impl TypeMap {
     self.insts.put(x);
   }
 
-  fn label(&self, i: u32) -> &[TypeVar] {
+  fn label(&self, i: u32) -> &Box<[TypeVar]> {
     let InstType::Label(ref xs) = self.insts[i] else { unreachable!() };
     return xs;
   }
@@ -228,16 +231,17 @@ impl TypeSolver {
 impl Env {
   fn new() -> Self {
     return Self {
+      items: HashMap::new(),
+      insts: TypeMap::new(),
       block: u32::MAX,
       outs: Buf::new(),
-      map: TypeMap::new(),
       solver: TypeSolver::new(),
       is_call: false,
     }
   }
 }
 
-pub fn typecheck(module: &Module) -> (TypeMap, TypeSolver) {
+pub fn typecheck(module: &Module) -> (HashMap<Symbol, TypeVar>, TypeMap, TypeSolver) {
   let mut env = Env::new();
 
   // assign type variables for all relevant program points
@@ -254,7 +258,7 @@ pub fn typecheck(module: &Module) -> (TypeMap, TypeSolver) {
       | Inst::SetField(..)
       | Inst::SetIndex(..)
       | Inst::SetLocal(..) =>
-        env.map.put(InstType::Nil),
+        env.insts.put(InstType::Nil),
       | Inst::Get(..)
       | Inst::Const(..)
       | Inst::ConstBool(..)
@@ -264,43 +268,47 @@ pub fn typecheck(module: &Module) -> (TypeMap, TypeSolver) {
       | Inst::GetLocal(..)
       | Inst::Op1(..)
       | Inst::Op2(..) =>
-        env.map.put(InstType::Value(env.solver.fresh())),
+        env.insts.put(InstType::Value(env.solver.fresh())),
       | Inst::Local(..) =>
-        env.map.put(InstType::Local(env.solver.fresh())),
+        env.insts.put(InstType::Local(env.solver.fresh())),
       | Inst::Label(n) => {
         let xs = (0 .. n).map(|_| env.solver.fresh()).collect();
-        env.map.put(InstType::Label(xs));
+        env.insts.put(InstType::Label(xs));
       }
     }
   }
 
-  for &Item::Fun { name: _, pos, len } in module.items.iter() {
+  for &Item::Fun { name, pos, len } in module.items.iter() {
+    let funtypevar = env.solver.fresh();
     let rettypevar = env.solver.fresh();
+    env.solver.bound(funtypevar, ValType::Fun(env.insts.label(pos).clone(), rettypevar));
+    let _ = env.items.insert(name, funtypevar);
+
     // apply initial type constraints
 
     for i in pos .. pos + len {
       match module.code[i as usize] {
         Inst::ConstBool(_) =>
-          env.solver.bound(env.map.value(i), ValType::Bool),
+          env.solver.bound(env.insts.value(i), ValType::Bool),
         Inst::ConstInt(_) =>
-          env.solver.bound(env.map.value(i), ValType::I64),
+          env.solver.bound(env.insts.value(i), ValType::I64),
         Inst::Local(x) =>
-          env.solver.unify(env.map.value(x), env.map.local(i)),
+          env.solver.unify(env.insts.value(x), env.insts.local(i)),
         Inst::GetLocal(x) =>
-          env.solver.unify(env.map.local(x), env.map.value(i)),
+          env.solver.unify(env.insts.local(x), env.insts.value(i)),
         Inst::SetLocal(x, y) =>
-          env.solver.unify(env.map.value(y), env.map.local(x)),
+          env.solver.unify(env.insts.value(y), env.insts.local(x)),
         Inst::Index(x, y) => {
           let a = env.solver.fresh();
-          env.solver.bound(env.map.value(x), ValType::Array(a));
-          env.solver.bound(env.map.value(y), ValType::I64);
-          env.solver.unify(a, env.map.value(i));
+          env.solver.bound(env.insts.value(x), ValType::Array(a));
+          env.solver.bound(env.insts.value(y), ValType::I64);
+          env.solver.unify(a, env.insts.value(i));
         }
         Inst::SetIndex(x, y, z) => {
           let a = env.solver.fresh();
-          env.solver.bound(env.map.value(x), ValType::Array(a));
-          env.solver.bound(env.map.value(y), ValType::I64);
-          env.solver.unify(env.map.value(z), a);
+          env.solver.bound(env.insts.value(x), ValType::Array(a));
+          env.solver.bound(env.insts.value(y), ValType::I64);
+          env.solver.unify(env.insts.value(z), a);
         }
         Inst::Op1(f, x) => {
           let (a, b) =
@@ -308,8 +316,8 @@ pub fn typecheck(module: &Module) -> (TypeMap, TypeSolver) {
               | Op1::Neg => (ValType::I64, ValType::I64),
               | Op1::Not => (ValType::Bool, ValType::Bool),
             };
-          env.solver.bound(env.map.value(x), a);
-          env.solver.bound(env.map.value(i), b);
+          env.solver.bound(env.insts.value(x), a);
+          env.solver.bound(env.insts.value(i), b);
         }
         Inst::Op2(f, x, y) => {
           let (a, b, c) =
@@ -334,9 +342,9 @@ pub fn typecheck(module: &Module) -> (TypeMap, TypeSolver) {
               | Op2::CmpLt
                 => (ValType::I64, ValType::I64, ValType::Bool),
             };
-          env.solver.bound(env.map.value(x), a);
-          env.solver.bound(env.map.value(y), b);
-          env.solver.bound(env.map.value(i), c);
+          env.solver.bound(env.insts.value(x), a);
+          env.solver.bound(env.insts.value(y), b);
+          env.solver.bound(env.insts.value(i), c);
         }
         Inst::Label(..) => {
           env.block = i;
@@ -344,13 +352,13 @@ pub fn typecheck(module: &Module) -> (TypeMap, TypeSolver) {
           env.outs.clear();
         }
         Inst::Get(k) =>
-          env.solver.unify(env.map.value(i), env.map.label(env.block)[k as usize]),
+          env.solver.unify(env.insts.value(i), env.insts.label(env.block)[k as usize]),
         Inst::Put(_, x) =>
-          env.outs.put(env.map.value(x)),
+          env.outs.put(env.insts.value(x)),
         Inst::Ret =>
           env.solver.bound_ret(rettypevar, env.outs.drain().collect()),
         Inst::Cond(x) =>
-          env.solver.bound(env.map.value(x), ValType::Bool),
+          env.solver.bound(env.insts.value(x), ValType::Bool),
         Inst::Goto(a) => {
           if env.is_call {
             // TODO - handle call continuations
@@ -358,7 +366,7 @@ pub fn typecheck(module: &Module) -> (TypeMap, TypeSolver) {
             // unify function RetTypeVar with label argument types
 
           } else {
-            for (&x, &y) in zip(env.outs.iter(), env.map.label(a).iter()) {
+            for (&x, &y) in zip(env.outs.iter(), env.insts.label(a).iter()) {
               env.solver.unify(x, y);
             }
           }
@@ -366,13 +374,13 @@ pub fn typecheck(module: &Module) -> (TypeMap, TypeSolver) {
         Inst::Call(f) => {
           let xs = env.outs.drain().collect();
           let y = env.solver.fresh(); // TODO
-          env.solver.bound(env.map.value(f), ValType::Fun(xs, y));
+          env.solver.bound(env.insts.value(f), ValType::Fun(xs, y));
           env.is_call = true; // TODO
         }
         Inst::TailCall(f) => {
           let xs = env.outs.drain().collect();
           let y = env.solver.fresh(); // TODO
-          env.solver.bound(env.map.value(f), ValType::Fun(xs, y));
+          env.solver.bound(env.insts.value(f), ValType::Fun(xs, y));
           env.is_call = true; // TODO
         }
         | Inst::Const(..)
@@ -388,5 +396,5 @@ pub fn typecheck(module: &Module) -> (TypeMap, TypeSolver) {
     env.solver.propagate();
   }
 
-  return (env.map, env.solver);
+  return (env.items, env.insts, env.solver);
 }
