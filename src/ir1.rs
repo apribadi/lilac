@@ -21,8 +21,9 @@ pub struct Module {
   pub items: Box<[Item]>,
 }
 
+#[derive(Debug)]
 pub enum Item {
-  Fun { pos: u32, len: u32 }
+  Fun { name: Symbol, pos: u32, len: u32 }
 }
 
 // TODO: add type ascription
@@ -30,7 +31,6 @@ pub enum Item {
 #[derive(Clone, Copy)]
 pub enum Inst {
   GotoStaticError,
-  Entry(Arity),
   Label(Arity),
   Get(Index),
   Put(Index, Value),
@@ -93,7 +93,6 @@ pub enum ValType {
 impl std::fmt::Display for Inst {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     match self {
-      Self::Entry(n) => write!(f, "ENTRY {}", n),
       Self::Label(n) => write!(f, "LABEL {}", n),
       Self::Get(i) => write!(f, "= GET {}", i),
       Self::Put(i, x) => write!(f, "PUT {} %{}", i, x),

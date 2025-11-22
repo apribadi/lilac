@@ -28,7 +28,7 @@ pub fn compile<'a>(source: &[u8], arena: &mut Arena<'a>) -> Module {
   for ast::Item::Fun(f) in item_list.iter() {
     let pos = o.code.len();
     put_scope(&mut e.scopes);
-    let _ = o.emit(Inst::Entry(f.args.len() as u32));
+    let _ = o.emit(Inst::Label(f.args.len() as u32));
 
     for (i, x) in f.args.iter().enumerate() {
       let y = o.emit(Inst::Get(i as u32));
@@ -39,7 +39,7 @@ pub fn compile<'a>(source: &[u8], arena: &mut Arena<'a>) -> Module {
 
     compile_block_tail(f.body, &mut e, &mut o);
     pop_scope(&mut e.scopes);
-    o.items.put(Item::Fun { pos, len: o.code.len() - pos });
+    o.items.put(Item::Fun { name: f.name, pos, len: o.code.len() - pos });
   }
 
   return

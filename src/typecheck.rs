@@ -18,7 +18,6 @@ pub struct TypeVar(u32);
 
 #[derive(Clone)]
 pub enum InstType {
-  Entry(Box<[TypeVar]>),
   Label(Box<[TypeVar]>),
   Local(TypeVar),
   Nil,
@@ -69,7 +68,7 @@ impl TypeMap {
   }
 
   fn label(&self, i: u32) -> &[TypeVar] {
-    let (InstType::Label(ref xs) | InstType::Entry(ref xs)) = self.insts[i] else { unreachable!() };
+    let InstType::Label(ref xs) = self.insts[i] else { unreachable!() };
     return xs;
   }
 
@@ -268,10 +267,6 @@ pub fn typecheck(module: &Module) -> (TypeMap, TypeSolver) {
         env.map.put(InstType::Value(env.solver.fresh())),
       | Inst::Local(..) =>
         env.map.put(InstType::Local(env.solver.fresh())),
-      | Inst::Entry(n) => {
-        let xs = (0 .. n).map(|_| env.solver.fresh()).collect();
-        env.map.put(InstType::Entry(xs));
-      }
       | Inst::Label(n) => {
         let xs = (0 .. n).map(|_| env.solver.fresh()).collect();
         env.map.put(InstType::Label(xs));
@@ -279,7 +274,7 @@ pub fn typecheck(module: &Module) -> (TypeMap, TypeSolver) {
     }
   }
 
-  for &Item::Fun { pos, len } in module.items.iter() {
+  for &Item::Fun { name: _, pos, len } in module.items.iter() {
     let rettypevar = env.solver.fresh();
     // apply initial type constraints
 
@@ -342,11 +337,6 @@ pub fn typecheck(module: &Module) -> (TypeMap, TypeSolver) {
           env.solver.bound(env.map.value(x), a);
           env.solver.bound(env.map.value(y), b);
           env.solver.bound(env.map.value(i), c);
-        }
-        Inst::Entry(..) => {
-          env.block = i;
-          env.is_call = false;
-          env.outs.clear();
         }
         Inst::Label(..) => {
           env.block = i;

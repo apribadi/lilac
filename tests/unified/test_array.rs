@@ -13,7 +13,8 @@ fn test_array() {
   ");
 
   expect![[r#"
-      %0 ENTRY 1 : [Array(I64)]
+      FUN foo %0
+      %0 LABEL 1 : [Array(I64)]
       %1 = GET 0 : Value Array(I64)
       %2 = 0 : Value I64
       %3 = 13 : Value I64
@@ -43,7 +44,8 @@ fn test_array() {
   ");
 
   expect![[r#"
-      %0 ENTRY 1 : [Array(I64)]
+      FUN sum %0
+      %0 LABEL 1 : [Array(I64)]
       %1 = GET 0 : Value Array(I64)
       %2 = 0 : Value I64
       %3 = LOCAL %2 : Local I64
