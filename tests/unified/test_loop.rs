@@ -13,23 +13,23 @@ fn test_loop() {
   ");
 
   expect![[r#"
-      %0 ENTRY 0 : [] -> Some([I64])
+      %0 ENTRY 0 : []
       %1 ==> GOTO %2
       %2 LABEL 0 : []
       %3 = 1 : Value I64
       %4 PUT 0 %3
       %5 RET
-      %6 ENTRY 0 : [] -> None
+      %6 ENTRY 0 : []
       %7 ==> GOTO %8
       %8 LABEL 0 : []
       %9 ==> GOTO %8
-      %10 ENTRY 0 : [] -> Some([I64])
+      %10 ENTRY 0 : []
       %11 ==> GOTO %12
       %12 LABEL 0 : []
       %13 = 1 : Value I64
       %14 PUT 0 %13
       %15 RET
-      %16 ENTRY 0 : [] -> Some([I64])
+      %16 ENTRY 0 : []
       %17 ==> GOTO %18
       %18 LABEL 0 : []
       %19 = 1 : Value I64

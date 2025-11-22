@@ -10,10 +10,10 @@ pub(crate) fn dump(out: &mut impl std::fmt::Write, source: &str) {
 
   for (i, (&inst, insttype)) in zip(module.code.iter(), typemap.insts()).enumerate() {
     match insttype {
-      lilac::typecheck::InstType::Entry(xs, y) => {
+      lilac::typecheck::InstType::Entry(xs) => {
         let xs = xs.iter().map(|x| solver.resolve(*x)).collect::<Box<[_]>>();
-        let y = solver.resolve_ret(*y);
-        write!(out, "%{} {} : {:?} -> {:?}\n", i, inst, xs, y).unwrap();
+        // let y = solver.resolve_ret(*y);
+        write!(out, "%{} {} : {:?}\n", i, inst, xs).unwrap();
       }
       lilac::typecheck::InstType::Label(xs) => {
         let xs = xs.iter().map(|x| solver.resolve(*x)).collect::<Box<[_]>>();

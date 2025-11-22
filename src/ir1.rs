@@ -6,11 +6,15 @@
 
 use crate::symbol::Symbol;
 
+type Arity = u32;
+
 type Label = u32;
 
 type Value = u32;
 
 type Local = u32;
+
+type Index = u32;
 
 pub struct Module {
   pub code: Box<[Inst]>,
@@ -26,10 +30,10 @@ pub enum Item {
 #[derive(Clone, Copy)]
 pub enum Inst {
   GotoStaticError,
-  Entry(u32),
-  Label(u32),
-  Get(u32),
-  Put(u32, Value),
+  Entry(Arity),
+  Label(Arity),
+  Get(Index),
+  Put(Index, Value),
   Goto(Label),
   Cond(Value),
   Ret,

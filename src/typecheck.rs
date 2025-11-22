@@ -18,7 +18,7 @@ pub struct TypeVar(u32);
 
 #[derive(Clone)]
 pub enum InstType {
-  Entry(Box<[TypeVar]>, TypeVar),
+  Entry(Box<[TypeVar]>),
   Label(Box<[TypeVar]>),
   Local(TypeVar),
   Nil,
@@ -68,13 +68,8 @@ impl TypeMap {
     self.insts.put(x);
   }
 
-  fn entry(&self, i: u32) -> (&[TypeVar], TypeVar) {
-    let InstType::Entry(ref xs, y) = self.insts[i] else { unreachable!() };
-    return (xs, y);
-  }
-
   fn label(&self, i: u32) -> &[TypeVar] {
-    let (InstType::Label(ref xs) | InstType::Entry(ref xs, _)) = self.insts[i] else { unreachable!() };
+    let (InstType::Label(ref xs) | InstType::Entry(ref xs)) = self.insts[i] else { unreachable!() };
     return xs;
   }
 
@@ -275,8 +270,7 @@ pub fn typecheck(module: &Module) -> (TypeMap, TypeSolver) {
         env.map.put(InstType::Local(env.solver.fresh())),
       | Inst::Entry(n) => {
         let xs = (0 .. n).map(|_| env.solver.fresh()).collect();
-        let y = env.solver.fresh();
-        env.map.put(InstType::Entry(xs, y));
+        env.map.put(InstType::Entry(xs));
       }
       | Inst::Label(n) => {
         let xs = (0 .. n).map(|_| env.solver.fresh()).collect();
@@ -286,7 +280,7 @@ pub fn typecheck(module: &Module) -> (TypeMap, TypeSolver) {
   }
 
   for &Item::Fun { pos, len } in module.items.iter() {
-    let mut rettypevar = TypeVar(u32::MAX);
+    let rettypevar = env.solver.fresh();
     // apply initial type constraints
 
     for i in pos .. pos + len {
@@ -353,8 +347,6 @@ pub fn typecheck(module: &Module) -> (TypeMap, TypeSolver) {
           env.block = i;
           env.is_call = false;
           env.outs.clear();
-          let (_, ret) = env.map.entry(i);
-          rettypevar = ret;
         }
         Inst::Label(..) => {
           env.block = i;

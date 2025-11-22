@@ -21,7 +21,7 @@ fn test_fib_loop() {
   ");
 
   expect![[r#"
-      %0 ENTRY 1 : [I64] -> Some([I64])
+      %0 ENTRY 1 : [I64]
       %1 = GET 0 : Value I64
       %2 = 1 : Value I64
       %3 = LOCAL %2 : Local I64
@@ -75,7 +75,7 @@ fn test_fib_tailcall() {
   ");
 
   expect![[r#"
-      %0 ENTRY 3 : [I64, I64, I64] -> Some([I64])
+      %0 ENTRY 3 : [I64, I64, I64]
       %1 = GET 0 : Value I64
       %2 = GET 1 : Value I64
       %3 = GET 2 : Value I64
@@ -96,7 +96,7 @@ fn test_fib_tailcall() {
       %18 LABEL 0 : []
       %19 PUT 0 %2
       %20 RET
-      %21 ENTRY 1 : [Abstract] -> None
+      %21 ENTRY 1 : [Abstract]
       %22 = GET 0 : Value Abstract
       %23 = CONST aux : Value Fun([I64, I64, Abstract], None)
       %24 = 1 : Value I64

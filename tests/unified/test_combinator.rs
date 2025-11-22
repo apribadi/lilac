@@ -10,7 +10,7 @@ fn test_select() {
   ");
 
   expect![[r#"
-      %0 ENTRY 3 : [Bool, Abstract, Abstract] -> Some([Abstract])
+      %0 ENTRY 3 : [Bool, Abstract, Abstract]
       %1 = GET 0 : Value Bool
       %2 = GET 1 : Value Abstract
       %3 = GET 2 : Value Abstract
@@ -41,7 +41,7 @@ fn test_foo() {
   ");
 
   expect![[r#"
-      %0 ENTRY 3 : [Abstract, Fun([Abstract], None), Fun([Abstract], None)] -> Some([Abstract])
+      %0 ENTRY 3 : [Abstract, Fun([Abstract], None), Fun([Abstract], None)]
       %1 = GET 0 : Value Abstract
       %2 = GET 1 : Value Fun([Abstract], None)
       %3 = GET 2 : Value Fun([Abstract], None)
