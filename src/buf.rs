@@ -26,11 +26,11 @@ fn increment_size_class(n: usize) -> usize {
 }
 
 impl<T> Buf<T> {
-  const MAX_CAP: u32 = {
+  const MAX_CAP: usize = {
     if size_of::<T>() == 0 || isize::MAX as usize / size_of::<T>() > u32::MAX as usize {
-      u32::MAX
+      u32::MAX as usize
     } else {
-      (isize::MAX as usize / size_of::<T>()) as u32
+      isize::MAX as usize / size_of::<T>()
     }
   };
 
@@ -61,7 +61,7 @@ impl<T> Buf<T> {
     if old_c == 0 {
       let new_c = 16;
 
-      assert!(new_c <= Self::MAX_CAP as usize);
+      assert!(new_c <= Self::MAX_CAP);
 
       let new_p = unsafe { global::alloc_slice::<T>(new_c) };
       let new_c = new_c as u32;
@@ -72,7 +72,7 @@ impl<T> Buf<T> {
       let old_s = old_c * size_of::<T>();
       let new_c = increment_size_class(old_s) / size_of::<T>();
 
-      assert!(new_c <= Self::MAX_CAP as usize);
+      assert!(new_c <= Self::MAX_CAP);
 
       let new_p = unsafe { global::realloc_slice::<T>(old_p, old_c, new_c) };
       let new_c = new_c as u32;

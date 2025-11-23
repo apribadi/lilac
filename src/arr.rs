@@ -13,41 +13,19 @@ pub struct Arr<T> {
 }
 
 impl<T> Arr<T> {
-  const MAX_LEN: u32 = {
+  const MAX_LEN: usize = {
     if size_of::<T>() == 0 || isize::MAX as usize / size_of::<T>() > u32::MAX as usize {
-      u32::MAX
+      u32::MAX as usize
     } else {
-      (isize::MAX as usize / size_of::<T>()) as u32
+      isize::MAX as usize / size_of::<T>()
     }
   };
 
-  pub fn new<F: FnMut(u32) -> T>(n: u32, f: F) -> Self {
-    let mut f = f;
-
-    assert!(n <= Self::MAX_LEN);
-
-    let p =
-      if size_of::<T>() != 0 && n != 0 {
-        unsafe { global::alloc_slice::<T>(n as usize) }
-      } else {
-        ptr::null()
-      };
-
-    let mut a = p;
-
-    for i in 0 .. n {
-      unsafe { a.write(f(i)); }
-      a += 1;
-    }
-
-    return Self { ptr: p, len: n, _phantom_data: PhantomData };
-  }
-
-  pub fn from_exact<U: ExactSizeIterator<Item = T>>(iter: U) -> Self {
+  pub fn new<U: ExactSizeIterator<Item = T>>(iter: U) -> Self {
     let mut iter = iter;
     let n = iter.len();
 
-    assert!(n <= Self::MAX_LEN as usize);
+    assert!(n <= Self::MAX_LEN);
 
     let p =
       if size_of::<T>() != 0 && n != 0 {
@@ -67,11 +45,6 @@ impl<T> Arr<T> {
     debug_assert!(iter.next().is_none());
 
     return Self { ptr: p, len: n, _phantom_data: PhantomData };
-  }
-
-  #[inline(always)]
-  pub fn is_empty(&self) -> bool {
-    return self.len == 0;
   }
 
   #[inline(always)]
@@ -130,7 +103,7 @@ impl<T> Drop for Arr<T> {
 
 impl<T: Clone> Clone for Arr<T> {
   fn clone(&self) -> Self {
-    return Self::from_exact(self.iter().map(T::clone));
+    return Self::new(self.iter().map(T::clone));
   }
 }
 
@@ -203,7 +176,7 @@ impl<T> FromIterator<T> for Arr<T> {
   fn from_iter<U: IntoIterator<Item = T>>(iter: U) -> Self {
     let mut buf = Buf::new();
     for item in iter.into_iter() { buf.put(item); }
-    return Arr::from_exact(buf.drain());
+    return Arr::new(buf.drain());
   }
 }
 
