@@ -59,7 +59,7 @@ struct Env {
   block: u32,
   outs: Buf<TypeVar>,
   solver: TypeSolver,
-  call: Option<TypeVar>,
+  call_rettypevar: Option<TypeVar>,
 }
 
 impl TypeMap {
@@ -237,7 +237,7 @@ impl Env {
       block: u32::MAX,
       outs: Buf::new(),
       solver: TypeSolver::new(),
-      call: None,
+      call_rettypevar: None,
     }
   }
 }
@@ -295,10 +295,10 @@ pub fn typecheck(module: &Module) -> (HashMap<Symbol, TypeVar>, TypeMap, TypeSol
           env.solver.bound(env.insts.value(i), ValType::I64),
         Inst::Local(x) =>
           env.solver.unify(env.insts.value(x), env.insts.local(i)),
-        Inst::GetLocal(x) =>
-          env.solver.unify(env.insts.local(x), env.insts.value(i)),
-        Inst::SetLocal(x, y) =>
-          env.solver.unify(env.insts.value(y), env.insts.local(x)),
+        Inst::GetLocal(v) =>
+          env.solver.unify(env.insts.local(v), env.insts.value(i)),
+        Inst::SetLocal(v, x) =>
+          env.solver.unify(env.insts.value(x), env.insts.local(v)),
         Inst::Index(x, y) => {
           let a = env.solver.fresh();
           env.solver.bound(env.insts.value(x), ValType::Array(a));
@@ -349,7 +349,7 @@ pub fn typecheck(module: &Module) -> (HashMap<Symbol, TypeVar>, TypeMap, TypeSol
         }
         Inst::Label(..) => {
           env.block = i;
-          env.call = None;
+          env.call_rettypevar = None;
           env.outs.clear();
         }
         Inst::Get(k) =>
@@ -361,24 +361,22 @@ pub fn typecheck(module: &Module) -> (HashMap<Symbol, TypeVar>, TypeMap, TypeSol
         Inst::Cond(x) =>
           env.solver.bound(env.insts.value(x), ValType::Bool),
         Inst::Goto(a) => {
-          match env.call {
+          match env.call_rettypevar {
             None => {
               for (&x, &y) in zip(env.outs.iter(), env.insts.label(a).iter()) {
                 env.solver.unify(x, y);
               }
             }
-            Some(_ret) =>  {
-              // TODO - handle call continuations
-              //
-              // unify function RetTypeVar with label argument types
+            Some(ret) =>  {
+              env.solver.bound_ret(ret, env.insts.label(a).clone());
             }
           }
         }
         Inst::Call(f) => {
           let xs = env.outs.drain().collect();
-          let y = env.solver.fresh(); // TODO
+          let y = env.solver.fresh();
           env.solver.bound(env.insts.value(f), ValType::Fun(xs, y));
-          env.call = Some(y);
+          env.call_rettypevar = Some(y);
         }
         Inst::TailCall(f) => {
           let xs = env.outs.drain().collect();

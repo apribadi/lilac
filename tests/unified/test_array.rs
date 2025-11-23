@@ -51,7 +51,7 @@ fn test_array() {
       %3 = LOCAL %2 : Local I64
       %4 = 0 : Value I64
       %5 = LOCAL %4 : Local I64
-      %6 = CONST len : Value Fun([Array(I64)], None)
+      %6 = CONST len : Value Fun([Array(I64)], Some([I64]))
       %7 PUT 0 %1
       %8 CALL %6
       %9 ==> GOTO %10

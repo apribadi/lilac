@@ -42,10 +42,10 @@ fn test_foo() {
   ");
 
   expect![[r#"
-      FUN foo %0 : Fun([Abstract, Fun([Abstract], None), Fun([Abstract], Some([Abstract]))], Some([Abstract]))
-      %0 LABEL 3 : [Abstract, Fun([Abstract], None), Fun([Abstract], Some([Abstract]))]
+      FUN foo %0 : Fun([Abstract, Fun([Abstract], Some([Bool])), Fun([Abstract], Some([Abstract]))], Some([Abstract]))
+      %0 LABEL 3 : [Abstract, Fun([Abstract], Some([Bool])), Fun([Abstract], Some([Abstract]))]
       %1 = GET 0 : Value Abstract
-      %2 = GET 1 : Value Fun([Abstract], None)
+      %2 = GET 1 : Value Fun([Abstract], Some([Bool]))
       %3 = GET 2 : Value Fun([Abstract], Some([Abstract]))
       %4 PUT 0 %1
       %5 CALL %2
