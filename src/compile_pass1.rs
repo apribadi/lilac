@@ -13,6 +13,7 @@ use crate::ir1::Inst;
 use crate::ir1::Item;
 use crate::ir1::Module;
 use crate::symbol::Symbol;
+use crate::prelude::*;
 use oxcart::Arena;
 use std::iter::zip;
 use tangerine::map::HashMap;
@@ -30,8 +31,8 @@ pub fn compile<'a>(source: &[u8], arena: &mut Arena<'a>) -> Module {
     put_scope(&mut e.scopes);
     let _ = o.emit(Inst::Label(f.args.len() as u32));
 
-    for (i, x) in f.args.iter().enumerate() {
-      let y = o.emit(Inst::Get(i as u32));
+    for (i, x) in enumerate(f.args.iter()) {
+      let y = o.emit(Inst::Get(i));
       if let Some(x) = x.name {
         put_referent(x, Referent::Let(y), &mut e.scopes);
       }
@@ -290,8 +291,8 @@ impl What {
         return n_points;
       }
       What::NumValues(n_values) => {
-        for (i, x) in e.values.pop_list(n_values).enumerate() {
-          let _ = o.emit(Inst::Put(i as u32, x));
+        for (i, x) in enumerate(e.values.pop_list(n_values)) {
+          let _ = o.emit(Inst::Put(i, x));
         }
         let p = o.emit_point(Some(n_values));
         e.points.put(p);
@@ -329,8 +330,8 @@ fn compile_expr<'a>(x: Expr<'a>, e: &mut Env, o: &mut Out) -> What {
         let x = compile_expr(x, e, o).into_value(e, o);
         e.values.put(x);
       }
-      for (i, x) in e.values.pop_list(n).enumerate() {
-        let _ = o.emit(Inst::Put(i as u32, x));
+      for (i, x) in enumerate(e.values.pop_list(n)) {
+        let _ = o.emit(Inst::Put(i, x));
       }
       let _ = o.emit(Inst::Call(f));
       let p = o.emit_point(None);
@@ -471,8 +472,8 @@ fn compile_expr_tail<'a>(x: Expr<'a>, e: &mut Env, o: &mut Out) {
         let x = compile_expr(x, e, o).into_value(e, o);
         e.values.put(x);
       }
-      for (i, x) in e.values.pop_list(n).enumerate() {
-        let _ = o.emit(Inst::Put(i as u32, x));
+      for (i, x) in enumerate(e.values.pop_list(n)) {
+        let _ = o.emit(Inst::Put(i, x));
       }
       let _ = o.emit(Inst::TailCall(f));
     }
@@ -731,8 +732,8 @@ fn compile_expr_list_tail<'a>(xs: &'a [Expr<'a>], e: &mut Env, o: &mut Out) {
         let x = compile_expr(x, e, o).into_value(e, o);
         e.values.put(x);
       }
-      for (i, x) in e.values.pop_list(n).enumerate() {
-        let _ = o.emit(Inst::Put(i as u32, x));
+      for (i, x) in enumerate(e.values.pop_list(n)) {
+        let _ = o.emit(Inst::Put(i, x));
       }
       let _ = o.emit(Inst::Ret);
     }

@@ -8,7 +8,7 @@ pub trait Out {
 
   fn on_fundef(&mut self, name: &[u8], n_args: u32, n_stmts: u32);
 
-  // TODO: optional type for binding
+  // TODO: optional type ascription for binding
   fn on_bind(&mut self, name: Option<&[u8]>);
 
   fn on_variable(&mut self, symbol: &[u8]);

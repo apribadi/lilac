@@ -1,6 +1,5 @@
 extern crate alloc;
 
-use core::iter::FusedIterator;
 use core::marker::PhantomData;
 use core::mem::needs_drop;
 use core::ops::Index;
@@ -337,7 +336,4 @@ impl<'a, T> ExactSizeIterator for PopList<'a, T> {
   fn len(&self) -> usize {
     return self.len as usize;
   }
-}
-
-impl<'a, T> FusedIterator for PopList<'a, T> {
 }
