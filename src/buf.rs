@@ -34,6 +34,7 @@ impl<T> Buf<T> {
     }
   };
 
+  #[inline(always)]
   pub const fn new() -> Self {
     return Self {
       ptr: ptr::null(),
@@ -235,6 +236,13 @@ impl<T> Drop for Buf<T> {
   }
 }
 
+impl<T> Default for Buf<T> {
+  #[inline(always)]
+  fn default() -> Self {
+    return Self::new();
+  }
+}
+
 impl<T> Index<u32> for Buf<T> {
   type Output = T;
 
@@ -302,9 +310,9 @@ impl<'a, T> Iterator for Iter<'a, T> {
 
   #[inline(always)]
   fn size_hint(&self) -> (usize, Option<usize>) {
-    let n = self.len;
+    let n = self.len as usize;
 
-    return (n as usize, Some(n as usize));
+    return (n, Some(n));
   }
 }
 

@@ -21,6 +21,12 @@ impl<T> Arr<T> {
     }
   };
 
+  pub const EMPTY: Self = Self {
+    ptr: ptr::null(),
+    len: 0,
+    _phantom_data: PhantomData,
+  };
+
   pub fn new<U: ExactSizeIterator<Item = T>>(iter: U) -> Self {
     let mut iter = iter;
     let n = iter.len();
@@ -159,9 +165,9 @@ impl<'a, T> Iterator for Iter<'a, T> {
 
   #[inline(always)]
   fn size_hint(&self) -> (usize, Option<usize>) {
-    let n = self.len;
+    let n = self.len as usize;
 
-    return (n as usize, Some(n as usize));
+    return (n, Some(n));
   }
 }
 
