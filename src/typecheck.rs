@@ -219,7 +219,7 @@ impl TypeSolver {
     }
   }
 
-  pub fn resolve_ret(&self, x: TypeVar) -> Option<Box<[ir1::ValType]>> {
+  pub fn resolve_ret(&self, x: TypeVar) -> Option<Arr<ir1::ValType>> {
     // ???
     if let TypeState::RetType(xs) = &self.vars[x.0] {
       return Some(xs.iter().map(|x| self.resolve(*x)).collect());
@@ -273,7 +273,7 @@ pub fn typecheck(module: &Module) -> (HashMap<Symbol, TypeVar>, TypeMap, TypeSol
       | Inst::Local(..) =>
         env.insts.put(InstType::Local(env.solver.fresh())),
       | Inst::Label(n) => {
-        let xs = Arr::new((0 .. n).map(|_| env.solver.fresh()));
+        let xs = (0 .. n).map(|_| env.solver.fresh()).collect();
         env.insts.put(InstType::Label(xs));
       }
     }
@@ -288,7 +288,7 @@ pub fn typecheck(module: &Module) -> (HashMap<Symbol, TypeVar>, TypeMap, TypeSol
     // apply initial type constraints
 
     for i in pos .. pos + len {
-      match module.code[i as usize] {
+      match module.code[i] {
         Inst::ConstBool(_) =>
           env.solver.bound(env.insts.value(i), ValType::Bool),
         Inst::ConstInt(_) =>
@@ -357,7 +357,7 @@ pub fn typecheck(module: &Module) -> (HashMap<Symbol, TypeVar>, TypeMap, TypeSol
         Inst::Put(_, x) =>
           env.outs.put(env.insts.value(x)),
         Inst::Ret =>
-          env.solver.bound_ret(rettypevar, Arr::new(env.outs.drain())),
+          env.solver.bound_ret(rettypevar, env.outs.drain().collect()),
         Inst::Cond(x) =>
           env.solver.bound(env.insts.value(x), ValType::Bool),
         Inst::Goto(a) => {
@@ -375,13 +375,13 @@ pub fn typecheck(module: &Module) -> (HashMap<Symbol, TypeVar>, TypeMap, TypeSol
           }
         }
         Inst::Call(f) => {
-          let xs = Arr::new(env.outs.drain());
+          let xs = env.outs.drain().collect();
           let y = env.solver.fresh(); // TODO
           env.solver.bound(env.insts.value(f), ValType::Fun(xs, y));
           env.call = Some(y);
         }
         Inst::TailCall(f) => {
-          let xs = Arr::new(env.outs.drain());
+          let xs = env.outs.drain().collect();
           let y = env.solver.fresh();
           env.solver.bound(env.insts.value(f), ValType::Fun(xs, y));
           env.solver.unify(rettypevar, y);

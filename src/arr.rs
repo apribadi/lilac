@@ -2,6 +2,7 @@ use core::marker::PhantomData;
 use core::mem::needs_drop;
 use core::ops::Index;
 use core::ops::IndexMut;
+use crate::buf::Buf;
 use pop::global;
 use pop::ptr;
 
@@ -12,10 +13,7 @@ pub struct Arr<T> {
 }
 
 impl<T> Arr<T> {
-  pub fn new<U>(iter: U) -> Self
-  where
-    U: ExactSizeIterator<Item = T>
-  {
+  pub fn new<U: ExactSizeIterator<Item = T>>(iter: U) -> Self {
     let mut iter = iter;
     let n = iter.len();
 
@@ -168,6 +166,14 @@ impl<'a, T> ExactSizeIterator for Iter<'a, T> {
   #[inline(always)]
   fn len(&self) -> usize {
     return self.len as usize;
+  }
+}
+
+impl<T> FromIterator<T> for Arr<T> {
+  fn from_iter<U: IntoIterator<Item = T>>(iter: U) -> Self {
+    let mut buf = Buf::new();
+    for item in iter.into_iter() { buf.put(item); }
+    return Arr::new(buf.drain());
   }
 }
 

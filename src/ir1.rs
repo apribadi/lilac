@@ -4,6 +4,7 @@
 // - from a source file, without context
 // - not type checked
 
+use crate::arr::Arr;
 use crate::symbol::Symbol;
 
 type Arity = u32;
@@ -17,8 +18,8 @@ type Local = u32;
 type Index = u32;
 
 pub struct Module {
-  pub code: Box<[Inst]>,
-  pub items: Box<[Item]>,
+  pub code: Arr<Inst>,
+  pub items: Arr<Item>,
 }
 
 #[derive(Debug)]
@@ -85,7 +86,7 @@ pub enum ValType {
   Array(Box<ValType>),
   Bool,
   F64,
-  Fun(Box<[ValType]>, Option<Box<[ValType]>>),
+  Fun(Arr<ValType>, Option<Arr<ValType>>),
   I64,
   TypeError, // ???
 }
