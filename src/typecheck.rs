@@ -384,7 +384,13 @@ pub fn typecheck(module: &Module) -> (HashMap<Symbol, TypeVar>, TypeMap, TypeSol
           env.solver.bound(env.insts.value(f), ValType::Fun(xs, y));
           env.solver.unify(rettypevar, y);
         }
-        | Inst::Const(..)
+        | Inst::Const(symbol) => {
+          // TODO: ???
+
+          if let Some(&x) = env.items.get(symbol) {
+            env.solver.unify(env.insts.value(i), x);
+          }
+        }
         | Inst::Field(..)
         | Inst::GotoStaticError
         | Inst::SetField(..) => {
