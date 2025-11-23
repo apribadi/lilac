@@ -1,3 +1,4 @@
+use crate::arr::Arr;
 use crate::ast::Bind;
 use crate::ast::Expr;
 use crate::ast::Fun;
@@ -12,10 +13,10 @@ use crate::token::Token;
 use crate::symbol::Symbol;
 use oxcart::Arena;
 
-pub fn parse<'a>(source: &[u8], arena: &mut Arena<'a>) -> Buf<Item<'a>> {
+pub fn parse<'a>(source: &[u8], arena: &mut Arena<'a>) -> Arr<Item<'a>> {
   let mut e = ToAst::new(arena);
   parse::parse(&mut Lexer::new(source), &mut e);
-  return e.items;
+  return Arr::new(e.items.drain());
 }
 
 struct ToAst<'a, 'b> {

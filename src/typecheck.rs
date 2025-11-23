@@ -385,7 +385,15 @@ pub fn typecheck(module: &Module) -> (HashMap<Symbol, TypeVar>, TypeMap, TypeSol
           env.solver.unify(rettypevar, y);
         }
         | Inst::Const(symbol) => {
-          // TODO: ???
+          // TODO:
+          //
+          // if (in the SCC that we're currently typing) {
+          //   unify with typevar
+          // } else if (bound in global environment) {
+          //   instantiate type scheme
+          // } else {
+          //   error unbound variable reference
+          // }
 
           if let Some(&x) = env.items.get(symbol) {
             env.solver.unify(env.insts.value(i), x);

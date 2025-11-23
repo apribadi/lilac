@@ -1,28 +1,25 @@
 //! pass 1
 //!
-//! source text -> linearized bytecode
+//! abstract syntax tree -> linearized bytecode + item references
 //!
-//! operates on a single file
+//! operates on a single source file
 
+use crate::arr::Arr;
 use crate::ast::Expr;
-use crate::ast;
 use crate::ast::Stmt;
-use crate::parse_ast::parse;
+use crate::ast;
 use crate::buf::Buf;
 use crate::ir1::Inst;
 use crate::ir1::Item;
 use crate::ir1::Module;
+use crate::iter::enumerate;
 use crate::symbol::Symbol;
-use crate::prelude::*;
-use oxcart::Arena;
 use std::iter::zip;
 use tangerine::map::HashMap;
 
 // TODO: consider special lowering for arguments to cond
 
-pub fn compile<'a>(source: &[u8], arena: &mut Arena<'a>) -> Module {
-  let item_list = parse(source, arena);
-
+pub fn compile<'a>(item_list: &Arr<ast::Item<'a>>) -> Module {
   let mut e = Env::new();
   let mut o = Out::new();
 
