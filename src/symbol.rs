@@ -23,6 +23,10 @@ impl Symbol {
       return Self(n);
     }
   }
+
+  pub fn from_str(s: &str) -> Self {
+    return Self::from_bytes(s.as_bytes());
+  }
 }
 
 unsafe impl tangerine::key::IntoKey for Symbol {

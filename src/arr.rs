@@ -27,8 +27,12 @@ impl<T> Arr<T> {
     _phantom_data: PhantomData,
   };
 
-  pub fn new<U: ExactSizeIterator<Item = T>>(iter: U) -> Self {
-    let mut iter = iter;
+  pub fn new<U, V>(iter: U) -> Self
+  where
+    U: IntoIterator<IntoIter = V>,
+    V: ExactSizeIterator<Item = T>
+  {
+    let mut iter = iter.into_iter();
     let n = iter.len();
 
     assert!(n <= Self::MAX_LEN);

@@ -32,20 +32,32 @@ pub struct TypeMap {
 }
 
 #[derive(Clone, Debug)]
-pub enum ValType {
+pub enum TypeCon {
   Array(TypeVar),
   Bool,
   Fun(Arr<TypeVar>, TypeVar),
   I64,
 }
 
-type RetType = Arr<TypeVar>;
+#[derive(Clone, Debug)]
+pub enum Type {
+  Array(Box<Type>),
+  Bool,
+  Fun(Arr<Type>, Arr<Type>),
+  I64,
+  Var(TypeVar),
+}
+
+pub struct TypeScheme(/* arity */ u32, Type);
+
+type TypeSeq = Arr<TypeVar>;
 
 pub enum TypeState {
   Abstract,
+  TypeCon(TypeCon),
   TypeError,
-  ValType(ValType),
-  RetType(RetType),
+  TypeGen(TypeVar),
+  TypeSeq(TypeSeq),
 }
 
 pub struct TypeSolver {
@@ -53,7 +65,8 @@ pub struct TypeSolver {
   todo: Buf<(TypeVar, TypeVar)>,
 }
 
-struct Env {
+struct Ctx {
+  environment: HashMap<Symbol, TypeScheme>,
   items: HashMap<Symbol, TypeVar>,
   insts: TypeMap,
   block: u32,
@@ -91,19 +104,19 @@ impl TypeMap {
   }
 }
 
-fn unify_valtype(x: ValType, y: ValType, todo: &mut Buf<(TypeVar, TypeVar)>) -> TypeState {
+fn unify_valtype(x: TypeCon, y: TypeCon, todo: &mut Buf<(TypeVar, TypeVar)>) -> TypeState {
   match (x, y) {
-    (ValType::Bool, ValType::Bool) => {
-      TypeState::ValType(ValType::Bool)
+    (TypeCon::Bool, TypeCon::Bool) => {
+      TypeState::TypeCon(TypeCon::Bool)
     }
-    (ValType::I64, ValType::I64) => {
-      TypeState::ValType(ValType::I64)
+    (TypeCon::I64, TypeCon::I64) => {
+      TypeState::TypeCon(TypeCon::I64)
     }
-    (ValType::Array(x), ValType::Array(y)) => {
+    (TypeCon::Array(x), TypeCon::Array(y)) => {
       todo.put((x, y));
-      TypeState::ValType(ValType::Array(x))
+      TypeState::TypeCon(TypeCon::Array(x))
     }
-    (ValType::Fun(xs, u), ValType::Fun(ys, v)) => {
+    (TypeCon::Fun(xs, u), TypeCon::Fun(ys, v)) => {
       if xs.len() != ys.len() {
         TypeState::TypeError
       } else {
@@ -111,7 +124,7 @@ fn unify_valtype(x: ValType, y: ValType, todo: &mut Buf<(TypeVar, TypeVar)>) -> 
           todo.put((*x, *y));
         }
         todo.put((u, v));
-        TypeState::ValType(ValType::Fun(xs, u))
+        TypeState::TypeCon(TypeCon::Fun(xs, u))
       }
     }
     (_, _) => {
@@ -120,7 +133,7 @@ fn unify_valtype(x: ValType, y: ValType, todo: &mut Buf<(TypeVar, TypeVar)>) -> 
   }
 }
 
-fn unify_rettype(xs: RetType, ys: RetType, todo: &mut Buf<(TypeVar, TypeVar)>) -> TypeState {
+fn unify_rettype(xs: TypeSeq, ys: TypeSeq, todo: &mut Buf<(TypeVar, TypeVar)>) -> TypeState {
   if xs.len() != ys.len() {
     return TypeState::TypeError;
   }
@@ -129,7 +142,7 @@ fn unify_rettype(xs: RetType, ys: RetType, todo: &mut Buf<(TypeVar, TypeVar)>) -
     todo.put((*x, *y));
   }
 
-  return TypeState::RetType(xs);
+  return TypeState::TypeSeq(xs);
 }
 
 impl TypeSolver {
@@ -144,30 +157,30 @@ impl TypeSolver {
     return TypeVar(self.vars.put(TypeState::Abstract));
   }
 
-  fn bound(&mut self, x: TypeVar, t: ValType) {
+  fn bound(&mut self, x: TypeVar, t: TypeCon) {
     let x = &mut self.vars[x.0];
 
     *x =
       match replace(x, TypeState::Abstract) {
-        TypeState::TypeError | TypeState::RetType(..) =>
+        TypeState::TypeError | TypeState::TypeGen(..) | TypeState::TypeSeq(..) =>
           TypeState::TypeError,
         TypeState::Abstract =>
-          TypeState::ValType(t),
-        TypeState::ValType(x) =>
+          TypeState::TypeCon(t),
+        TypeState::TypeCon(x) =>
           unify_valtype(x, t, &mut self.todo),
       };
   }
 
-  fn bound_ret(&mut self, x: TypeVar, t: RetType) {
+  fn bound_ret(&mut self, x: TypeVar, t: TypeSeq) {
     let x = &mut self.vars[x.0];
 
     *x =
       match replace(x, TypeState::Abstract) {
-        TypeState::TypeError | TypeState::ValType(..) =>
+        TypeState::TypeError | TypeState::TypeGen(..) | TypeState::TypeCon(..) =>
           TypeState::TypeError,
         TypeState::Abstract =>
-          TypeState::RetType(t),
-        TypeState::RetType(x) =>
+          TypeState::TypeSeq(t),
+        TypeState::TypeSeq(x) =>
           unify_rettype(x, t, &mut self.todo),
       };
   }
@@ -178,15 +191,17 @@ impl TypeSolver {
         match (replace(x, TypeState::Abstract), y) {
           | (TypeState::TypeError, _)
           | (_, TypeState::TypeError)
-          | (TypeState::ValType(..), TypeState::RetType(..))
-          | (TypeState::RetType(..), TypeState::ValType(..)) =>
+          | (TypeState::TypeGen(..), _)
+          | (_, TypeState::TypeGen(..))
+          | (TypeState::TypeCon(..), TypeState::TypeSeq(..))
+          | (TypeState::TypeSeq(..), TypeState::TypeCon(..)) =>
             TypeState::TypeError,
           | (TypeState::Abstract, t)
           | (t, TypeState::Abstract) =>
             t,
-          (TypeState::ValType(x), TypeState::ValType(y)) =>
+          (TypeState::TypeCon(x), TypeState::TypeCon(y)) =>
             unify_valtype(x, y, &mut self.todo),
-          (TypeState::RetType(x), TypeState::RetType(y)) =>
+          (TypeState::TypeSeq(x), TypeState::TypeSeq(y)) =>
             unify_rettype(x, y, &mut self.todo),
         };
     }
@@ -199,18 +214,19 @@ impl TypeSolver {
   }
 
   pub fn resolve(&self, x: TypeVar) -> ir1::ValType {
-    // recursive types?
+    // TODO: we should do an occurs check to prohibit recursive types.
 
     match &self.vars[x.0] {
+      TypeState::TypeGen(..) => unimplemented!(),
       TypeState::Abstract => ir1::ValType::Abstract,
       TypeState::TypeError => ir1::ValType::TypeError, // ???
-      TypeState::RetType(..) => ir1::ValType::TypeError, // ???
-      TypeState::ValType(t) => {
+      TypeState::TypeSeq(..) => ir1::ValType::TypeError, // ???
+      TypeState::TypeCon(t) => {
         match t {
-          ValType::Array(a) => ir1::ValType::Array(Box::new(self.resolve(*a))),
-          ValType::Bool => ir1::ValType::Bool,
-          ValType::I64 => ir1::ValType::I64,
-          ValType::Fun(xs, y) =>
+          TypeCon::Array(a) => ir1::ValType::Array(Box::new(self.resolve(*a))),
+          TypeCon::Bool => ir1::ValType::Bool,
+          TypeCon::I64 => ir1::ValType::I64,
+          TypeCon::Fun(xs, y) =>
             ir1::ValType::Fun(
               xs.iter().map(|x| self.resolve(*x)).collect(),
               self.resolve_ret(*y)),
@@ -221,7 +237,7 @@ impl TypeSolver {
 
   pub fn resolve_ret(&self, x: TypeVar) -> Option<Arr<ir1::ValType>> {
     // ???
-    if let TypeState::RetType(xs) = &self.vars[x.0] {
+    if let TypeState::TypeSeq(xs) = &self.vars[x.0] {
       return Some(xs.iter().map(|x| self.resolve(*x)).collect());
     } else {
       return None;
@@ -229,21 +245,31 @@ impl TypeSolver {
   }
 }
 
-impl Env {
+impl Ctx {
   fn new() -> Self {
-    return Self {
-      items: HashMap::new(),
-      insts: TypeMap::new(),
-      block: u32::MAX,
-      outs: Buf::new(),
-      solver: TypeSolver::new(),
-      call_rettypevar: None,
-    }
+    let mut ctx =
+      Self {
+        environment: HashMap::new(),
+        items: HashMap::new(),
+        insts: TypeMap::new(),
+        block: u32::MAX,
+        outs: Buf::new(),
+        solver: TypeSolver::new(),
+        call_rettypevar: None,
+      };
+
+    let _ =
+      ctx.environment.insert(
+        Symbol::from_str("len"),
+        TypeScheme(1, Type::Fun(Arr::new([Type::Var(TypeVar(0))]), Arr::new([Type::I64])))
+     );
+
+    return ctx;
   }
 }
 
 pub fn typecheck(module: &Module) -> (HashMap<Symbol, TypeVar>, TypeMap, TypeSolver) {
-  let mut env = Env::new();
+  let mut ctx = Ctx::new();
 
   // assign type variables for all relevant program points
 
@@ -259,7 +285,7 @@ pub fn typecheck(module: &Module) -> (HashMap<Symbol, TypeVar>, TypeMap, TypeSol
       | Inst::SetField(..)
       | Inst::SetIndex(..)
       | Inst::SetLocal(..) =>
-        env.insts.put(InstType::Nil),
+        ctx.insts.put(InstType::Nil),
       | Inst::Get(..)
       | Inst::Const(..)
       | Inst::ConstBool(..)
@@ -269,56 +295,56 @@ pub fn typecheck(module: &Module) -> (HashMap<Symbol, TypeVar>, TypeMap, TypeSol
       | Inst::GetLocal(..)
       | Inst::Op1(..)
       | Inst::Op2(..) =>
-        env.insts.put(InstType::Value(env.solver.fresh())),
+        ctx.insts.put(InstType::Value(ctx.solver.fresh())),
       | Inst::Local(..) =>
-        env.insts.put(InstType::Local(env.solver.fresh())),
+        ctx.insts.put(InstType::Local(ctx.solver.fresh())),
       | Inst::Label(n) => {
-        let xs = (0 .. n).map(|_| env.solver.fresh()).collect();
-        env.insts.put(InstType::Label(xs));
+        let xs = (0 .. n).map(|_| ctx.solver.fresh()).collect();
+        ctx.insts.put(InstType::Label(xs));
       }
     }
   }
 
   for &Item::Fun { name, pos, len } in module.items.iter() {
-    let funtypevar = env.solver.fresh();
-    let rettypevar = env.solver.fresh();
-    env.solver.bound(funtypevar, ValType::Fun(env.insts.label(pos).clone(), rettypevar));
-    let _ = env.items.insert(name, funtypevar);
+    let funtypevar = ctx.solver.fresh();
+    let rettypevar = ctx.solver.fresh();
+    ctx.solver.bound(funtypevar, TypeCon::Fun(ctx.insts.label(pos).clone(), rettypevar));
+    let _ = ctx.items.insert(name, funtypevar);
 
     // apply initial type constraints
 
     for i in pos .. pos + len {
       match module.code[i] {
         Inst::ConstBool(_) =>
-          env.solver.bound(env.insts.value(i), ValType::Bool),
+          ctx.solver.bound(ctx.insts.value(i), TypeCon::Bool),
         Inst::ConstInt(_) =>
-          env.solver.bound(env.insts.value(i), ValType::I64),
+          ctx.solver.bound(ctx.insts.value(i), TypeCon::I64),
         Inst::Local(x) =>
-          env.solver.unify(env.insts.value(x), env.insts.local(i)),
+          ctx.solver.unify(ctx.insts.value(x), ctx.insts.local(i)),
         Inst::GetLocal(v) =>
-          env.solver.unify(env.insts.local(v), env.insts.value(i)),
+          ctx.solver.unify(ctx.insts.local(v), ctx.insts.value(i)),
         Inst::SetLocal(v, x) =>
-          env.solver.unify(env.insts.value(x), env.insts.local(v)),
+          ctx.solver.unify(ctx.insts.value(x), ctx.insts.local(v)),
         Inst::Index(x, y) => {
-          let a = env.solver.fresh();
-          env.solver.bound(env.insts.value(x), ValType::Array(a));
-          env.solver.bound(env.insts.value(y), ValType::I64);
-          env.solver.unify(a, env.insts.value(i));
+          let a = ctx.solver.fresh();
+          ctx.solver.bound(ctx.insts.value(x), TypeCon::Array(a));
+          ctx.solver.bound(ctx.insts.value(y), TypeCon::I64);
+          ctx.solver.unify(a, ctx.insts.value(i));
         }
         Inst::SetIndex(x, y, z) => {
-          let a = env.solver.fresh();
-          env.solver.bound(env.insts.value(x), ValType::Array(a));
-          env.solver.bound(env.insts.value(y), ValType::I64);
-          env.solver.unify(env.insts.value(z), a);
+          let a = ctx.solver.fresh();
+          ctx.solver.bound(ctx.insts.value(x), TypeCon::Array(a));
+          ctx.solver.bound(ctx.insts.value(y), TypeCon::I64);
+          ctx.solver.unify(ctx.insts.value(z), a);
         }
         Inst::Op1(f, x) => {
           let (a, b) =
             match f {
-              | Op1::Neg => (ValType::I64, ValType::I64),
-              | Op1::Not => (ValType::Bool, ValType::Bool),
+              | Op1::Neg => (TypeCon::I64, TypeCon::I64),
+              | Op1::Not => (TypeCon::Bool, TypeCon::Bool),
             };
-          env.solver.bound(env.insts.value(x), a);
-          env.solver.bound(env.insts.value(i), b);
+          ctx.solver.bound(ctx.insts.value(x), a);
+          ctx.solver.bound(ctx.insts.value(i), b);
         }
         Inst::Op2(f, x, y) => {
           let (a, b, c) =
@@ -331,72 +357,93 @@ pub fn typecheck(module: &Module) -> (HashMap<Symbol, TypeVar>, TypeMap, TypeSol
               | Op2::Div
               | Op2::Mul
               | Op2::Rem
-                => (ValType::I64, ValType::I64, ValType::I64),
+                => (TypeCon::I64, TypeCon::I64, TypeCon::I64),
               | Op2::Shl
               | Op2::Shr
-                => (ValType::I64, ValType::I64, ValType::I64),
+                => (TypeCon::I64, TypeCon::I64, TypeCon::I64),
               | Op2::CmpEq
               | Op2::CmpNe
               | Op2::CmpGe
               | Op2::CmpGt
               | Op2::CmpLe
               | Op2::CmpLt
-                => (ValType::I64, ValType::I64, ValType::Bool),
+                => (TypeCon::I64, TypeCon::I64, TypeCon::Bool),
             };
-          env.solver.bound(env.insts.value(x), a);
-          env.solver.bound(env.insts.value(y), b);
-          env.solver.bound(env.insts.value(i), c);
+          ctx.solver.bound(ctx.insts.value(x), a);
+          ctx.solver.bound(ctx.insts.value(y), b);
+          ctx.solver.bound(ctx.insts.value(i), c);
         }
         Inst::Label(..) => {
-          env.block = i;
-          env.call_rettypevar = None;
-          env.outs.clear();
+          ctx.block = i;
+          ctx.call_rettypevar = None;
+          ctx.outs.clear();
         }
         Inst::Get(k) =>
-          env.solver.unify(env.insts.value(i), env.insts.label(env.block)[k]),
+          ctx.solver.unify(ctx.insts.value(i), ctx.insts.label(ctx.block)[k]),
         Inst::Put(_, x) =>
-          env.outs.put(env.insts.value(x)),
+          ctx.outs.put(ctx.insts.value(x)),
         Inst::Ret =>
-          env.solver.bound_ret(rettypevar, env.outs.drain().collect()),
+          ctx.solver.bound_ret(rettypevar, ctx.outs.drain().collect()),
         Inst::Cond(x) =>
-          env.solver.bound(env.insts.value(x), ValType::Bool),
+          ctx.solver.bound(ctx.insts.value(x), TypeCon::Bool),
         Inst::Goto(a) => {
-          match env.call_rettypevar {
+          match ctx.call_rettypevar {
             None => {
-              for (&x, &y) in zip(env.outs.iter(), env.insts.label(a).iter()) {
-                env.solver.unify(x, y);
+              for (&x, &y) in zip(ctx.outs.iter(), ctx.insts.label(a).iter()) {
+                ctx.solver.unify(x, y);
               }
             }
             Some(ret) =>  {
-              env.solver.bound_ret(ret, env.insts.label(a).clone());
+              ctx.solver.bound_ret(ret, ctx.insts.label(a).clone());
             }
           }
         }
         Inst::Call(f) => {
-          let xs = env.outs.drain().collect();
-          let y = env.solver.fresh();
-          env.solver.bound(env.insts.value(f), ValType::Fun(xs, y));
-          env.call_rettypevar = Some(y);
+          let xs = ctx.outs.drain().collect();
+          let y = ctx.solver.fresh();
+          ctx.solver.bound(ctx.insts.value(f), TypeCon::Fun(xs, y));
+          ctx.call_rettypevar = Some(y);
         }
         Inst::TailCall(f) => {
-          let xs = env.outs.drain().collect();
-          let y = env.solver.fresh();
-          env.solver.bound(env.insts.value(f), ValType::Fun(xs, y));
-          env.solver.unify(rettypevar, y);
+          let xs = ctx.outs.drain().collect();
+          let y = ctx.solver.fresh();
+          ctx.solver.bound(ctx.insts.value(f), TypeCon::Fun(xs, y));
+          ctx.solver.unify(rettypevar, y);
         }
         | Inst::Const(symbol) => {
           // TODO:
           //
           // if (in the SCC that we're currently typing) {
           //   unify with typevar
-          // } else if (bound in global environment) {
+          // } else if (bound in global ctxironment) {
           //   instantiate type scheme
           // } else {
           //   error unbound variable reference
           // }
 
-          if let Some(&x) = env.items.get(symbol) {
-            env.solver.unify(env.insts.value(i), x);
+          if let Some(&x) = ctx.items.get(symbol) {
+            ctx.solver.unify(ctx.insts.value(i), x);
+          } else if let Some(TypeScheme(arity, t)) = ctx.environment.get(symbol) {
+            // instantiate a type scheme
+            let tys = Arr::new((0 .. *arity).map(|_| ctx.solver.fresh()));
+            let mut queue = Buf::new();
+            queue.put((ctx.insts.value(i), t.clone()));
+            while let Some((x, t)) = queue.pop_if_nonempty() {
+              match t {
+                Type::Bool => ctx.solver.bound(x, TypeCon::Bool),
+                Type::I64 => ctx.solver.bound(x, TypeCon::I64),
+                Type::Var(TypeVar(k)) => ctx.solver.unify(x, tys[k]),
+                Type::Array(t) => {
+                  let y = ctx.solver.fresh();
+                  ctx.solver.bound(x, TypeCon::Array(y));
+                  queue.put((y, *t));
+                }
+                Type::Fun(xs, ys) => {
+                  // TODO
+                  unimplemented!()
+                }
+              }
+            }
           }
         }
         | Inst::Field(..)
@@ -408,8 +455,8 @@ pub fn typecheck(module: &Module) -> (HashMap<Symbol, TypeVar>, TypeMap, TypeSol
 
     // solve all type constraints
 
-    env.solver.propagate();
+    ctx.solver.propagate();
   }
 
-  return (env.items, env.insts, env.solver);
+  return (ctx.items, ctx.insts, ctx.solver);
 }
