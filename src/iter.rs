@@ -16,6 +16,6 @@ impl<T: Iterator> Iterator for Enumerate<T> {
 }
 
 #[inline(always)]
-pub fn enumerate<T: Iterator>(iter: T) -> impl Iterator<Item = (u32, T::Item)> {
-  return Enumerate { iter, count: 0 };
+pub fn enumerate<T: IntoIterator>(iter: T) -> impl Iterator<Item = (u32, T::Item)> {
+  return Enumerate { iter: iter.into_iter(), count: 0 };
 }

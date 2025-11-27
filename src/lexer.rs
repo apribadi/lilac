@@ -1,13 +1,17 @@
-use crate::token::Token;
+//! lexical analysis of a byte-string to produces a stream of tokens
+//!
+//! NB:
+//!
+//! This lexer is structured so that it is possible to efficiently
+//! implement it with SIMD.
+//!
+//! The critical path of the core byte-wise state transition should consist of
+//! just a shuffle instruction (cf Sheng).
+//!
+//! After post-processing the state sequence, we can extract token start and
+//! stop locations with bitwise operations.
 
-// TOOD: This lexer is structured so that it is possible to efficiently
-// implement it with SIMD.
-//
-// The critical path of the core byte-wise state transition should consist of
-// just a shuffle instruction (cf Sheng).
-//
-// After post-processing the state sequence, we can extract token start and
-// stop locations with bitwise operations.
+use crate::token::Token;
 
 pub struct Lexer<'a> {
   source: &'a [u8],
@@ -123,16 +127,6 @@ impl<'a> Lexer<'a> {
       };
     t.next();
     t
-  }
-
-  pub fn fast_forward(&mut self) {
-    let n = self.source.len();
-    self.index = n;
-    self.start = n;
-    self.stop = n;
-    self.state = 0;
-    self.is_attached = false;
-    self.token = Token::Eof;
   }
 
   pub fn token_start(&self) -> usize {

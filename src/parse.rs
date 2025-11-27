@@ -82,7 +82,7 @@ pub fn parse<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O) {
         o.on_fundef(name, m, n);
       }
       _ => {
-        // error?
+        // TODO: error?
         break;
       }
     }
@@ -100,6 +100,7 @@ fn expect<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O, token: Token) {
 fn expect_symbol<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O) -> &'a [u8] {
   if t.token() != Token::Symbol {
     o.on_error_missing_expected_token(Token::Symbol);
+    // TODO: Option::None?
     return b"!!!";
   } else {
     let symbol = t.token_span();
@@ -158,6 +159,8 @@ fn parse_expr_list<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O, stop: Token) -> u32
 fn parse_expr_prec<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O, n: u32) {
   let _: bool = parse_prec(t, o, n, false);
 }
+
+// returns `true` if we parsed a statement
 
 fn parse_prec<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O, n: u32, is_stmt: bool) -> bool {
   match t.token() {

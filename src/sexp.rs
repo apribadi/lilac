@@ -1,3 +1,11 @@
+//! s-expressions
+//!
+//! ```
+//!   (foo (bar x y) (baz z))
+//! ```
+
+use crate::iter::enumerate;
+
 pub enum Sexp {
   Atom(Box<[u8]>),
   List(Box<[Sexp]>),
@@ -17,19 +25,19 @@ impl std::fmt::Display for Sexp {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     match self {
       Self::Atom(x) => {
-        write!(f, "{}", str::from_utf8(x).unwrap())
+        write!(f, "{}", str::from_utf8(x).unwrap())?;
       }
       Self::List(x) => {
         write!(f, "(")?;
-        for (i, y) in x.iter().enumerate() {
+        for (i, y) in enumerate(x) {
           if i != 0 {
             write!(f, " ")?;
           }
           write!(f, "{}", y)?;
         }
         write!(f, ")")?;
-        Ok(())
       }
-    }
+    };
+    Ok(())
   }
 }
