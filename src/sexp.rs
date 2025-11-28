@@ -1,6 +1,6 @@
 //! s-expressions
 //!
-//! ```
+//! ```text
 //!   (foo (bar x y) (baz z))
 //! ```
 

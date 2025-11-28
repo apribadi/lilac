@@ -69,9 +69,9 @@ struct Ctx {
   environment: HashMap<Symbol, TypeScheme>,
   items: HashMap<Symbol, TypeVar>,
   insts: TypeMap,
+  solver: TypeSolver,
   block: u32,
   outs: Buf<TypeVar>,
-  solver: TypeSolver,
   call_rettypevar: Option<TypeVar>,
 }
 
@@ -213,23 +213,62 @@ impl TypeSolver {
     }
   }
 
+  fn instantiate(&mut self, t: &TypeScheme) -> TypeVar {
+    let TypeScheme(n, ref t) = *t;
+    let v = Arr::new((0 .. n).map(|_| self.fresh()));
+    return self.instantiate_type(&v, t);
+  }
+
+  fn instantiate_type(&mut self, v: &Arr<TypeVar>, t: &Type) -> TypeVar {
+    match *t {
+      Type::Array(ref t) => {
+        let a = self.fresh();
+        let b = self.instantiate_type(v, t);
+        self.bound(a, TypeCon::Array(b));
+        return a;
+      }
+      Type::Bool => {
+        let a = self.fresh();
+        self.bound(a, TypeCon::Bool);
+        return a;
+      }
+      Type::Fun(ref x, ref y) => {
+        let a = self.fresh();
+        let x = Arr::new(x.iter().map(|x| self.instantiate_type(v, x)));
+        let b = self.fresh();
+        let y = Arr::new(y.iter().map(|y| self.instantiate_type(v, y)));
+        self.bound_ret(b, y);
+        self.bound(a, TypeCon::Fun(x, b));
+        return a;
+      }
+      Type::I64 => {
+        let a = self.fresh();
+        self.bound(a, TypeCon::I64);
+        return a;
+      }
+      Type::Var(TypeVar(i)) => {
+        return v[i];
+      }
+    }
+  }
+
   pub fn resolve(&self, x: TypeVar) -> ir1::ValType {
     // TODO: we should do an occurs check to prohibit recursive types.
 
-    match &self.vars[x.0] {
+    match self.vars[x.0] {
       TypeState::TypeGen(..) => unimplemented!(),
       TypeState::Abstract => ir1::ValType::Abstract,
       TypeState::TypeError => ir1::ValType::TypeError, // ???
       TypeState::TypeSeq(..) => ir1::ValType::TypeError, // ???
-      TypeState::TypeCon(t) => {
-        match t {
-          TypeCon::Array(a) => ir1::ValType::Array(Box::new(self.resolve(*a))),
+      TypeState::TypeCon(ref t) => {
+        match *t {
+          TypeCon::Array(a) => ir1::ValType::Array(Box::new(self.resolve(a))),
           TypeCon::Bool => ir1::ValType::Bool,
           TypeCon::I64 => ir1::ValType::I64,
-          TypeCon::Fun(xs, y) =>
+          TypeCon::Fun(ref xs, y) =>
             ir1::ValType::Fun(
               xs.iter().map(|x| self.resolve(*x)).collect(),
-              self.resolve_ret(*y)),
+              self.resolve_ret(y)),
         }
       }
     }
@@ -237,7 +276,7 @@ impl TypeSolver {
 
   pub fn resolve_ret(&self, x: TypeVar) -> Option<Arr<ir1::ValType>> {
     // ???
-    if let TypeState::TypeSeq(xs) = &self.vars[x.0] {
+    if let TypeState::TypeSeq(ref xs) = self.vars[x.0] {
       return Some(xs.iter().map(|x| self.resolve(*x)).collect());
     } else {
       return None;
@@ -252,9 +291,9 @@ impl Ctx {
         environment: HashMap::new(),
         items: HashMap::new(),
         insts: TypeMap::new(),
+        solver: TypeSolver::new(),
         block: u32::MAX,
         outs: Buf::new(),
-        solver: TypeSolver::new(),
         call_rettypevar: None,
       };
 
@@ -273,8 +312,8 @@ pub fn typecheck(module: &Module) -> (HashMap<Symbol, TypeVar>, TypeMap, TypeSol
 
   // assign type variables for all relevant program points
 
-  for &inst in module.code.iter() {
-    match inst {
+  for inst in module.code.iter() {
+    match *inst {
       | Inst::GotoStaticError
       | Inst::Put(..)
       | Inst::Goto(..)
@@ -410,40 +449,14 @@ pub fn typecheck(module: &Module) -> (HashMap<Symbol, TypeVar>, TypeMap, TypeSol
           ctx.solver.bound(ctx.insts.value(f), TypeCon::Fun(xs, y));
           ctx.solver.unify(rettypevar, y);
         }
-        | Inst::Const(symbol) => {
-          // TODO:
-          //
-          // if (in the SCC that we're currently typing) {
-          //   unify with typevar
-          // } else if (bound in global ctxironment) {
-          //   instantiate type scheme
-          // } else {
-          //   error unbound variable reference
-          // }
-
+        Inst::Const(symbol) => {
           if let Some(&x) = ctx.items.get(symbol) {
             ctx.solver.unify(ctx.insts.value(i), x);
-          } else if let Some(TypeScheme(arity, t)) = ctx.environment.get(symbol) {
-            // instantiate a type scheme
-            let tys = Arr::new((0 .. *arity).map(|_| ctx.solver.fresh()));
-            let mut queue = Buf::new();
-            queue.put((ctx.insts.value(i), t.clone()));
-            while let Some((x, t)) = queue.pop_if_nonempty() {
-              match t {
-                Type::Bool => ctx.solver.bound(x, TypeCon::Bool),
-                Type::I64 => ctx.solver.bound(x, TypeCon::I64),
-                Type::Var(TypeVar(k)) => ctx.solver.unify(x, tys[k]),
-                Type::Array(t) => {
-                  let y = ctx.solver.fresh();
-                  ctx.solver.bound(x, TypeCon::Array(y));
-                  queue.put((y, *t));
-                }
-                Type::Fun(xs, ys) => {
-                  // TODO
-                  unimplemented!()
-                }
-              }
-            }
+          } else if let Some(t) = ctx.environment.get(symbol) {
+            let x = ctx.solver.instantiate(t);
+            ctx.solver.unify(ctx.insts.value(i), x);
+          } else {
+            // TODO: error unbound variable
           }
         }
         | Inst::Field(..)
