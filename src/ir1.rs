@@ -8,14 +8,10 @@ use crate::arr::Arr;
 use crate::symbol::Symbol;
 
 type Arity = u32;
-
-type Label = u32;
-
-type Value = u32;
-
-type Local = u32;
-
 type Index = u32;
+type Label = u32;
+type Local = u32;
+type Value = u32;
 
 pub struct Module {
   pub code: Arr<Inst>,

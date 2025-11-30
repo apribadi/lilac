@@ -1,7 +1,7 @@
 use std::num::NonZeroU64;
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct Symbol(pub NonZeroU64);
+pub struct Symbol(NonZeroU64);
 
 const HASHER: foldhash::quality::FixedState =
   foldhash::quality::FixedState::with_seed(0);

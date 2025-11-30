@@ -3,6 +3,7 @@ pub mod ast;
 pub mod buf;
 pub mod compile_pass1;
 pub mod ir1;
+pub mod ir2;
 pub mod iter;
 pub mod lexer;
 pub mod parse;

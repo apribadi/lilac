@@ -56,7 +56,6 @@ fn test_fib_loop() {
   "#]].assert_eq(out.drain(..).as_ref());
 }
 
-
 #[test]
 fn test_fib_tailcall() {
   let mut out = String::new();

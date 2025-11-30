@@ -31,7 +31,7 @@ pub fn compile<'a>(item_list: &Arr<ast::Item<'a>>) -> Module {
     for (i, x) in enumerate(f.args.iter()) {
       let y = out.emit(Inst::Get(i));
       if let Some(x) = x.name {
-        put_referent(x, Referent::Let(y), &mut ctx.scopes);
+        put_referent(x, Referent::Value(y), &mut ctx.scopes);
       }
     }
 
@@ -53,8 +53,8 @@ enum What {
 }
 
 enum Referent {
-  Let(u32),
-  Var(u32),
+  Local(u32),
+  Value(u32),
 }
 
 enum LoopInfo {
@@ -435,10 +435,10 @@ fn compile_expr<'a>(x: Expr<'a>, ctx: &mut Ctx, out: &mut Out) -> What {
           let x = out.emit(Inst::Const(s));
           ctx.values.put(x);
         }
-        Some(&Referent::Let(x)) => {
+        Some(&Referent::Value(x)) => {
           ctx.values.put(x);
         }
-        Some(&Referent::Var(x)) => {
+        Some(&Referent::Local(x)) => {
           let x = out.emit(Inst::GetLocal(x));
           ctx.values.put(x);
         }
@@ -586,7 +586,7 @@ fn compile_stmt<'a>(x: Stmt<'a>, ctx: &mut Ctx, out: &mut Out) -> What {
       compile_expr_list(ys, ctx, out).into_value_list(n, ctx, out);
       for (&x, y) in zip(xs, ctx.values.pop_list(n)) {
         if let Some(x) = x.name {
-          put_referent(x, Referent::Let(y), &mut ctx.scopes);
+          put_referent(x, Referent::Value(y), &mut ctx.scopes);
         }
       }
       return What::NIL;
@@ -597,7 +597,7 @@ fn compile_stmt<'a>(x: Stmt<'a>, ctx: &mut Ctx, out: &mut Out) -> What {
     }
     Stmt::Set(s, x) => {
       let x = compile_expr(x, ctx, out).into_value(ctx, out);
-      if let Some(&Referent::Var(y)) = get_referent(s, &ctx.scopes) {
+      if let Some(&Referent::Local(y)) = get_referent(s, &ctx.scopes) {
         let _ = out.emit(Inst::SetLocal(y, x));
       } else {
         // error, symbol does not refer to local variable
@@ -622,7 +622,7 @@ fn compile_stmt<'a>(x: Stmt<'a>, ctx: &mut Ctx, out: &mut Out) -> What {
     Stmt::Var(s, x) => {
       let x = compile_expr(x, ctx, out).into_value(ctx, out);
       let x = out.emit(Inst::Local(x));
-      put_referent(s, Referent::Var(x), &mut ctx.scopes);
+      put_referent(s, Referent::Local(x), &mut ctx.scopes);
       return What::NIL;
     }
     Stmt::While(x, ys) => {

@@ -451,6 +451,7 @@ pub fn typecheck(module: &Module) -> (HashMap<Symbol, TypeVar>, TypeMap, TypeSol
         }
         Inst::Const(symbol) => {
           if let Some(&x) = ctx.items.get(symbol) {
+            // NB: this should be for items in the current SCC
             ctx.solver.unify(ctx.insts.value(i), x);
           } else if let Some(t) = ctx.environment.get(symbol) {
             let x = ctx.solver.instantiate(t);
