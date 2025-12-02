@@ -322,6 +322,7 @@ fn compile_expr<'a>(x: Expr<'a>, ctx: &mut Ctx, out: &mut Out) -> What {
     }
     Expr::Call(&(f, xs)) => {
       let n = xs.len() as u32;
+      // NB: we evaluate the function expression *after* its arguments
       let f = compile_expr(f, ctx, out).into_value(ctx, out);
       for &x in xs {
         let x = compile_expr(x, ctx, out).into_value(ctx, out);

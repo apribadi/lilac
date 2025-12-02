@@ -7,14 +7,15 @@ fn test_select() {
 
   util::dump(&mut out, "
     fun select(p, x, y) { p ? x : y }
+    fun relu(x) { select(x >= 0, x, 0) }
   ");
 
   expect![[r#"
-      === fun select : Fun([Bool, Abstract, Abstract], Some([Abstract])) ===
-      %0 LABEL 3 : [Bool, Abstract, Abstract]
+      === fun select : Fun([Bool, I64, I64], Some([I64])) ===
+      %0 LABEL 3 : [Bool, I64, I64]
       %1 = GET 0 : Value Bool
-      %2 = GET 1 : Value Abstract
-      %3 = GET 2 : Value Abstract
+      %2 = GET 1 : Value I64
+      %3 = GET 2 : Value I64
       %4 COND %1
       %5 ==> GOTO %7
       %6 ==> GOTO %10
@@ -24,6 +25,17 @@ fn test_select() {
       %10 LABEL 0 : []
       %11 PUT 0 %2
       %12 RET
+      === fun relu : Fun([I64], Some([I64])) ===
+      %13 LABEL 1 : [I64]
+      %14 = GET 0 : Value I64
+      %15 = CONST select : Value Fun([Bool, I64, I64], Some([I64]))
+      %16 = 0 : Value I64
+      %17 = %14 >= %16 : Value Bool
+      %18 = 0 : Value I64
+      %19 PUT 0 %17
+      %20 PUT 1 %14
+      %21 PUT 2 %18
+      %22 TAIL-CALL %15
   "#]].assert_eq(out.drain(..).as_ref());
 }
 
