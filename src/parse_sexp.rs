@@ -42,12 +42,7 @@ impl parse::Out for ToSexp {
   }
 
   fn on_binding(&mut self, name: Option<&[u8]>) {
-    let x =
-      match name {
-        None => sexp::atom("_"),
-        Some(name) => sexp::atom(name),
-      };
-    self.put(x);
+    self.put(sexp::atom(match name { None => b"_", Some(name) => name }));
   }
 
   fn on_variable(&mut self, symbol: &[u8]) {
