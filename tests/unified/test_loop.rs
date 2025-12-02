@@ -13,26 +13,26 @@ fn test_loop() {
   ");
 
   expect![[r#"
-      FUN foo %0 : Fun([], Some([I64]))
-      FUN bar %6 : Fun([], None)
-      FUN baz %10 : Fun([], Some([I64]))
-      FUN qux %16 : Fun([], Some([I64]))
+      === fun foo : Fun([], Some([I64])) ===
       %0 LABEL 0 : []
       %1 ==> GOTO %2
       %2 LABEL 0 : []
       %3 = 1 : Value I64
       %4 PUT 0 %3
       %5 RET
+      === fun bar : Fun([], None) ===
       %6 LABEL 0 : []
       %7 ==> GOTO %8
       %8 LABEL 0 : []
       %9 ==> GOTO %8
+      === fun baz : Fun([], Some([I64])) ===
       %10 LABEL 0 : []
       %11 ==> GOTO %12
       %12 LABEL 0 : []
       %13 = 1 : Value I64
       %14 PUT 0 %13
       %15 RET
+      === fun qux : Fun([], Some([I64])) ===
       %16 LABEL 0 : []
       %17 ==> GOTO %18
       %18 LABEL 0 : []

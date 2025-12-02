@@ -10,7 +10,7 @@ fn test_select() {
   ");
 
   expect![[r#"
-      FUN select %0 : Fun([Bool, Abstract, Abstract], Some([Abstract]))
+      === fun select : Fun([Bool, Abstract, Abstract], Some([Abstract])) ===
       %0 LABEL 3 : [Bool, Abstract, Abstract]
       %1 = GET 0 : Value Bool
       %2 = GET 1 : Value Abstract
@@ -42,7 +42,7 @@ fn test_foo() {
   ");
 
   expect![[r#"
-      FUN foo %0 : Fun([Abstract, Fun([Abstract], Some([Bool])), Fun([Abstract], Some([Abstract]))], Some([Abstract]))
+      === fun foo : Fun([Abstract, Fun([Abstract], Some([Bool])), Fun([Abstract], Some([Abstract]))], Some([Abstract])) ===
       %0 LABEL 3 : [Abstract, Fun([Abstract], Some([Bool])), Fun([Abstract], Some([Abstract]))]
       %1 = GET 0 : Value Abstract
       %2 = GET 1 : Value Fun([Abstract], Some([Bool]))

@@ -4,8 +4,8 @@
 
 use crate::arr::Arr;
 use crate::buf::Buf;
+use crate::hir::Fun;
 use crate::hir::Inst;
-use crate::hir::Item;
 use crate::hir::Module;
 use crate::hir;
 use crate::operator::Op1;
@@ -312,7 +312,7 @@ impl Ctx {
   }
 }
 
-pub fn typecheck(module: &Module) -> (HashMap<Symbol, TypeVar>, TypeMap, TypeSolver) {
+pub fn typecheck(module: &Module) -> (HashMap<Symbol, TypeVar>, Buf<InstType>, TypeSolver) {
   let mut ctx = Ctx::new();
 
   // assign type variables for all relevant program points
@@ -349,15 +349,15 @@ pub fn typecheck(module: &Module) -> (HashMap<Symbol, TypeVar>, TypeMap, TypeSol
     }
   }
 
-  for &Item::Fun { name, pos, len } in module.items.iter() {
+  for f in module.funs.iter() {
     let funtypevar = ctx.solver.fresh();
     let rettypevar = ctx.solver.fresh();
-    ctx.solver.bound(funtypevar, TypeCon::Fun(ctx.insts.label(pos).clone(), rettypevar));
-    let _ = ctx.items.insert(name, funtypevar);
+    ctx.solver.bound(funtypevar, TypeCon::Fun(ctx.insts.label(f.pos).clone(), rettypevar));
+    let _ = ctx.items.insert(f.name, funtypevar);
 
     // apply initial type constraints
 
-    for i in pos .. pos + len {
+    for i in f.pos .. f.pos + f.len {
       match module.code[i] {
         Inst::ConstBool(_) =>
           ctx.solver.bound(ctx.insts.value(i), TypeCon::Bool),
@@ -477,5 +477,5 @@ pub fn typecheck(module: &Module) -> (HashMap<Symbol, TypeVar>, TypeMap, TypeSol
     ctx.solver.propagate();
   }
 
-  return (ctx.items, ctx.insts, ctx.solver);
+  return (ctx.items, ctx.insts.insts, ctx.solver);
 }

@@ -1,4 +1,4 @@
-//! pass 1
+//! lowering pass
 //!
 //! abstract syntax tree -> linearized bytecode + item references
 //!
@@ -9,8 +9,8 @@ use crate::ast::Expr;
 use crate::ast::Stmt;
 use crate::ast;
 use crate::buf::Buf;
+use crate::hir::Fun;
 use crate::hir::Inst;
-use crate::hir::Item;
 use crate::hir::Module;
 use crate::iter::enumerate;
 use crate::symbol::Symbol;
@@ -37,13 +37,13 @@ pub fn compile<'a>(item_list: &Arr<ast::Item<'a>>) -> Module {
 
     compile_block_tail(f.body, &mut ctx, &mut out);
     pop_scope(&mut ctx.scopes);
-    out.items.put(Item::Fun { name: f.name, pos, len: out.code.len() - pos });
+    out.funs.put(Fun { name: f.name, pos, len: out.code.len() - pos });
   }
 
   return
     Module {
       code: out.code.drain().collect(),
-      items: out.items.drain().collect(),
+      funs: out.funs.drain().collect(),
     };
 }
 
@@ -174,14 +174,14 @@ fn pop_loop_tail(t: &mut LoopStack) {
 
 struct Out {
   code: Buf<Inst>,
-  items: Buf<Item>,
+  funs: Buf<Fun>,
 }
 
 impl Out {
   fn new() -> Self {
     Self {
       code: Buf::new(),
-      items: Buf::new(),
+      funs: Buf::new(),
     }
   }
 

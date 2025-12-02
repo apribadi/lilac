@@ -9,11 +9,31 @@ pub(crate) fn dump(out: &mut impl std::fmt::Write, source: &str) {
 
   let (item_types, inst_types, solver) = lilac::typecheck::typecheck(&module);
 
-  for &lilac::hir::Item::Fun { name, pos, .. } in module.items.iter() {
-    write!(out, "FUN {} %{} : {:?}\n", name, pos, solver.resolve(item_types[name])).unwrap();
+  for f in module.funs.iter() {
+    write!(out, "=== fun {} : {:?} ===\n", f.name, solver.resolve(item_types[f.name])).unwrap();
+
+    for i in f.pos .. f.pos + f.len {
+      let inst = module.code[i];
+      match inst_types[i] {
+        lilac::typecheck::InstType::Label(ref xs) => {
+          let xs = xs.iter().map(|x| solver.resolve(*x)).collect::<Box<[_]>>();
+          write!(out, "%{} {} : {:?}\n", i, inst, xs).unwrap();
+        }
+        lilac::typecheck::InstType::Local(x) => {
+          write!(out, "%{} {} : Local {:?}\n", i, inst, solver.resolve(x)).unwrap();
+        }
+        lilac::typecheck::InstType::Nil => {
+          write!(out, "%{} {}\n", i, inst).unwrap();
+        }
+        lilac::typecheck::InstType::Value(x) => {
+          write!(out, "%{} {} : Value {:?}\n", i, inst, solver.resolve(x)).unwrap();
+        }
+      }
+    }
   }
 
-  for (i, (&inst, insttype)) in zip(module.code.iter(), inst_types.insts()).enumerate() {
+  /*
+  for (i, (&inst, insttype)) in zip(module.code.iter(), inst_types.iter()).enumerate() {
     match insttype {
       lilac::typecheck::InstType::Label(xs) => {
         let xs = xs.iter().map(|x| solver.resolve(*x)).collect::<Box<[_]>>();
@@ -30,4 +50,5 @@ pub(crate) fn dump(out: &mut impl std::fmt::Write, source: &str) {
       }
     }
   }
+  */
 }

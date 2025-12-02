@@ -17,12 +17,14 @@ type Value = u32;
 
 pub struct Module {
   pub code: Arr<Inst>,
-  pub items: Arr<Item>,
+  pub funs: Arr<Fun>,
 }
 
 #[derive(Debug)]
-pub enum Item {
-  Fun { name: Symbol, pos: u32, len: u32 }
+pub struct Fun {
+  pub name: Symbol,
+  pub pos: u32,
+  pub len: u32,
 }
 
 // TODO: add type ascription
@@ -90,4 +92,3 @@ impl std::fmt::Display for Inst {
     }
   }
 }
-
