@@ -1,6 +1,6 @@
 use crate::lexer::Lexer;
-use crate::ir1::Op1;
-use crate::ir1::Op2;
+use crate::operator::Op1;
+use crate::operator::Op2;
 use crate::token::Token;
 
 pub trait Out {

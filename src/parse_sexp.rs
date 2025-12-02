@@ -1,7 +1,7 @@
 use crate::buf::Buf;
-use crate::ir1::Op1;
-use crate::ir1::Op2;
 use crate::lexer::Lexer;
+use crate::operator::Op1;
+use crate::operator::Op2;
 use crate::parse;
 use crate::sexp::Sexp;
 use crate::sexp;

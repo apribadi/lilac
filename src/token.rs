@@ -1,6 +1,6 @@
 //! token tag
 //!
-//! - single-byte tokens represent themselves
+//! NB: single-byte tokens are their own variant tag
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[repr(u8)]
