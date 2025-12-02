@@ -5,11 +5,11 @@ pub(crate) fn dump(out: &mut impl std::fmt::Write, source: &str) {
   let mut arena = store.arena();
 
   let module = lilac::parse_ast::parse(source.as_bytes(), &mut arena);
-  let module = lilac::compile_pass1::compile(&module);
+  let module = lilac::pass_ast_to_hir::compile(&module);
 
   let (item_types, inst_types, solver) = lilac::typecheck::typecheck(&module);
 
-  for &lilac::ir1::Item::Fun { name, pos, .. } in module.items.iter() {
+  for &lilac::hir::Item::Fun { name, pos, .. } in module.items.iter() {
     write!(out, "FUN {} %{} : {:?}\n", name, pos, solver.resolve(item_types[name])).unwrap();
   }
 

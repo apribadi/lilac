@@ -1,4 +1,4 @@
-// intermediate representation
+// high-level intermediate representation
 //
 // - bytecode
 // - from a source file, without context

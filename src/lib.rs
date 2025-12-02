@@ -1,8 +1,7 @@
 pub mod arr;
 pub mod ast;
 pub mod buf;
-pub mod compile_pass1;
-pub mod ir1;
+pub mod hir;
 pub mod ir2;
 pub mod iter;
 pub mod lexer;
@@ -10,6 +9,7 @@ pub mod operator;
 pub mod parse;
 pub mod parse_ast;
 pub mod parse_sexp;
+pub mod pass_ast_to_hir;
 pub mod sexp;
 pub mod symbol;
 pub mod token;

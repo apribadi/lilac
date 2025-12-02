@@ -4,10 +4,10 @@
 
 use crate::arr::Arr;
 use crate::buf::Buf;
-use crate::ir1::Inst;
-use crate::ir1::Item;
-use crate::ir1::Module;
-use crate::ir1;
+use crate::hir::Inst;
+use crate::hir::Item;
+use crate::hir::Module;
+use crate::hir;
 use crate::operator::Op1;
 use crate::operator::Op2;
 use crate::symbol::Symbol;
@@ -257,21 +257,21 @@ impl TypeSolver {
     unimplemented!()
   }
 
-  pub fn resolve(&self, x: TypeVar) -> ir1::ValType {
+  pub fn resolve(&self, x: TypeVar) -> hir::ValType {
     // TODO: we should do an occurs check to prohibit recursive types.
 
     match self.vars[x.0] {
       TypeState::TypeGen(..) => unimplemented!(),
-      TypeState::Abstract => ir1::ValType::Abstract,
-      TypeState::TypeError => ir1::ValType::TypeError, // ???
-      TypeState::TypeSeq(..) => ir1::ValType::TypeError, // ???
+      TypeState::Abstract => hir::ValType::Abstract,
+      TypeState::TypeError => hir::ValType::TypeError, // ???
+      TypeState::TypeSeq(..) => hir::ValType::TypeError, // ???
       TypeState::TypeCon(ref t) => {
         match *t {
-          TypeCon::Array(a) => ir1::ValType::Array(Box::new(self.resolve(a))),
-          TypeCon::Bool => ir1::ValType::Bool,
-          TypeCon::I64 => ir1::ValType::I64,
+          TypeCon::Array(a) => hir::ValType::Array(Box::new(self.resolve(a))),
+          TypeCon::Bool => hir::ValType::Bool,
+          TypeCon::I64 => hir::ValType::I64,
           TypeCon::Fun(ref xs, y) =>
-            ir1::ValType::Fun(
+            hir::ValType::Fun(
               xs.iter().map(|x| self.resolve(*x)).collect(),
               self.resolve_ret(y)),
         }
@@ -279,7 +279,7 @@ impl TypeSolver {
     }
   }
 
-  pub fn resolve_ret(&self, x: TypeVar) -> Option<Arr<ir1::ValType>> {
+  pub fn resolve_ret(&self, x: TypeVar) -> Option<Arr<hir::ValType>> {
     // ???
     if let TypeState::TypeSeq(ref xs) = self.vars[x.0] {
       return Some(xs.iter().map(|x| self.resolve(*x)).collect());
