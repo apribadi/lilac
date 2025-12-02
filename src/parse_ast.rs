@@ -9,14 +9,14 @@ use crate::ir1::Op1;
 use crate::ir1::Op2;
 use crate::lexer::Lexer;
 use crate::parse;
-use crate::token::Token;
 use crate::symbol::Symbol;
+use crate::token::Token;
 use oxcart::Arena;
 
 pub fn parse<'a>(source: &[u8], arena: &mut Arena<'a>) -> Arr<Item<'a>> {
-  let mut e = ToAst::new(arena);
-  parse::parse(&mut Lexer::new(source), &mut e);
-  return Arr::new(e.items.drain());
+  let mut out = ToAst::new(arena);
+  parse::parse(&mut Lexer::new(source), &mut out);
+  return Arr::new(out.items.drain());
 }
 
 struct ToAst<'a, 'b> {
@@ -76,7 +76,7 @@ impl<'a, 'b> ToAst<'a, 'b> {
 }
 
 impl<'a, 'b> parse::Out for ToAst<'a, 'b> {
-  fn on_fundef(&mut self, name: &[u8], n_args: u32, n_stmts: u32) {
+  fn on_fun(&mut self, name: &[u8], n_args: u32, n_stmts: u32) {
     let z = self.pop_stmt_list(n_stmts);
     let y = self.pop_bind_list(n_args);
     let x = Symbol::from_bytes(name);
@@ -94,11 +94,11 @@ impl<'a, 'b> parse::Out for ToAst<'a, 'b> {
     self.put_expr(Expr::Variable(s));
   }
 
-  fn on_bool(&mut self, x: bool) {
-    self.put_expr(Expr::Bool(x));
+  fn on_literal_bool(&mut self, value: bool) {
+    self.put_expr(Expr::Bool(value));
   }
 
-  fn on_number(&mut self, x: &[u8]) {
+  fn on_literal_number(&mut self, x: &[u8]) {
     let n =
       match i64::from_str_radix(str::from_utf8(x).unwrap(), 10) {
         Err(_) => {
@@ -174,8 +174,8 @@ impl<'a, 'b> parse::Out for ToAst<'a, 'b> {
     self.put_expr(x);
   }
 
-  fn on_call(&mut self, arity: u32) {
-    let x = self.pop_expr_list(arity);
+  fn on_call(&mut self, n_args: u32) {
+    let x = self.pop_expr_list(n_args);
     let f = self.pop_expr();
     let x = Expr::Call(self.alloc((f, x)));
     self.put_expr(x);
@@ -191,8 +191,8 @@ impl<'a, 'b> parse::Out for ToAst<'a, 'b> {
     self.put_stmt(Stmt::ExprList(x));
   }
 
-  fn on_break(&mut self, arity: u32) {
-    let x = self.pop_expr_list(arity);
+  fn on_break(&mut self, n_args: u32) {
+    let x = self.pop_expr_list(n_args);
     self.put_stmt(Stmt::Break(x));
   }
 
@@ -200,14 +200,14 @@ impl<'a, 'b> parse::Out for ToAst<'a, 'b> {
     self.put_stmt(Stmt::Continue);
   }
 
-  fn on_let(&mut self, n_binds: u32, n_exprs: u32) {
+  fn on_let(&mut self, n_bindings: u32, n_exprs: u32) {
     let y = self.pop_expr_list(n_exprs);
-    let x = self.pop_bind_list(n_binds);
+    let x = self.pop_bind_list(n_bindings);
     self.put_stmt(Stmt::Let(x, y));
   }
 
-  fn on_return(&mut self, arity: u32) {
-    let x = self.pop_expr_list(arity);
+  fn on_return(&mut self, n_args: u32) {
+    let x = self.pop_expr_list(n_args);
     self.put_stmt(Stmt::Return(x));
   }
 

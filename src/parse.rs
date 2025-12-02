@@ -4,61 +4,34 @@ use crate::ir1::Op2;
 use crate::token::Token;
 
 pub trait Out {
-  fn on_fundef(&mut self, name: &[u8], n_args: u32, n_stmts: u32);
-
-  fn on_binding(&mut self, name: Option<&[u8]>); // TODO: type ascription
-
-  fn on_variable(&mut self, symbol: &[u8]);
-
-  fn on_bool(&mut self, x: bool);
-
-  fn on_number(&mut self, number: &[u8]);
-
-  fn on_ternary(&mut self);
-
-  fn on_or(&mut self);
-
   fn on_and(&mut self);
-
-  fn on_op1(&mut self, op: Op1);
-
-  fn on_op2(&mut self, op: Op2);
-
-  fn on_field(&mut self, symbol: &[u8]);
-
-  fn on_index(&mut self);
-
-  fn on_if(&mut self, n_stmts: u32);
-
-  fn on_if_else(&mut self, n_stmts_then: u32, n_stmts_else: u32);
-
-  fn on_call(&mut self, n_args: u32);
-
-  fn on_loop(&mut self, n_stmts: u32);
-
-  fn on_stmt_expr_list(&mut self, n_exprs: u32);
-
+  fn on_binding(&mut self, name: Option<&[u8]>); // TODO: type ascription
   fn on_break(&mut self, n_args: u32);
-
+  fn on_call(&mut self, n_args: u32);
   fn on_continue(&mut self);
-
-  fn on_let(&mut self, n_binds: u32, n_args: u32);
-
-  fn on_return(&mut self, n_args: u32);
-
-  fn on_set(&mut self, symbol: &[u8]);
-
-  fn on_set_field(&mut self, symbol: &[u8]);
-
-  fn on_set_index(&mut self);
-
-  fn on_var(&mut self, symbol: &[u8]);
-
-  fn on_while(&mut self, n_stmts: u32);
-
   fn on_error_missing_expected_token(&mut self, token: Token);
-
   fn on_error_missing_expr(&mut self);
+  fn on_field(&mut self, symbol: &[u8]);
+  fn on_fun(&mut self, name: &[u8], n_args: u32, n_stmts: u32);
+  fn on_if(&mut self, n_stmts: u32);
+  fn on_if_else(&mut self, n_stmts_then: u32, n_stmts_else: u32);
+  fn on_index(&mut self);
+  fn on_let(&mut self, n_bindings: u32, n_args: u32);
+  fn on_literal_bool(&mut self, value: bool);
+  fn on_literal_number(&mut self, value: &[u8]);
+  fn on_loop(&mut self, n_stmts: u32);
+  fn on_op1(&mut self, op: Op1);
+  fn on_op2(&mut self, op: Op2);
+  fn on_or(&mut self);
+  fn on_return(&mut self, n_args: u32);
+  fn on_set(&mut self, symbol: &[u8]);
+  fn on_set_field(&mut self, symbol: &[u8]);
+  fn on_set_index(&mut self);
+  fn on_stmt_expr_list(&mut self, n_exprs: u32);
+  fn on_ternary(&mut self);
+  fn on_var(&mut self, symbol: &[u8]);
+  fn on_variable(&mut self, symbol: &[u8]);
+  fn on_while(&mut self, n_stmts: u32);
 }
 
 // toplevel sequence of items
@@ -73,10 +46,10 @@ pub fn parse<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O) {
         t.next();
         let name = expect_symbol(t, o);
         expect(t, o, Token::LParen);
-        let m = parse_bind_list(t, o, Token::RParen);
+        let m = parse_binding_list(t, o, Token::RParen);
         expect(t, o, Token::RParen);
         let n = parse_block(t, o);
-        o.on_fundef(name, m, n);
+        o.on_fun(name, m, n);
       }
       _ => {
         // TODO: error?
@@ -106,7 +79,7 @@ fn expect_symbol<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O) -> &'a [u8] {
   }
 }
 
-fn parse_bind<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O) {
+fn parse_binding<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O) {
   match t.token() {
     Token::Symbol => {
       o.on_binding(Some(t.token_span()));
@@ -123,17 +96,17 @@ fn parse_bind<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O) {
   }
 }
 
-fn parse_bind_list<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O, stop: Token) -> u32 {
-  let mut n_binds = 0;
+fn parse_binding_list<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O, stop: Token) -> u32 {
+  let mut n_bindings = 0;
   if t.token() != stop {
     loop {
-      parse_bind(t, o);
-      n_binds += 1;
+      parse_binding(t, o);
+      n_bindings += 1;
       if t.token() != Token::Comma { break; }
       t.next();
     }
   }
-  return n_binds;
+  return n_bindings;
 }
 
 fn parse_expr<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O) {
@@ -168,16 +141,16 @@ fn parse_prec<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O, n: u32, is_stmt: bool) -
     }
     Token::True => {
       t.next();
-      o.on_bool(true);
+      o.on_literal_bool(true);
     }
     Token::False => {
       t.next();
-      o.on_bool(false);
+      o.on_literal_bool(false);
     }
     Token::Number => {
-      let number = t.token_span();
+      let value = t.token_span();
       t.next();
-      o.on_number(number);
+      o.on_literal_number(value);
     }
     Token::Symbol => {
       let symbol = t.token_span();
@@ -393,7 +366,7 @@ fn parse_block<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O) -> u32 {
         //   let = f(x)
         //
         // which is a bit weird. but works semantically
-        let n_binds = parse_bind_list(t, o, Token::Equal);
+        let n_bindings = parse_binding_list(t, o, Token::Equal);
         expect(t, o, Token::Equal);
         let mut n_exprs = 0;
         loop {
@@ -402,7 +375,7 @@ fn parse_block<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O) -> u32 {
           if t.token() != Token::Comma { break; }
           t.next();
         }
-        o.on_let(n_binds, n_exprs);
+        o.on_let(n_bindings, n_exprs);
         n_stmts += 1;
       }
       Token::Return => {

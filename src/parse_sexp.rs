@@ -34,12 +34,11 @@ impl ToSexp {
 }
 
 impl parse::Out for ToSexp {
-  fn on_fundef(&mut self, name: &[u8], n_args: u32, n_stmts: u32) {
+  fn on_fun(&mut self, name: &[u8], n_args: u32, n_stmts: u32) {
     let z = sexp::list(self.pop_list(n_stmts));
     let y = sexp::list(self.pop_list(n_args));
     let x = sexp::atom(name);
-    let t = sexp::atom("fun");
-    self.put(sexp::list([t, x, y, z]));
+    self.put(sexp::list([sexp::atom("fun"), x, y, z]));
   }
 
   fn on_binding(&mut self, name: Option<&[u8]>) {
@@ -51,51 +50,46 @@ impl parse::Out for ToSexp {
     self.put(x);
   }
 
-  fn on_variable(&mut self, x: &[u8]) {
-    self.put(sexp::atom(x));
+  fn on_variable(&mut self, symbol: &[u8]) {
+    self.put(sexp::atom(symbol));
   }
 
-  fn on_bool(&mut self, x: bool) {
-    self.put(if x { sexp::atom("true") } else { sexp::atom("false") });
+  fn on_literal_bool(&mut self, value: bool) {
+    self.put(sexp::atom(if value { "true" } else { "false" }));
   }
 
-  fn on_number(&mut self, x: &[u8]) {
-    self.put(sexp::atom(x));
+  fn on_literal_number(&mut self, value: &[u8]) {
+    self.put(sexp::atom(value));
   }
 
   fn on_ternary(&mut self) {
     let z = self.pop();
     let y = self.pop();
     let x = self.pop();
-    let t = sexp::atom("?:");
-    self.put(sexp::list([t, x, y, z]));
+    self.put(sexp::list([sexp::atom(":?"), x, y, z]));
   }
 
   fn on_or(&mut self) {
     let y = self.pop();
     let x = self.pop();
-    let t = sexp::atom("||");
-    self.put(sexp::list([t, x, y]));
+    self.put(sexp::list([sexp::atom("||"), x, y]));
   }
 
   fn on_and(&mut self) {
     let y = self.pop();
     let x = self.pop();
-    let t = sexp::atom("&&");
-    self.put(sexp::list([t, x, y]));
+    self.put(sexp::list([sexp::atom("&&"), x, y]));
   }
 
   fn on_op1(&mut self, op: Op1) {
     let x = self.pop();
-    let t = sexp::atom(op.as_str());
-    self.put(sexp::list([t, x]));
+    self.put(sexp::list([sexp::atom(op.as_str()), x]));
   }
 
   fn on_op2(&mut self, op: Op2) {
     let y = self.pop();
     let x = self.pop();
-    let t = sexp::atom(op.as_str());
-    self.put(sexp::list([t, x, y]));
+    self.put(sexp::list([sexp::atom(op.as_str()), x, y]));
   }
 
   fn on_field(&mut self, symbol: &[u8]) {
@@ -107,23 +101,20 @@ impl parse::Out for ToSexp {
   fn on_index(&mut self) {
     let y = self.pop();
     let x = self.pop();
-    let t = sexp::atom("[]");
-    self.put(sexp::list([t, x, y]));
+    self.put(sexp::list([sexp::atom("[]"), x, y]));
   }
 
   fn on_if(&mut self, n_stmts: u32) {
     let y = sexp::list(self.pop_list(n_stmts));
     let x = self.pop();
-    let t = sexp::atom("if");
-    self.put(sexp::list([t, x, y]));
+    self.put(sexp::list([sexp::atom("if"), x, y]));
   }
 
   fn on_if_else(&mut self, n_stmts_then: u32, n_stmts_else: u32) {
     let z = sexp::list(self.pop_list(n_stmts_else));
     let y = sexp::list(self.pop_list(n_stmts_then));
     let x = self.pop();
-    let t = sexp::atom("if");
-    self.put(sexp::list([t, x, y, z]));
+    self.put(sexp::list([sexp::atom("if"), x, y, z]));
   }
 
   fn on_call(&mut self, n_args: u32) {
@@ -133,8 +124,7 @@ impl parse::Out for ToSexp {
 
   fn on_loop(&mut self, n_stmts: u32) {
     let x = sexp::list(self.pop_list(n_stmts));
-    let t = sexp::atom("loop");
-    self.put(sexp::list([t, x]));
+    self.put(sexp::list([sexp::atom("loop"), x]));
   }
 
   fn on_stmt_expr_list(&mut self, n_exprs: u32) {
@@ -152,9 +142,9 @@ impl parse::Out for ToSexp {
     self.put(sexp::atom("continue"));
   }
 
-  fn on_let(&mut self, n_binds: u32, n_exprs: u32) {
+  fn on_let(&mut self, n_bindings: u32, n_exprs: u32) {
     let y = sexp::list(self.pop_list(n_exprs));
-    let x = sexp::list(self.pop_list(n_binds));
+    let x = sexp::list(self.pop_list(n_bindings));
     self.put(sexp::list([sexp::atom("let"), x, y]));
   }
 
@@ -167,8 +157,7 @@ impl parse::Out for ToSexp {
   fn on_set(&mut self, symbol: &[u8]) {
     let x = self.pop();
     let s = sexp::atom(symbol);
-    let t = sexp::atom("<-");
-    self.put(sexp::list([t, s, x]));
+    self.put(sexp::list([sexp::atom("="), s, x]));
   }
 
   fn on_set_field(&mut self, symbol: &[u8]) {
@@ -182,22 +171,19 @@ impl parse::Out for ToSexp {
     let z = self.pop();
     let y = self.pop();
     let x = self.pop();
-    let t = sexp::atom("[]<-");
-    self.put(sexp::list([t, x, y, z]));
+    self.put(sexp::list([sexp::atom("[]="), x, y, z]));
   }
 
   fn on_var(&mut self, symbol: &[u8]) {
     let x = self.pop();
     let s = sexp::atom(symbol);
-    let t = sexp::atom("var");
-    self.put(sexp::list([t, s, x]));
+    self.put(sexp::list([sexp::atom("var"), s, x]));
   }
 
   fn on_while(&mut self, n_stmts: u32) {
     let y = sexp::list(self.pop_list(n_stmts));
     let x = self.pop();
-    let t = sexp::atom("while");
-    self.put(sexp::list([t, x, y]));
+    self.put(sexp::list([sexp::atom("while"), x, y]));
   }
 
   fn on_error_missing_expected_token(&mut self, _: Token) {
