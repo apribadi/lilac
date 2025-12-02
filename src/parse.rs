@@ -4,12 +4,9 @@ use crate::ir1::Op2;
 use crate::token::Token;
 
 pub trait Out {
-  // TODO: sort trait members
-
   fn on_fundef(&mut self, name: &[u8], n_args: u32, n_stmts: u32);
 
-  // TODO: optional type ascription for binding
-  fn on_bind(&mut self, name: Option<&[u8]>);
+  fn on_binding(&mut self, name: Option<&[u8]>); // TODO: type ascription
 
   fn on_variable(&mut self, symbol: &[u8]);
 
@@ -35,19 +32,19 @@ pub trait Out {
 
   fn on_if_else(&mut self, n_stmts_then: u32, n_stmts_else: u32);
 
-  fn on_call(&mut self, arity: u32);
+  fn on_call(&mut self, n_args: u32);
 
   fn on_loop(&mut self, n_stmts: u32);
 
   fn on_stmt_expr_list(&mut self, n_exprs: u32);
 
-  fn on_break(&mut self, arity: u32);
+  fn on_break(&mut self, n_args: u32);
 
   fn on_continue(&mut self);
 
-  fn on_let(&mut self, n_binds: u32, n_exprs: u32);
+  fn on_let(&mut self, n_binds: u32, n_args: u32);
 
-  fn on_return(&mut self, arity: u32);
+  fn on_return(&mut self, n_args: u32);
 
   fn on_set(&mut self, symbol: &[u8]);
 
@@ -112,16 +109,16 @@ fn expect_symbol<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O) -> &'a [u8] {
 fn parse_bind<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O) {
   match t.token() {
     Token::Symbol => {
-      o.on_bind(Some(t.token_span()));
+      o.on_binding(Some(t.token_span()));
       t.next();
     }
     Token::Underscore => {
-      o.on_bind(None);
+      o.on_binding(None);
       t.next();
     }
     _ => {
       o.on_error_missing_expected_token(Token::Symbol);
-      o.on_bind(None);
+      o.on_binding(None);
     }
   }
 }
@@ -352,9 +349,9 @@ fn parse_prec<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O, n: u32, is_stmt: bool) -
       }
       Token::LParen if t.token_is_attached() => {
         t.next();
-        let arity = parse_expr_list(t, o, Token::RParen);
+        let n_args = parse_expr_list(t, o, Token::RParen);
         expect(t, o, Token::RParen);
-        o.on_call(arity);
+        o.on_call(n_args);
       }
       _ => {
         return false;
@@ -376,8 +373,8 @@ fn parse_block<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O) -> u32 {
       }
       Token::Break => {
         t.next();
-        let arity = parse_expr_list(t, o, Token::RBrace);
-        o.on_break(arity);
+        let n_args = parse_expr_list(t, o, Token::RBrace);
+        o.on_break(n_args);
         n_stmts += 1;
         expect(t, o, Token::RBrace);
         break;
@@ -410,8 +407,8 @@ fn parse_block<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O) -> u32 {
       }
       Token::Return => {
         t.next();
-        let arity = parse_expr_list(t, o, Token::RBrace);
-        o.on_return(arity);
+        let n_args = parse_expr_list(t, o, Token::RBrace);
+        o.on_return(n_args);
         n_stmts += 1;
         expect(t, o, Token::RBrace);
         break;

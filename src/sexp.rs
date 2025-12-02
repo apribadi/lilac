@@ -11,14 +11,12 @@ pub enum Sexp {
   List(Box<[Sexp]>),
 }
 
-impl Sexp {
-  pub fn atom(x: impl AsRef<[u8]>) -> Self {
-    Self::Atom(Box::from(x.as_ref()))
-  }
+pub fn atom(x: impl AsRef<[u8]>) -> Sexp {
+  Sexp::Atom(Box::from(x.as_ref()))
+}
 
-  pub fn list(x: impl IntoIterator<IntoIter: ExactSizeIterator<Item = Self>>) -> Self {
-    Self::List(x.into_iter().collect())
-  }
+pub fn list(x: impl IntoIterator<IntoIter: ExactSizeIterator<Item = Sexp>>) -> Sexp {
+  Sexp::List(x.into_iter().collect())
 }
 
 impl std::fmt::Display for Sexp {

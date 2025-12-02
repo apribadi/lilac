@@ -84,7 +84,7 @@ impl<'a, 'b> parse::Out for ToAst<'a, 'b> {
     self.put_item(x);
   }
 
-  fn on_bind(&mut self, name: Option<&[u8]>) {
+  fn on_binding(&mut self, name: Option<&[u8]>) {
     let x = Bind { name: name.map(Symbol::from_bytes) };
     self.put_bind(x);
   }
