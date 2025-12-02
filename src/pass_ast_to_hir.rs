@@ -322,12 +322,11 @@ fn compile_expr<'a>(x: Expr<'a>, ctx: &mut Ctx, out: &mut Out) -> What {
     }
     Expr::Call(&(f, xs)) => {
       let n = xs.len() as u32;
-      // NB: we evaluate the function expression *after* its arguments
-      let f = compile_expr(f, ctx, out).into_value(ctx, out);
       for &x in xs {
         let x = compile_expr(x, ctx, out).into_value(ctx, out);
         ctx.values.put(x);
       }
+      let f = compile_expr(f, ctx, out).into_value(ctx, out); // NB: evaluate *after* args
       for (i, x) in enumerate(ctx.values.pop_list(n)) {
         let _ = out.emit(Inst::Put(i, x));
       }
@@ -465,11 +464,11 @@ fn compile_expr_tail<'a>(x: Expr<'a>, ctx: &mut Ctx, out: &mut Out) {
     }
     Expr::Call(&(f, xs)) => {
       let n = xs.len() as u32;
-      let f = compile_expr(f, ctx, out).into_value(ctx, out);
       for &x in xs {
         let x = compile_expr(x, ctx, out).into_value(ctx, out);
         ctx.values.put(x);
       }
+      let f = compile_expr(f, ctx, out).into_value(ctx, out); // NB: evaluate *after* args
       for (i, x) in enumerate(ctx.values.pop_list(n)) {
         let _ = out.emit(Inst::Put(i, x));
       }

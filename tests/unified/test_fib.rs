@@ -86,26 +86,26 @@ fn test_fib_tailcall() {
       %7 ==> GOTO %9
       %8 ==> GOTO %18
       %9 LABEL 0 : []
-      %10 = CONST aux : Value Fun([I64, I64, I64], Some([I64]))
-      %11 = %1 + %2 : Value I64
-      %12 = 1 : Value I64
-      %13 = %3 - %12 : Value I64
+      %10 = %1 + %2 : Value I64
+      %11 = 1 : Value I64
+      %12 = %3 - %11 : Value I64
+      %13 = CONST aux : Value Fun([I64, I64, I64], Some([I64]))
       %14 PUT 0 %2
-      %15 PUT 1 %11
-      %16 PUT 2 %13
-      %17 TAIL-CALL %10
+      %15 PUT 1 %10
+      %16 PUT 2 %12
+      %17 TAIL-CALL %13
       %18 LABEL 0 : []
       %19 PUT 0 %2
       %20 RET
       === fun fib : Fun([I64], Some([I64])) ===
       %21 LABEL 1 : [I64]
       %22 = GET 0 : Value I64
-      %23 = CONST aux : Value Fun([I64, I64, I64], Some([I64]))
-      %24 = 1 : Value I64
-      %25 = 0 : Value I64
-      %26 PUT 0 %24
-      %27 PUT 1 %25
+      %23 = 1 : Value I64
+      %24 = 0 : Value I64
+      %25 = CONST aux : Value Fun([I64, I64, I64], Some([I64]))
+      %26 PUT 0 %23
+      %27 PUT 1 %24
       %28 PUT 2 %22
-      %29 TAIL-CALL %23
+      %29 TAIL-CALL %25
   "#]].assert_eq(out.drain(..).as_ref());
 }
