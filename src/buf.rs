@@ -65,20 +65,17 @@ impl<T> Buf<T> {
       assert!(new_c <= Self::MAX_CAP);
 
       let new_p = unsafe { global::alloc_slice::<T>(new_c) };
-      let new_c = new_c as u32;
 
-      return (new_p, new_c);
+      return (new_p, new_c as u32);
     } else {
-      let old_c = old_c as usize;
-      let old_s = old_c * size_of::<T>();
+      let old_s = old_c as usize * size_of::<T>();
       let new_c = increment_size_class(old_s) / size_of::<T>();
 
       assert!(new_c <= Self::MAX_CAP);
 
-      let new_p = unsafe { global::realloc_slice::<T>(old_p, old_c, new_c) };
-      let new_c = new_c as u32;
+      let new_p = unsafe { global::realloc_slice::<T>(old_p, old_c as usize, new_c) };
 
-      return (new_p, new_c);
+      return (new_p, new_c as u32);
     }
   }
 
@@ -124,15 +121,15 @@ impl<T> Buf<T> {
     return Some(unsafe { (p + (n - 1)).read() });
   }
 
-  pub fn pop_list(&mut self, k: u32) -> PopList<'_, T> {
+  pub fn pop_list(&mut self, count: u32) -> PopList<'_, T> {
     let p = self.ptr;
     let n = self.len;
 
-    assert!(k <= n);
+    assert!(count <= n);
 
-    self.len = n - k;
+    self.len = n - count;
 
-    return PopList { ptr: p + (n - k), len: k, _phantom_data: PhantomData };
+    return PopList { ptr: p + (n - count), len: count, _phantom_data: PhantomData };
   }
 
   pub fn drain(&mut self) -> PopList<'_, T> {
@@ -192,11 +189,11 @@ impl<T> Buf<T> {
 
     if needs_drop::<T>() {
       let mut a = p;
-      let mut n = n;
-      while n > 0 {
+      let mut k = n;
+      while k > 0 {
         unsafe { a.drop_in_place() };
         a = a + 1;
-        n = n - 1;
+        k = k - 1;
       }
     }
   }
@@ -212,11 +209,11 @@ impl<T> Buf<T> {
 
     if needs_drop::<T>() {
       let mut a = p;
-      let mut n = n;
-      while n > 0 {
+      let mut k = n;
+      while k > 0 {
         unsafe { a.drop_in_place() };
         a = a + 1;
-        n = n - 1;
+        k = k - 1;
       }
     }
 
@@ -310,9 +307,9 @@ impl<'a, T> Iterator for Iter<'a, T> {
 
   #[inline(always)]
   fn size_hint(&self) -> (usize, Option<usize>) {
-    let n = self.len as usize;
+    let n = self.len;
 
-    return (n, Some(n));
+    return (n as usize, Some(n as usize));
   }
 }
 

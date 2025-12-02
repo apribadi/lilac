@@ -112,6 +112,13 @@ impl<T: Clone> Clone for Arr<T> {
   }
 }
 
+impl<T> Default for Arr<T> {
+  #[inline(always)]
+  fn default() -> Self {
+    return Self::EMPTY;
+  }
+}
+
 impl<T> Index<u32> for Arr<T> {
   type Output = T;
 
