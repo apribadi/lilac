@@ -54,6 +54,7 @@ type TypeSeq = Arr<TypeVar>;
 
 pub enum TypeState {
   Abstract,
+  // BlackHole,
   TypeCon(TypeCon),
   TypeError,
   TypeGen(TypeVar),
@@ -250,6 +251,10 @@ impl TypeSolver {
         return v[i];
       }
     }
+  }
+
+  fn generalize(&mut self, t: TypeVar) -> TypeScheme {
+    unimplemented!()
   }
 
   pub fn resolve(&self, x: TypeVar) -> ir1::ValType {

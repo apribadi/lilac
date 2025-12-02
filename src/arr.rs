@@ -27,11 +27,7 @@ impl<T> Arr<T> {
     _phantom_data: PhantomData,
   };
 
-  pub fn new<U, V>(iter: U) -> Self
-  where
-    U: IntoIterator<IntoIter = V>,
-    V: ExactSizeIterator<Item = T>
-  {
+  pub fn new(iter: impl IntoIterator<IntoIter: ExactSizeIterator<Item = T>>) -> Self {
     let mut iter = iter.into_iter();
     let n = iter.len();
 
@@ -44,17 +40,16 @@ impl<T> Arr<T> {
         ptr::null()
       };
 
-    let n = n as u32;
     let mut a = p;
 
     for _ in 0 .. n {
-      unsafe { a.write(iter.next().unwrap()); }
+      unsafe { a.write(iter.next().unwrap()) };
       a += 1;
     }
 
     debug_assert!(iter.next().is_none());
 
-    return Self { ptr: p, len: n, _phantom_data: PhantomData };
+    return Self { ptr: p, len: n as u32, _phantom_data: PhantomData };
   }
 
   #[inline(always)]
@@ -97,11 +92,11 @@ impl<T> Drop for Arr<T> {
 
     if needs_drop::<T>() {
       let mut a = p;
-      let mut n = n;
-      while n > 0 {
+      let mut k = n;
+      while k > 0 {
         unsafe { a.drop_in_place() };
         a = a + 1;
-        n = n - 1;
+        k = k - 1;
       }
     }
 
@@ -169,9 +164,9 @@ impl<'a, T> Iterator for Iter<'a, T> {
 
   #[inline(always)]
   fn size_hint(&self) -> (usize, Option<usize>) {
-    let n = self.len as usize;
+    let n = self.len;
 
-    return (n, Some(n));
+    return (n as usize, Some(n as usize));
   }
 }
 
