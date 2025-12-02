@@ -184,6 +184,10 @@ fn parse_prec<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O, n: u32, is_stmt: bool) -
           t.next();
           o.on_post_op2(symbol, Op2::Add);
         }
+        Token::Dec => {
+          t.next();
+          o.on_post_op2(symbol, Op2::Sub);
+        }
         _ => {
           o.on_variable(symbol);
         }

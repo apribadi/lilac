@@ -10,6 +10,7 @@ fn test_parse() {
       var n = n
       n += 1
       let _ = n ++
+      let _ = n --
     }
   ");
 

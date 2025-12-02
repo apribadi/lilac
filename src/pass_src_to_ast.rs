@@ -146,10 +146,12 @@ impl<'a, 'b> parse::Out for ToAst<'a, 'b> {
   }
 
   fn on_post_op2(&mut self, symbol: &[u8], op: Op2) {
+    // TODO: add new ast node
     unimplemented!()
   }
 
   fn on_pre_op2(&mut self, op: Op2, symbol: &[u8]) {
+    // TODO: add new ast node
     unimplemented!()
   }
 
