@@ -145,6 +145,14 @@ impl<'a, 'b> parse::Out for ToAst<'a, 'b> {
     self.put_expr(x);
   }
 
+  fn on_post_op2(&mut self, symbol: &[u8], op: Op2) {
+    unimplemented!()
+  }
+
+  fn on_pre_op2(&mut self, op: Op2, symbol: &[u8]) {
+    unimplemented!()
+  }
+
   fn on_field(&mut self, symbol: &[u8]) {
     let s = Symbol::from_bytes(symbol);
     let x = self.pop_expr();
@@ -214,6 +222,13 @@ impl<'a, 'b> parse::Out for ToAst<'a, 'b> {
   fn on_set(&mut self, symbol: &[u8]) {
     let s = Symbol::from_bytes(symbol);
     let x = self.pop_expr();
+    self.put_stmt(Stmt::Set(s, x));
+  }
+
+  fn on_set_op2(&mut self, symbol: &[u8], op: Op2) {
+    let s = Symbol::from_bytes(symbol);
+    let x = self.pop_expr();
+    let x = Expr::Op2(self.alloc((op, Expr::Variable(s), x)));
     self.put_stmt(Stmt::Set(s, x));
   }
 

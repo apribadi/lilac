@@ -4,7 +4,6 @@
 
 use crate::arr::Arr;
 use crate::buf::Buf;
-use crate::hir::Fun;
 use crate::hir::Inst;
 use crate::hir::Module;
 use crate::hir;

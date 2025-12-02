@@ -1,4 +1,4 @@
-use std::iter::zip;
+use lilac::sexp::Sexp;
 
 pub(crate) fn dump(out: &mut impl std::fmt::Write, source: &str) {
   let mut store = oxcart::Store::new();
@@ -30,5 +30,11 @@ pub(crate) fn dump(out: &mut impl std::fmt::Write, source: &str) {
         }
       }
     }
+  }
+}
+
+pub(crate) fn parse_sexp(out: &mut impl std::fmt::Write, source: &str) {
+  for sexp in lilac::parse::parse_sexp(source.as_bytes()).iter() {
+    write!(out, "{}", sexp).unwrap();
   }
 }

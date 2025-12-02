@@ -13,6 +13,7 @@ pub mod sexp;
 pub mod symbol;
 pub mod token;
 pub mod typecheck;
+pub mod typestore;
 pub mod union_find;
 
 // syntax ideas - use something in { :, @, ` } to denote symbol/label ?

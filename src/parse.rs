@@ -26,10 +26,13 @@ pub trait Out {
   fn on_op1(&mut self, op: Op1);
   fn on_op2(&mut self, op: Op2);
   fn on_or(&mut self);
+  fn on_post_op2(&mut self, symbol: &[u8], op: Op2);
+  fn on_pre_op2(&mut self, op: Op2, symbol: &[u8]);
   fn on_return(&mut self, n_args: u32);
   fn on_set(&mut self, symbol: &[u8]);
   fn on_set_field(&mut self, symbol: &[u8]);
   fn on_set_index(&mut self);
+  fn on_set_op2(&mut self, symbol: &[u8], op: Op2);
   fn on_stmt_expr_list(&mut self, n_exprs: u32);
   fn on_ternary(&mut self);
   fn on_var(&mut self, symbol: &[u8]);
@@ -158,13 +161,32 @@ fn parse_prec<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O, n: u32, is_stmt: bool) -
     Token::Symbol => {
       let symbol = t.token_span();
       t.next();
-      if is_stmt && t.token() == Token::Equal {
-        t.next();
-        parse_expr(t, o);
-        o.on_set(symbol);
-        return true;
-      } else {
-        o.on_variable(symbol);
+      match t.token() {
+        Token::Equal if is_stmt => {
+          t.next();
+          parse_expr(t, o);
+          o.on_set(symbol);
+          return true;
+        }
+        Token::AddEqual if is_stmt => {
+          t.next();
+          parse_expr(t, o);
+          o.on_set_op2(symbol, Op2::Add);
+          return true;
+        }
+        Token::SubEqual if is_stmt => {
+          t.next();
+          parse_expr(t, o);
+          o.on_set_op2(symbol, Op2::Sub);
+          return true;
+        }
+        Token::Inc => {
+          t.next();
+          o.on_post_op2(symbol, Op2::Add);
+        }
+        _ => {
+          o.on_variable(symbol);
+        }
       }
     }
     Token::Hyphen => {
@@ -520,6 +542,14 @@ impl Out for ToSexp {
     self.put(sexp::list([sexp::atom(op.as_str()), x, y]));
   }
 
+  fn on_post_op2(&mut self, symbol: &[u8], op: Op2) {
+    self.put(sexp::list([sexp::atom(format!("_{}{}", op, op)), sexp::atom(symbol)]));
+  }
+
+  fn on_pre_op2(&mut self, op: Op2, symbol: &[u8]) {
+    self.put(sexp::list([sexp::atom(format!("{}{}_", op, op)), sexp::atom(symbol)]));
+  }
+
   fn on_field(&mut self, symbol: &[u8]) {
     let s = sexp::atom(format!(".{}", str::from_utf8(symbol).unwrap()));
     let x = self.pop();
@@ -586,6 +616,12 @@ impl Out for ToSexp {
     let x = self.pop();
     let s = sexp::atom(symbol);
     self.put(sexp::list([sexp::atom("="), s, x]));
+  }
+
+  fn on_set_op2(&mut self, symbol: &[u8], op: Op2) {
+    let x = self.pop();
+    let s = sexp::atom(symbol);
+    self.put(sexp::list([sexp::atom(format!("{}=", op)), s, x]));
   }
 
   fn on_set_field(&mut self, symbol: &[u8]) {
