@@ -11,7 +11,7 @@ fn test_fib_loop() {
       var b = 0
       var n = n
       loop {
-        if n <= 0 { return b }
+        if n == 0 { return b }
         let c = a + b
         a = b
         b = c
@@ -33,7 +33,7 @@ fn test_fib_loop() {
       %8 LABEL 0 : []
       %9 = [ %6 ] : Value I64
       %10 = 0 : Value I64
-      %11 = %9 <= %10 : Value Bool
+      %11 = %9 == %10 : Value Bool
       %12 COND %11
       %13 ==> GOTO %19
       %14 ==> GOTO %15
@@ -62,7 +62,7 @@ fn test_fib_tailcall() {
 
   util::dump(&mut out, "
     fun aux(a, b, n) {
-      if n <= 0 {
+      if n == 0 {
         b
       } else {
         aux(b, a + b, n - 1)
@@ -81,7 +81,7 @@ fn test_fib_tailcall() {
       %2 = GET 1 : Value I64
       %3 = GET 2 : Value I64
       %4 = 0 : Value I64
-      %5 = %3 <= %4 : Value Bool
+      %5 = %3 == %4 : Value Bool
       %6 COND %5
       %7 ==> GOTO %9
       %8 ==> GOTO %18
