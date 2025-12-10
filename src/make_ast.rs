@@ -230,7 +230,7 @@ impl<'a, 'b> parse::Out for ToAst<'a, 'b> {
   fn on_set_op2(&mut self, symbol: &[u8], op: Op2) {
     let s = Symbol::from_bytes(symbol);
     let x = self.pop_expr();
-    let x = Expr::Op2(self.alloc((op, Expr::Variable(s), x)));
+    let x = Expr::Op2(self.alloc((op, x, Expr::Variable(s))));
     self.put_stmt(Stmt::Set(s, x));
   }
 

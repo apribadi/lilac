@@ -19,12 +19,12 @@ fn test_loop() {
       %0 LABEL 1 : [I64]
       %1 = GET 0 : Value I64
       %2 = LOCAL %1 : Local I64
-      %3 = [ %2 ] : Value I64
-      %4 = 2 : Value I64
+      %3 = 2 : Value I64
+      %4 = [ %2 ] : Value I64
       %5 = %3 + %4 : Value I64
       %6 [ %2 ] <- %5
-      %7 = [ %2 ] : Value I64
-      %8 = 2 : Value I64
+      %7 = 2 : Value I64
+      %8 = [ %2 ] : Value I64
       %9 = %7 - %8 : Value I64
       %10 [ %2 ] <- %9
       %11 = [ %2 ] : Value I64
