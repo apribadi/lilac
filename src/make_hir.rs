@@ -541,8 +541,8 @@ fn compile_expr_tail<'a>(x: Expr<'a>, ctx: &mut Ctx, out: &mut Out) {
   }
 }
 
-fn compile_stmt<'a>(x: Stmt<'a>, ctx: &mut Ctx, out: &mut Out) -> What {
-  match x {
+fn compile_stmt<'a>(x: &Stmt<'a>, ctx: &mut Ctx, out: &mut Out) -> What {
+  match *x {
     Stmt::ExprList(xs) => {
       return compile_expr_list(xs, ctx, out);
     }
@@ -643,19 +643,19 @@ fn compile_stmt<'a>(x: Stmt<'a>, ctx: &mut Ctx, out: &mut Out) -> What {
   }
 }
 
-fn compile_stmt_tail<'a>(x: Stmt<'a>, ctx: &mut Ctx, out: &mut Out) {
-  match x {
+fn compile_stmt_tail<'a>(x: &Stmt<'a>, ctx: &mut Ctx, out: &mut Out) {
+  match *x {
     Stmt::ExprList(xs) => {
       compile_expr_list_tail(xs, ctx, out);
     }
-    x @ (
+    ref x @ (
       | Stmt::Break(..)
       | Stmt::Continue
       | Stmt::Return(..)
     ) => {
       let What::NumPoints(0) = compile_stmt(x, ctx, out) else { unreachable!() };
     }
-    x @ (
+    ref x @ (
       | Stmt::Let(..)
       | Stmt::Set(..)
       | Stmt::SetField(..)
@@ -674,9 +674,9 @@ fn compile_block<'a>(xs: &'a [Stmt<'a>], ctx: &mut Ctx, out: &mut Out) -> What {
     None => {
       return What::NIL;
     }
-    Some((&y, xs)) => {
+    Some((y, xs)) => {
       put_scope(&mut ctx.scopes);
-      for &x in xs {
+      for x in xs {
         compile_stmt(x, ctx, out).into_nil(ctx, out);
       }
       let w = compile_stmt(y, ctx, out);
@@ -691,9 +691,9 @@ fn compile_block_tail<'a>(xs: &'a [Stmt<'a>], ctx: &mut Ctx, out: &mut Out) {
     None => {
       let _ = out.emit(Inst::Ret);
     }
-    Some((&y, xs)) => {
+    Some((y, xs)) => {
       put_scope(&mut ctx.scopes);
-      for &x in xs {
+      for x in xs {
         compile_stmt(x, ctx, out).into_nil(ctx, out);
       }
       compile_stmt_tail(y, ctx, out);

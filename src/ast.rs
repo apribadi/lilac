@@ -10,12 +10,12 @@ pub enum Item<'a> {
 #[derive(Clone, Copy)]
 pub struct Fun<'a> {
   pub name: Symbol,
-  pub args: &'a [Bind],
+  pub args: &'a [Binding],
   pub body: &'a [Stmt<'a>],
 }
 
 #[derive(Clone, Copy)]
-pub struct Bind {
+pub struct Binding {
   pub name: Option<Symbol>,
 }
 
@@ -38,12 +38,11 @@ pub enum Expr<'a> {
   Variable(Symbol),
 }
 
-#[derive(Clone, Copy)]
 pub enum Stmt<'a> {
   ExprList(&'a [Expr<'a>]),
   Break(&'a [Expr<'a>]),
   Continue,
-  Let(&'a [Bind], &'a [Expr<'a>]),
+  Let(&'a [Binding], &'a [Expr<'a>]),
   Return(&'a [Expr<'a>]),
   Set(Symbol, Expr<'a>),
   SetField(Expr<'a>, Symbol, Expr<'a>),

@@ -1,5 +1,5 @@
 use crate::arr::Arr;
-use crate::ast::Bind;
+use crate::ast::Binding;
 use crate::ast::Expr;
 use crate::ast::Fun;
 use crate::ast::Item;
@@ -22,7 +22,7 @@ pub fn parse<'a>(source: &[u8], arena: &mut Arena<'a>) -> Arr<Item<'a>> {
 struct ToAst<'a, 'b> {
   arena: &'b mut Arena<'a>,
   items: Buf<Item<'a>>,
-  binds: Buf<Bind>,
+  binds: Buf<Binding>,
   exprs: Buf<Expr<'a>>,
   stmts: Buf<Stmt<'a>>,
 }
@@ -46,11 +46,11 @@ impl<'a, 'b> ToAst<'a, 'b> {
     let _ = self.items.put(x);
   }
 
-  fn put_bind(&mut self, x: Bind) {
+  fn put_bind(&mut self, x: Binding) {
     let _ = self.binds.put(x);
   }
 
-  fn pop_bind_list(&mut self, n: u32) -> &'a [Bind] {
+  fn pop_bind_list(&mut self, n: u32) -> &'a [Binding] {
     return self.arena.slice_from_iter(self.binds.pop_list(n));
   }
 
@@ -85,7 +85,7 @@ impl<'a, 'b> parse::Out for ToAst<'a, 'b> {
   }
 
   fn on_binding(&mut self, name: Option<&[u8]>) {
-    let x = Bind { name: name.map(Symbol::from_bytes) };
+    let x = Binding { name: name.map(Symbol::from_bytes) };
     self.put_bind(x);
   }
 
@@ -147,11 +147,15 @@ impl<'a, 'b> parse::Out for ToAst<'a, 'b> {
 
   fn on_post_op2(&mut self, symbol: &[u8], op: Op2) {
     // TODO: add new ast node
+    let _ = symbol;
+    let _ = op;
     unimplemented!()
   }
 
   fn on_pre_op2(&mut self, op: Op2, symbol: &[u8]) {
     // TODO: add new ast node
+    let _ = symbol;
+    let _ = op;
     unimplemented!()
   }
 
