@@ -299,9 +299,9 @@ impl What {
   }
 }
 
-fn compile_expr<'a>(x: Expr<'a>, ctx: &mut Ctx, out: &mut Out) -> What {
-  match x {
-    Expr::And(&(x, y)) => {
+fn compile_expr<'a>(x: &Expr<'a>, ctx: &mut Ctx, out: &mut Out) -> What {
+  match *x {
+    Expr::And(&(ref x, ref y)) => {
       let x = compile_expr(x, ctx, out).into_value(ctx, out);
       let _ = out.emit(Inst::Cond(x));
       let p = out.emit_point(Some(0));
@@ -320,9 +320,9 @@ fn compile_expr<'a>(x: Expr<'a>, ctx: &mut Ctx, out: &mut Out) -> What {
       ctx.values.put(x);
       return What::NumValues(1);
     }
-    Expr::Call(&(f, xs)) => {
+    Expr::Call(&(ref f, ref xs)) => {
       let n = xs.len() as u32;
-      for &x in xs {
+      for x in xs.iter() {
         let x = compile_expr(x, ctx, out).into_value(ctx, out);
         ctx.values.put(x);
       }
@@ -335,13 +335,13 @@ fn compile_expr<'a>(x: Expr<'a>, ctx: &mut Ctx, out: &mut Out) -> What {
       ctx.points.put(p);
       return What::NumPoints(1);
     }
-    Expr::Field(&(x, s)) => {
+    Expr::Field(&(ref x, s)) => {
       let x = compile_expr(x, ctx, out).into_value(ctx, out);
       let x = out.emit(Inst::Field(x, s));
       ctx.values.put(x);
       return What::NumValues(1);
     }
-    Expr::If(&(x, ys)) => {
+    Expr::If(&(ref x, ref ys)) => {
       let x = compile_expr(x, ctx, out).into_value(ctx, out);
       let _ = out.emit(Inst::Cond(x));
       let p = out.emit_point(Some(0));
@@ -351,7 +351,7 @@ fn compile_expr<'a>(x: Expr<'a>, ctx: &mut Ctx, out: &mut Out) -> What {
       let n = compile_block(ys, ctx, out).into_point_list(ctx, out);
       return What::NumPoints(1 + n);
     }
-    Expr::IfElse(&(x, ys, zs)) => {
+    Expr::IfElse(&(ref x, ref ys, ref zs)) => {
       let x = compile_expr(x, ctx, out).into_value(ctx, out);
       let _ = out.emit(Inst::Cond(x));
       let p = out.emit_point(Some(0));
@@ -362,7 +362,7 @@ fn compile_expr<'a>(x: Expr<'a>, ctx: &mut Ctx, out: &mut Out) -> What {
       let n = compile_block(ys, ctx, out).into_point_list(ctx, out);
       return What::NumPoints(m + n);
     }
-    Expr::Index(&(x, y)) => {
+    Expr::Index(&(ref x, ref y)) => {
       let x = compile_expr(x, ctx, out).into_value(ctx, out);
       let y = compile_expr(y, ctx, out).into_value(ctx, out);
       let x = out.emit(Inst::Index(x, y));
@@ -383,20 +383,20 @@ fn compile_expr<'a>(x: Expr<'a>, ctx: &mut Ctx, out: &mut Out) -> What {
       let n = pop_loop(&mut ctx.loops, &mut ctx.points);
       return What::NumPoints(n);
     }
-    Expr::Op1(&(f, x)) => {
+    Expr::Op1(&(f, ref x)) => {
       let x = compile_expr(x, ctx, out).into_value(ctx, out);
       let x = out.emit(Inst::Op1(f, x));
       ctx.values.put(x);
       return What::NumValues(1);
     }
-    Expr::Op2(&(f, x, y)) => {
+    Expr::Op2(&(f, ref x, ref y)) => {
       let x = compile_expr(x, ctx, out).into_value(ctx, out);
       let y = compile_expr(y, ctx, out).into_value(ctx, out);
       let x = out.emit(Inst::Op2(f, x, y));
       ctx.values.put(x);
       return What::NumValues(1);
     }
-    Expr::Or(&(x, y)) => {
+    Expr::Or(&(ref x, ref y)) => {
       let x = compile_expr(x, ctx, out).into_value(ctx, out);
       let _ = out.emit(Inst::Cond(x));
       let p = out.emit_point(Some(0));
@@ -410,7 +410,7 @@ fn compile_expr<'a>(x: Expr<'a>, ctx: &mut Ctx, out: &mut Out) -> What {
       ctx.points.put(r);
       return What::NumPoints(n + 1);
     }
-    Expr::Ternary(&(x, y, z)) => {
+    Expr::Ternary(&(ref x, ref y, ref z)) => {
       let x = compile_expr(x, ctx, out).into_value(ctx, out);
       let _ = out.emit(Inst::Cond(x));
       let p = out.emit_point(Some(0));
@@ -448,9 +448,9 @@ fn compile_expr<'a>(x: Expr<'a>, ctx: &mut Ctx, out: &mut Out) -> What {
   }
 }
 
-fn compile_expr_tail<'a>(x: Expr<'a>, ctx: &mut Ctx, out: &mut Out) {
-  match x {
-    Expr::And(&(x, y)) => {
+fn compile_expr_tail<'a>(x: &Expr<'a>, ctx: &mut Ctx, out: &mut Out) {
+  match *x {
+    Expr::And(&(ref x, ref y)) => {
       let x = compile_expr(x, ctx, out).into_value(ctx, out);
       let _ = out.emit(Inst::Cond(x));
       let p = out.emit_point(Some(0));
@@ -462,9 +462,9 @@ fn compile_expr_tail<'a>(x: Expr<'a>, ctx: &mut Ctx, out: &mut Out) {
       let _ = out.emit_label(0, [q]);
       compile_expr_tail(y, ctx, out);
     }
-    Expr::Call(&(f, xs)) => {
+    Expr::Call(&(ref f, ref xs)) => {
       let n = xs.len() as u32;
-      for &x in xs {
+      for x in xs.iter() {
         let x = compile_expr(x, ctx, out).into_value(ctx, out);
         ctx.values.put(x);
       }
@@ -474,7 +474,7 @@ fn compile_expr_tail<'a>(x: Expr<'a>, ctx: &mut Ctx, out: &mut Out) {
       }
       let _ = out.emit(Inst::TailCall(f));
     }
-    Expr::If(&(x, ys)) => {
+    Expr::If(&(ref x, ref ys)) => {
       let x = compile_expr(x, ctx, out).into_value(ctx, out);
       let _ = out.emit(Inst::Cond(x));
       let p = out.emit_point(Some(0));
@@ -484,7 +484,7 @@ fn compile_expr_tail<'a>(x: Expr<'a>, ctx: &mut Ctx, out: &mut Out) {
       let _ = out.emit_label(0, [q]);
       compile_block_tail(ys, ctx, out);
     }
-    Expr::IfElse(&(x, ys, zs)) => {
+    Expr::IfElse(&(ref x, ref ys, ref zs)) => {
       let x = compile_expr(x, ctx, out).into_value(ctx, out);
       let _ = out.emit(Inst::Cond(x));
       let p = out.emit_point(Some(0));
@@ -502,7 +502,7 @@ fn compile_expr_tail<'a>(x: Expr<'a>, ctx: &mut Ctx, out: &mut Out) {
       patch_point_list(a, ctx.points.pop_list(n), out);
       pop_loop_tail(&mut ctx.loops);
     }
-    Expr::Or(&(x, y)) => {
+    Expr::Or(&(ref x, ref y)) => {
       let x = compile_expr(x, ctx, out).into_value(ctx, out);
       let _ = out.emit(Inst::Cond(x));
       let p = out.emit_point(Some(0));
@@ -514,7 +514,7 @@ fn compile_expr_tail<'a>(x: Expr<'a>, ctx: &mut Ctx, out: &mut Out) {
       let _ = out.emit(Inst::Put(0, x));
       let _ = out.emit(Inst::Ret);
     }
-    Expr::Ternary(&(x, y, z)) => {
+    Expr::Ternary(&(ref x, ref y, ref z)) => {
       let x = compile_expr(x, ctx, out).into_value(ctx, out);
       let _ = out.emit(Inst::Cond(x));
       let p = out.emit_point(Some(0));
@@ -524,16 +524,14 @@ fn compile_expr_tail<'a>(x: Expr<'a>, ctx: &mut Ctx, out: &mut Out) {
       let _ = out.emit_label(0, [q]);
       compile_expr_tail(y, ctx, out);
     }
-    x @ (
-      | Expr::Bool(..)
-      | Expr::Field(..)
-      | Expr::Index(..)
-      | Expr::Int(..)
-      | Expr::Op1(..)
-      | Expr::Op2(..)
-      | Expr::Undefined
-      | Expr::Variable(..)
-    ) => {
+    Expr::Bool(..)
+    | Expr::Field(..)
+    | Expr::Index(..)
+    | Expr::Int(..)
+    | Expr::Op1(..)
+    | Expr::Op2(..)
+    | Expr::Undefined
+    | Expr::Variable(..) => {
       let What::NumValues(1) = compile_expr(x, ctx, out) else { unreachable!() };
       let _ = out.emit(Inst::Put(0, ctx.values.pop()));
       let _ = out.emit(Inst::Ret);
@@ -584,7 +582,7 @@ fn compile_stmt<'a>(x: &Stmt<'a>, ctx: &mut Ctx, out: &mut Out) -> What {
       // NB: we do the bindings from left to right, so later bindings shadow
       // earlier ones.
       compile_expr_list(ys, ctx, out).into_value_list(n, ctx, out);
-      for (&x, y) in zip(xs, ctx.values.pop_list(n)) {
+      for (x, y) in zip(xs, ctx.values.pop_list(n)) {
         if let Some(x) = x.name {
           put_referent(x, Referent::Value(y), &mut ctx.scopes);
         }
@@ -595,7 +593,7 @@ fn compile_stmt<'a>(x: &Stmt<'a>, ctx: &mut Ctx, out: &mut Out) -> What {
       compile_expr_list_tail(xs, ctx, out);
       return What::NEVER;
     }
-    Stmt::Set(s, x) => {
+    Stmt::Set(s, ref x) => {
       let x = compile_expr(x, ctx, out).into_value(ctx, out);
       if let Some(&Referent::Local(y)) = get_referent(s, &ctx.scopes) {
         let _ = out.emit(Inst::SetLocal(y, x));
@@ -606,26 +604,26 @@ fn compile_stmt<'a>(x: &Stmt<'a>, ctx: &mut Ctx, out: &mut Out) -> What {
       }
       return What::NIL;
     }
-    Stmt::SetField(x, s, y) => {
+    Stmt::SetField(ref x, s, ref y) => {
       let x = compile_expr(x, ctx, out).into_value(ctx, out);
       let y = compile_expr(y, ctx, out).into_value(ctx, out);
       let _ = out.emit(Inst::SetField(x, s, y));
       return What::NIL;
     }
-    Stmt::SetIndex(x, y, z) => {
+    Stmt::SetIndex(ref x, ref y, ref z) => {
       let x = compile_expr(x, ctx, out).into_value(ctx, out);
       let y = compile_expr(y, ctx, out).into_value(ctx, out);
       let z = compile_expr(z, ctx, out).into_value(ctx, out);
       let _ = out.emit(Inst::SetIndex(x, y, z));
       return What::NIL;
     }
-    Stmt::Var(s, x) => {
+    Stmt::Var(s, ref x) => {
       let x = compile_expr(x, ctx, out).into_value(ctx, out);
       let x = out.emit(Inst::Local(x));
       put_referent(s, Referent::Local(x), &mut ctx.scopes);
       return What::NIL;
     }
-    Stmt::While(x, ys) => {
+    Stmt::While(ref x, ys) => {
       let p = out.emit_point(Some(0));
       let a = out.emit_label(0, [p]);
       put_loop(a, &mut ctx.loops);
@@ -648,21 +646,17 @@ fn compile_stmt_tail<'a>(x: &Stmt<'a>, ctx: &mut Ctx, out: &mut Out) {
     Stmt::ExprList(xs) => {
       compile_expr_list_tail(xs, ctx, out);
     }
-    ref x @ (
-      | Stmt::Break(..)
-      | Stmt::Continue
-      | Stmt::Return(..)
-    ) => {
+    | Stmt::Break(..)
+    | Stmt::Continue
+    | Stmt::Return(..) => {
       let What::NumPoints(0) = compile_stmt(x, ctx, out) else { unreachable!() };
     }
-    ref x @ (
-      | Stmt::Let(..)
-      | Stmt::Set(..)
-      | Stmt::SetField(..)
-      | Stmt::SetIndex(..)
-      | Stmt::Var(..)
-      | Stmt::While(..)
-    ) => {
+    Stmt::Let(..)
+    | Stmt::Set(..)
+    | Stmt::SetField(..)
+    | Stmt::SetIndex(..)
+    | Stmt::Var(..)
+    | Stmt::While(..) => {
       let What::NumValues(0) = compile_stmt(x, ctx, out) else { unreachable!() };
       let _ = out.emit(Inst::Ret);
     }
@@ -704,12 +698,12 @@ fn compile_block_tail<'a>(xs: &'a [Stmt<'a>], ctx: &mut Ctx, out: &mut Out) {
 
 fn compile_expr_list<'a>(xs: &'a [Expr<'a>], ctx: &mut Ctx, out: &mut Out) -> What {
   match xs {
-    &[x] => {
+    [x] => {
       return compile_expr(x, ctx, out);
     }
     xs => {
       let n = xs.len() as u32;
-      for &x in xs {
+      for x in xs.iter() {
         let x = compile_expr(x, ctx, out).into_value(ctx, out);
         ctx.values.put(x);
       }
@@ -720,12 +714,12 @@ fn compile_expr_list<'a>(xs: &'a [Expr<'a>], ctx: &mut Ctx, out: &mut Out) -> Wh
 
 fn compile_expr_list_tail<'a>(xs: &'a [Expr<'a>], ctx: &mut Ctx, out: &mut Out) {
   match xs {
-    &[x] => {
+    [x] => {
       compile_expr_tail(x, ctx, out);
     }
     xs => {
       let n = xs.len() as u32;
-      for &x in xs {
+      for x in xs.iter() {
         let x = compile_expr(x, ctx, out).into_value(ctx, out);
         ctx.values.put(x);
       }

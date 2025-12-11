@@ -2,24 +2,26 @@ use crate::operator::Op1;
 use crate::operator::Op2;
 use crate::symbol::Symbol;
 
-#[derive(Clone, Copy)]
 pub enum Item<'a> {
   Fun(Fun<'a>),
 }
 
-#[derive(Clone, Copy)]
 pub struct Fun<'a> {
   pub name: Symbol,
   pub args: &'a [Binding],
   pub body: &'a [Stmt<'a>],
 }
 
-#[derive(Clone, Copy)]
 pub struct Binding {
   pub name: Option<Symbol>,
 }
 
-#[derive(Clone, Copy)]
+// TODO: consider, e.g.,
+//
+// And(&'a Expr<'a>, &'a Expr<'a>)
+//
+// instead
+
 pub enum Expr<'a> {
   And(&'a (Expr<'a>, Expr<'a>)),
   Bool(bool),
