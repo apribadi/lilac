@@ -12,6 +12,8 @@ pub struct Fun<'a> {
   pub body: &'a [Stmt<'a>],
 }
 
+// TODO: add optional type ascription
+
 pub struct Binding {
   pub name: Option<Symbol>,
 }
