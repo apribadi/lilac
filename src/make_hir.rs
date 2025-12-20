@@ -132,17 +132,17 @@ fn pop_scope(t: &mut ScopeStack) {
   for (s, x) in t.undo.pop_list(t.counts.pop()) {
     match x {
       None => {
-        let _ = t.table.remove(s);
+        t.table.remove(s);
       }
       Some(x) => {
-        let _ = t.table.insert(s, x);
+        t.table.insert(s, x);
       }
     }
   }
 }
 
 fn put_referent(s: Symbol, x: Referent, t: &mut ScopeStack) {
-  let y = t.table.insert(s, x);
+  let y = t.table.get_insert(s, x);
   let n = t.counts.top_mut();
   t.undo.put((s, y));
   *n += 1;

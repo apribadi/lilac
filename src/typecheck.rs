@@ -301,11 +301,10 @@ impl Ctx {
         call_rettypevar: None,
       };
 
-    let _ =
-      ctx.environment.insert(
-        Symbol::from_str("len"),
-        TypeScheme(1, Type::Fun(Arr::new([Type::Var(TypeVar(0))]), Arr::new([Type::I64])))
-     );
+    ctx.environment.insert(
+      Symbol::from_str("len"),
+      TypeScheme(1, Type::Fun(Arr::new([Type::Var(TypeVar(0))]), Arr::new([Type::I64])))
+    );
 
     return ctx;
   }
@@ -352,7 +351,7 @@ pub fn typecheck(module: &Module) -> (HashMap<Symbol, TypeVar>, Buf<InstType>, T
     let funtypevar = ctx.solver.fresh();
     let rettypevar = ctx.solver.fresh();
     ctx.solver.bound(funtypevar, TypeCon::Fun(ctx.insts.label(f.pos).clone(), rettypevar));
-    let _ = ctx.items.insert(f.name, funtypevar);
+    ctx.items.insert(f.name, funtypevar);
 
     // apply initial type constraints
 

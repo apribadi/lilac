@@ -1,5 +1,3 @@
-use lilac::sexp::Sexp;
-
 pub(crate) fn dump(out: &mut impl std::fmt::Write, source: &str) {
   let mut store = oxcart::Store::new();
   let mut arena = store.arena();
