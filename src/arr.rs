@@ -22,7 +22,7 @@ impl<T> Arr<T> {
   };
 
   pub const EMPTY: Self = Self {
-    ptr: ptr::null(),
+    ptr: ptr::NULL,
     len: 0,
     _phantom_data: PhantomData,
   };
@@ -37,7 +37,7 @@ impl<T> Arr<T> {
       if size_of::<T>() != 0 && n != 0 {
         unsafe { global::alloc_slice::<T>(n) }
       } else {
-        ptr::null()
+        ptr::NULL
       };
 
     let mut a = p;
@@ -87,7 +87,7 @@ impl<T> Drop for Arr<T> {
     let p = self.ptr;
     let n = self.len;
 
-    self.ptr = ptr::null();
+    self.ptr = ptr::NULL;
     self.len = 0;
 
     if needs_drop::<T>() {

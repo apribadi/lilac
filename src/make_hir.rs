@@ -142,7 +142,7 @@ fn pop_scope(t: &mut ScopeStack) {
 }
 
 fn put_referent(s: Symbol, x: Referent, t: &mut ScopeStack) {
-  let y = t.table.get_insert(s, x);
+  let y = t.table.get_and_insert(s, x);
   let n = t.counts.top_mut();
   t.undo.put((s, y));
   *n += 1;

@@ -37,7 +37,7 @@ impl<T> Buf<T> {
   #[inline(always)]
   pub const fn new() -> Self {
     return Self {
-      ptr: ptr::null(),
+      ptr: ptr::NULL,
       cap: if size_of::<T>() == 0 { u32::MAX } else { 0 },
       len: 0,
       _phantom_data: PhantomData,
@@ -203,7 +203,7 @@ impl<T> Buf<T> {
     let c = self.cap;
     let n = self.len;
 
-    self.ptr = ptr::null();
+    self.ptr = ptr::NULL;
     self.cap = if size_of::<T>() == 0 { u32::MAX } else { 0 };
     self.len = 0;
 
