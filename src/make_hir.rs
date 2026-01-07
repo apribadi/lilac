@@ -410,6 +410,40 @@ fn compile_expr<'a>(x: &Expr<'a>, ctx: &mut Ctx, out: &mut Out) -> What {
       ctx.points.put(r);
       return What::NumPoints(n + 1);
     }
+    Expr::PostOp(&(f, ref x)) => {
+      if let Expr::Variable(s) = *x {
+        if let Some(&Referent::Local(v)) = get_referent(s, &ctx.scopes) {
+          let x = out.emit(Inst::GetLocal(v));
+          let y = out.emit(Inst::Op1(f, x));
+          let _ = out.emit(Inst::SetLocal(v, y));
+          ctx.values.put(x); // post
+          return What::NumValues(1);
+        }
+      }
+      // error, postop must target a local variable
+      let _ = out.emit(Inst::GotoStaticError);
+      let _ = out.emit(Inst::Label(1));
+      let x = out.emit(Inst::Get(0));
+      ctx.values.put(x);
+      return What::NumValues(1);
+    }
+    Expr::PreOp(&(f, ref x)) => {
+      if let Expr::Variable(s) = *x {
+        if let Some(&Referent::Local(v)) = get_referent(s, &ctx.scopes) {
+          let x = out.emit(Inst::GetLocal(v));
+          let y = out.emit(Inst::Op1(f, x));
+          let _ = out.emit(Inst::SetLocal(v, y));
+          ctx.values.put(y); // pre
+          return What::NumValues(1);
+        }
+      }
+      // error, preop must target a local variable
+      let _ = out.emit(Inst::GotoStaticError);
+      let _ = out.emit(Inst::Label(1));
+      let x = out.emit(Inst::Get(0));
+      ctx.values.put(x);
+      return What::NumValues(1);
+    }
     Expr::Ternary(&(ref x, ref y, ref z)) => {
       let x = compile_expr(x, ctx, out).into_value(ctx, out);
       let _ = out.emit(Inst::Cond(x));
@@ -438,8 +472,8 @@ fn compile_expr<'a>(x: &Expr<'a>, ctx: &mut Ctx, out: &mut Out) -> What {
         Some(&Referent::Value(x)) => {
           ctx.values.put(x);
         }
-        Some(&Referent::Local(x)) => {
-          let x = out.emit(Inst::GetLocal(x));
+        Some(&Referent::Local(v)) => {
+          let x = out.emit(Inst::GetLocal(v));
           ctx.values.put(x);
         }
       }
@@ -530,6 +564,8 @@ fn compile_expr_tail<'a>(x: &Expr<'a>, ctx: &mut Ctx, out: &mut Out) {
     | Expr::Int(..)
     | Expr::Op1(..)
     | Expr::Op2(..)
+    | Expr::PostOp(..)
+    | Expr::PreOp(..)
     | Expr::Undefined
     | Expr::Variable(..) => {
       let What::NumValues(1) = compile_expr(x, ctx, out) else { unreachable!() };
@@ -595,8 +631,8 @@ fn compile_stmt<'a>(x: &Stmt<'a>, ctx: &mut Ctx, out: &mut Out) -> What {
     }
     Stmt::Set(s, ref x) => {
       let x = compile_expr(x, ctx, out).into_value(ctx, out);
-      if let Some(&Referent::Local(y)) = get_referent(s, &ctx.scopes) {
-        let _ = out.emit(Inst::SetLocal(y, x));
+      if let Some(&Referent::Local(v)) = get_referent(s, &ctx.scopes) {
+        let _ = out.emit(Inst::SetLocal(v, x));
       } else {
         // error, symbol does not refer to local variable
         let _ = out.emit(Inst::GotoStaticError);

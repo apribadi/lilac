@@ -37,6 +37,8 @@ pub enum Expr<'a> {
   Op1(&'a (Op1, Expr<'a>)),
   Op2(&'a (Op2, Expr<'a>, Expr<'a>)),
   Or(&'a (Expr<'a>, Expr<'a>)),
+  PostOp(&'a (Op1, Expr<'a>)),
+  PreOp(&'a (Op1, Expr<'a>)),
   Ternary(&'a (Expr<'a>, Expr<'a>, Expr<'a>)),
   Undefined,
   Variable(Symbol),
