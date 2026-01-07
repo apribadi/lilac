@@ -5,10 +5,10 @@ pub(crate) fn dump(out: &mut impl std::fmt::Write, source: &str) {
   let module = lilac::make_ast::parse(source.as_bytes(), &mut arena);
   let module = lilac::make_hir::compile(&module);
 
-  let (item_types, inst_types, solver) = lilac::typecheck::typecheck(&module);
+  let (environment, inst_types, solver) = lilac::typecheck::typecheck(&module);
 
   for f in module.funs.iter() {
-    write!(out, "=== fun {} : {:?} ===\n", f.name, solver.resolve(item_types[f.name])).unwrap();
+    write!(out, "=== fun {} : {:?} ===\n", f.name, environment[f.name]).unwrap();
 
     for i in f.pos .. f.pos + f.len {
       let inst = module.code[i];

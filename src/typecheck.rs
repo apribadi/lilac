@@ -47,6 +47,7 @@ pub enum Type {
   Var(TypeVar),
 }
 
+#[derive(Clone, Debug)]
 pub struct TypeScheme(/* arity */ u32, Type);
 
 type TypeSeq = Arr<TypeVar>;
@@ -312,7 +313,7 @@ impl Ctx {
   }
 }
 
-pub fn typecheck(module: &Module) -> (HashMap<Symbol, TypeVar>, Buf<InstType>, TypeSolver) {
+pub fn typecheck(module: &Module) -> (HashMap<Symbol, TypeScheme>, Buf<InstType>, TypeSolver) {
   let mut ctx = Ctx::new();
 
   // assign type variables for all relevant program points
@@ -483,5 +484,5 @@ pub fn typecheck(module: &Module) -> (HashMap<Symbol, TypeVar>, Buf<InstType>, T
     ctx.environment.insert(f.name, ctx.solver.generalize(funtypevar));
   }
 
-  return (ctx.current_items, ctx.insts.insts, ctx.solver);
+  return (ctx.environment, ctx.insts.insts, ctx.solver);
 }
