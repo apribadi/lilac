@@ -146,15 +146,15 @@ impl<'a, 'b> parse::Out for ToAst<'a, 'b> {
   }
 
   fn on_post_op(&mut self, op: Op1) {
-    // TODO: add new ast node
-    let _ = op;
-    unimplemented!()
+    let x = self.pop_expr();
+    let x = Expr::PostOp(self.alloc((op, x)));
+    self.put_expr(x);
   }
 
   fn on_pre_op(&mut self, op: Op1) {
-    // TODO: add new ast node
-    let _ = op;
-    unimplemented!()
+    let x = self.pop_expr();
+    let x = Expr::PreOp(self.alloc((op, x)));
+    self.put_expr(x);
   }
 
   fn on_field(&mut self, symbol: &[u8]) {
