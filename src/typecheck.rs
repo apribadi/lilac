@@ -67,7 +67,7 @@ pub struct TypeSolver {
 
 struct Ctx {
   environment: HashMap<Symbol, TypeScheme>,
-  items: HashMap<Symbol, TypeVar>,
+  current_items: HashMap<Symbol, TypeVar>,
   insts: TypeMap,
   solver: TypeSolver,
   block: u32,
@@ -253,7 +253,9 @@ impl TypeSolver {
   }
 
   fn generalize(&mut self, t: TypeVar) -> TypeScheme {
-    unimplemented!()
+    // TODO: generalize
+    let _ = t;
+    return TypeScheme(0, Type::Bool);
   }
 
   pub fn resolve(&self, x: TypeVar) -> hir::ValType {
@@ -293,7 +295,7 @@ impl Ctx {
     let mut ctx =
       Self {
         environment: HashMap::new(),
-        items: HashMap::new(),
+        current_items: HashMap::new(),
         insts: TypeMap::new(),
         solver: TypeSolver::new(),
         block: u32::MAX,
@@ -351,7 +353,7 @@ pub fn typecheck(module: &Module) -> (HashMap<Symbol, TypeVar>, Buf<InstType>, T
     let funtypevar = ctx.solver.fresh();
     let rettypevar = ctx.solver.fresh();
     ctx.solver.bound(funtypevar, TypeCon::Fun(ctx.insts.label(f.pos).clone(), rettypevar));
-    ctx.items.insert(f.name, funtypevar);
+    ctx.current_items.insert(f.name, funtypevar);
 
     // apply initial type constraints
 
@@ -455,8 +457,7 @@ pub fn typecheck(module: &Module) -> (HashMap<Symbol, TypeVar>, Buf<InstType>, T
           ctx.solver.unify(rettypevar, y);
         }
         Inst::Const(symbol) => {
-          if let Some(&x) = ctx.items.get(symbol) {
-            // NB: this should be for items in the current SCC
+          if let Some(&x) = ctx.current_items.get(symbol) {
             ctx.solver.unify(ctx.insts.value(i), x);
           } else if let Some(t) = ctx.environment.get(symbol) {
             let x = ctx.solver.instantiate(t);
@@ -475,7 +476,12 @@ pub fn typecheck(module: &Module) -> (HashMap<Symbol, TypeVar>, Buf<InstType>, T
     // solve all type constraints
 
     ctx.solver.propagate();
+
+    // TODO: generalize
+
+    ctx.current_items.clear();
+    ctx.environment.insert(f.name, ctx.solver.generalize(funtypevar));
   }
 
-  return (ctx.items, ctx.insts.insts, ctx.solver);
+  return (ctx.current_items, ctx.insts.insts, ctx.solver);
 }

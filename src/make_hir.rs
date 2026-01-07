@@ -420,7 +420,7 @@ fn compile_expr<'a>(x: &Expr<'a>, ctx: &mut Ctx, out: &mut Out) -> What {
           return What::NumValues(1);
         }
       }
-      // error, postop must target a local variable
+      // error, post-op must target a local variable
       let _ = out.emit(Inst::GotoStaticError);
       let _ = out.emit(Inst::Label(1));
       let x = out.emit(Inst::Get(0));
@@ -437,7 +437,7 @@ fn compile_expr<'a>(x: &Expr<'a>, ctx: &mut Ctx, out: &mut Out) -> What {
           return What::NumValues(1);
         }
       }
-      // error, preop must target a local variable
+      // error, pre-op must target a local variable
       let _ = out.emit(Inst::GotoStaticError);
       let _ = out.emit(Inst::Label(1));
       let x = out.emit(Inst::Get(0));
