@@ -13,5 +13,5 @@ fn test_parse() {
     }
   ");
 
-  expect!["(fun foo (n) ((var n n) (let (_) ((_++ n))) (let (_) ((_-- n)))))"].assert_eq(out.drain(..).as_ref());
+  expect!["(fun foo (n) ((var n n) (let (_) ((%post ++ n))) (let (_) ((%post -- n)))))"].assert_eq(out.drain(..).as_ref());
 }
