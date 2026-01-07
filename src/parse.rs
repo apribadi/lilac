@@ -26,8 +26,8 @@ pub trait Out {
   fn on_op1(&mut self, op: Op1);
   fn on_op2(&mut self, op: Op2);
   fn on_or(&mut self);
-  fn on_post_op1(&mut self, symbol: &[u8], op: Op1);
-  fn on_pre_op1(&mut self, op: Op1, symbol: &[u8]);
+  fn on_post_op(&mut self, op: Op1);
+  fn on_pre_op(&mut self, op: Op1);
   fn on_return(&mut self, n_args: u32);
   fn on_set(&mut self, symbol: &[u8]);
   fn on_set_field(&mut self, symbol: &[u8]);
@@ -167,18 +167,20 @@ fn parse_prec<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O, n: u32, is_stmt: bool) -
           o.on_set(symbol);
           return true;
         }
-        Token::Inc => {
-          t.next();
-          o.on_post_op1(symbol, Op1::Inc);
-        }
-        Token::Dec => {
-          t.next();
-          o.on_post_op1(symbol, Op1::Dec);
-        }
         _ => {
           o.on_variable(symbol);
         }
       }
+    }
+    Token::Dec => {
+      t.next();
+      parse_expr_prec(t, o, u32::MAX);
+      o.on_pre_op(Op1::Dec);
+    }
+    Token::Inc => {
+      t.next();
+      parse_expr_prec(t, o, u32::MAX);
+      o.on_pre_op(Op1::Inc);
     }
     Token::Hyphen => {
       t.next();
@@ -310,6 +312,14 @@ fn parse_prec<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O, n: u32, is_stmt: bool) -
         t.next();
         parse_expr_prec(t, o, 101);
         o.on_op2(Op2::Rem);
+      }
+      Token::Dec => {
+        t.next();
+        o.on_post_op(Op1::Dec);
+      }
+      Token::Inc => {
+        t.next();
+        o.on_post_op(Op1::Inc);
       }
       Token::Field if t.token_is_attached() => {
         let symbol = &t.token_span()[1 ..];
@@ -533,12 +543,14 @@ impl Out for ToSexp {
     self.put(sexp::list([sexp::atom(op.as_str()), x, y]));
   }
 
-  fn on_post_op1(&mut self, symbol: &[u8], op: Op1) {
-    self.put(sexp::list([sexp::atom(format!("%post {}", op)), sexp::atom(symbol)]));
+  fn on_post_op(&mut self, op: Op1) {
+    let x = self.pop();
+    self.put(sexp::list([sexp::atom("%post"), sexp::atom(op.as_str()), x]));
   }
 
-  fn on_pre_op1(&mut self, op: Op1, symbol: &[u8]) {
-    self.put(sexp::list([sexp::atom(format!("%pre {}", op)), sexp::atom(symbol)]));
+  fn on_pre_op(&mut self, op: Op1) {
+    let x = self.pop();
+    self.put(sexp::list([sexp::atom("%pre"), sexp::atom(op.as_str()), x]));
   }
 
   fn on_field(&mut self, symbol: &[u8]) {
