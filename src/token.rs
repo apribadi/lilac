@@ -34,8 +34,7 @@ pub enum Token {
   Tilde      = 0x7e, // ~
   Eof        = 0,
   Error      = 1,
-  AddEqual   = 0xa0, // +=
-  And,               // &&
+  And        = 0xa0, // &&
   CmpEq,             // ==
   CmpGe,             // >=
   CmpLe,             // <=
@@ -46,7 +45,6 @@ pub enum Token {
   Or,                // ||
   Shl,               // <<
   Shr,               // >>
-  SubEqual,          // -=
   Field,             // .foo
   StaticField,       // :foo
   Break,

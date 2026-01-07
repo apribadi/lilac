@@ -382,6 +382,8 @@ pub fn typecheck(module: &Module) -> (HashMap<Symbol, TypeVar>, Buf<InstType>, T
         Inst::Op1(f, x) => {
           let (a, b) =
             match f {
+              | Op1::Dec => (TypeCon::I64, TypeCon::I64),
+              | Op1::Inc => (TypeCon::I64, TypeCon::I64),
               | Op1::Neg => (TypeCon::I64, TypeCon::I64),
               | Op1::Not => (TypeCon::Bool, TypeCon::Bool),
             };

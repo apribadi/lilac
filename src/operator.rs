@@ -3,6 +3,8 @@
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[repr(u8)]
 pub enum Op1 {
+  Dec,
+  Inc,
   Neg,
   Not,
 }
@@ -31,6 +33,8 @@ pub enum Op2 {
 impl Op1 {
   pub fn as_str(&self) -> &'static str {
     match self {
+      Self::Dec => "--",
+      Self::Inc => "++",
       Self::Neg => "-",
       Self::Not => "!",
     }

@@ -8,11 +8,10 @@ fn test_parse() {
   util::parse_sexp(&mut out, "
     fun foo(n) {
       var n = n
-      n += 1
       let _ = n ++
       let _ = n --
     }
   ");
 
-  expect!["(fun foo (n) ((var n n) (+= n 1) (let (_) ((_++ n))) (let (_) ((_-- n)))))"].assert_eq(out.drain(..).as_ref());
+  expect!["(fun foo (n) ((var n n) (let (_) ((_++ n))) (let (_) ((_-- n)))))"].assert_eq(out.drain(..).as_ref());
 }
