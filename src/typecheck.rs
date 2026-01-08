@@ -6,6 +6,9 @@ use crate::arr::Arr;
 use crate::buf::Buf;
 use crate::hir::Inst;
 use crate::hir::Module;
+use crate::prim::PrimType;
+use crate::prim::PrimOp1;
+use crate::prim::PrimOp2;
 use crate::hir;
 use crate::operator::Op1;
 use crate::operator::Op2;
@@ -33,9 +36,8 @@ pub struct TypeMap {
 #[derive(Clone, Debug)]
 pub enum TypeCon {
   Array(TypeVar),
-  Bool,
   Fun(Arr<TypeVar>, TypeVar),
-  I64,
+  PrimType(PrimType),
 }
 
 #[derive(Clone, Debug)]
@@ -54,7 +56,6 @@ type TypeSeq = Arr<TypeVar>;
 
 pub enum TypeState {
   Abstract,
-  // BlackHole,
   TypeCon(TypeCon),
   TypeError,
   TypeGen(TypeVar),
@@ -107,11 +108,8 @@ impl TypeMap {
 
 fn unify_valtype(x: TypeCon, y: TypeCon, todo: &mut Buf<(TypeVar, TypeVar)>) -> TypeState {
   match (x, y) {
-    (TypeCon::Bool, TypeCon::Bool) => {
-      TypeState::TypeCon(TypeCon::Bool)
-    }
-    (TypeCon::I64, TypeCon::I64) => {
-      TypeState::TypeCon(TypeCon::I64)
+    (TypeCon::PrimType(x), TypeCon::PrimType(y)) if x == y => {
+      TypeState::TypeCon(TypeCon::PrimType(x))
     }
     (TypeCon::Array(x), TypeCon::Array(y)) => {
       todo.put((x, y));
@@ -230,7 +228,7 @@ impl TypeSolver {
       }
       Type::Bool => {
         let a = self.fresh();
-        self.bound(a, TypeCon::Bool);
+        self.bound(a, TypeCon::PrimType(PrimType::Bool));
         return a;
       }
       Type::Fun(ref x, ref y) => {
@@ -244,7 +242,7 @@ impl TypeSolver {
       }
       Type::I64 => {
         let a = self.fresh();
-        self.bound(a, TypeCon::I64);
+        self.bound(a, TypeCon::PrimType(PrimType::Bool));
         return a;
       }
       Type::Var(TypeVar(i)) => {
@@ -254,9 +252,20 @@ impl TypeSolver {
   }
 
   fn generalize(&mut self, t: TypeVar) -> TypeScheme {
-    // TODO: generalize
+    // TODO: we actually need to generalize multiple typevars at the same time,
+    // from a strongly-connected-component of top-level items
+
+    let mut i = 0u32;
+    let _ = i;
     let _ = t;
     return TypeScheme(0, Type::Bool);
+  }
+
+  fn generalize_impl(&mut self, t: TypeVar, i: &mut u32) -> Type {
+    let _ = self;
+    let _ = t;
+    let _ = i;
+    unimplemented!()
   }
 
   pub fn resolve(&self, x: TypeVar) -> hir::ValType {
@@ -270,8 +279,8 @@ impl TypeSolver {
       TypeState::TypeCon(ref t) => {
         match *t {
           TypeCon::Array(a) => hir::ValType::Array(Box::new(self.resolve(a))),
-          TypeCon::Bool => hir::ValType::Bool,
-          TypeCon::I64 => hir::ValType::I64,
+          TypeCon::PrimType(PrimType::Bool) => hir::ValType::Bool,
+          TypeCon::PrimType(PrimType::I64) => hir::ValType::I64,
           TypeCon::Fun(ref xs, y) =>
             hir::ValType::Fun(
               xs.iter().map(|x| self.resolve(*x)).collect(),
@@ -350,7 +359,7 @@ pub fn typecheck(module: &Module) -> (HashMap<Symbol, TypeScheme>, Buf<InstType>
     }
   }
 
-  for f in module.funs.iter() {
+  for f in module.decl.iter() {
     let funtypevar = ctx.solver.fresh();
     let rettypevar = ctx.solver.fresh();
     ctx.solver.bound(funtypevar, TypeCon::Fun(ctx.insts.label(f.pos).clone(), rettypevar));
@@ -361,9 +370,9 @@ pub fn typecheck(module: &Module) -> (HashMap<Symbol, TypeScheme>, Buf<InstType>
     for i in f.pos .. f.pos + f.len {
       match module.code[i] {
         Inst::ConstBool(_) =>
-          ctx.solver.bound(ctx.insts.value(i), TypeCon::Bool),
+          ctx.solver.bound(ctx.insts.value(i), TypeCon::PrimType(PrimType::Bool)),
         Inst::ConstInt(_) =>
-          ctx.solver.bound(ctx.insts.value(i), TypeCon::I64),
+          ctx.solver.bound(ctx.insts.value(i), TypeCon::PrimType(PrimType::I64)),
         Inst::Local(x) =>
           ctx.solver.unify(ctx.insts.value(x), ctx.insts.local(i)),
         Inst::GetLocal(v) =>
@@ -373,49 +382,27 @@ pub fn typecheck(module: &Module) -> (HashMap<Symbol, TypeScheme>, Buf<InstType>
         Inst::Index(x, y) => {
           let a = ctx.solver.fresh();
           ctx.solver.bound(ctx.insts.value(x), TypeCon::Array(a));
-          ctx.solver.bound(ctx.insts.value(y), TypeCon::I64);
+          ctx.solver.bound(ctx.insts.value(y), TypeCon::PrimType(PrimType::I64));
           ctx.solver.unify(a, ctx.insts.value(i));
         }
         Inst::SetIndex(x, y, z) => {
           let a = ctx.solver.fresh();
           ctx.solver.bound(ctx.insts.value(x), TypeCon::Array(a));
-          ctx.solver.bound(ctx.insts.value(y), TypeCon::I64);
+          ctx.solver.bound(ctx.insts.value(y), TypeCon::PrimType(PrimType::I64));
           ctx.solver.unify(ctx.insts.value(z), a);
         }
         Inst::Op1(f, x) => {
-          let (a, b) =
-            match f {
-              | Op1::Dec => (TypeCon::I64, TypeCon::I64),
-              | Op1::Inc => (TypeCon::I64, TypeCon::I64),
-              | Op1::Neg => (TypeCon::I64, TypeCon::I64),
-              | Op1::Not => (TypeCon::Bool, TypeCon::Bool),
-            };
+          let f = lower_op1(f);
+          let a = TypeCon::PrimType(f.arg_type());
+          let b = TypeCon::PrimType(f.out_type());
           ctx.solver.bound(ctx.insts.value(x), a);
           ctx.solver.bound(ctx.insts.value(i), b);
         }
         Inst::Op2(f, x, y) => {
-          let (a, b, c) =
-            match f {
-              | Op2::Add
-              | Op2::Sub
-              | Op2::BitAnd
-              | Op2::BitOr
-              | Op2::BitXor
-              | Op2::Div
-              | Op2::Mul
-              | Op2::Rem
-                => (TypeCon::I64, TypeCon::I64, TypeCon::I64),
-              | Op2::Shl
-              | Op2::Shr
-                => (TypeCon::I64, TypeCon::I64, TypeCon::I64),
-              | Op2::CmpEq
-              | Op2::CmpNe
-              | Op2::CmpGe
-              | Op2::CmpGt
-              | Op2::CmpLe
-              | Op2::CmpLt
-                => (TypeCon::I64, TypeCon::I64, TypeCon::Bool),
-            };
+          let f = lower_op2(f);
+          let a = TypeCon::PrimType(f.arg_type()[0]);
+          let b = TypeCon::PrimType(f.arg_type()[1]);
+          let c = TypeCon::PrimType(f.out_type());
           ctx.solver.bound(ctx.insts.value(x), a);
           ctx.solver.bound(ctx.insts.value(y), b);
           ctx.solver.bound(ctx.insts.value(i), c);
@@ -432,7 +419,7 @@ pub fn typecheck(module: &Module) -> (HashMap<Symbol, TypeScheme>, Buf<InstType>
         Inst::Ret =>
           ctx.solver.bound_ret(rettypevar, ctx.outs.drain().collect()),
         Inst::Cond(x) =>
-          ctx.solver.bound(ctx.insts.value(x), TypeCon::Bool),
+          ctx.solver.bound(ctx.insts.value(x), TypeCon::PrimType(PrimType::Bool)),
         Inst::Goto(a) => {
           match ctx.call_rettypevar {
             None => {
@@ -485,4 +472,34 @@ pub fn typecheck(module: &Module) -> (HashMap<Symbol, TypeScheme>, Buf<InstType>
   }
 
   return (ctx.environment, ctx.insts.insts, ctx.solver);
+}
+
+fn lower_op1(op: Op1) -> PrimOp1 {
+  match op {
+    Op1::Dec => PrimOp1::DecI64,
+    Op1::Inc => PrimOp1::IncI64,
+    Op1::Neg => PrimOp1::NegI64,
+    Op1::Not => PrimOp1::NotBool,
+  }
+}
+
+fn lower_op2(op: Op2) -> PrimOp2 {
+  match op {
+    Op2::Add => PrimOp2::AddI64,
+    Op2::BitAnd => PrimOp2::BitAndI64,
+    Op2::BitOr => PrimOp2::BitOrI64,
+    Op2::BitXor => PrimOp2::BitXorI64,
+    Op2::CmpEq => PrimOp2::CmpEqI64,
+    Op2::CmpGe => PrimOp2::CmpGeI64,
+    Op2::CmpGt => PrimOp2::CmpGtI64,
+    Op2::CmpLe => PrimOp2::CmpLeI64,
+    Op2::CmpLt => PrimOp2::CmpLtI64,
+    Op2::CmpNe => PrimOp2::CmpNeI64,
+    Op2::Div => PrimOp2::DivI64,
+    Op2::Mul => PrimOp2::MulI64,
+    Op2::Rem => PrimOp2::RemI64,
+    Op2::Shl => PrimOp2::ShlI64,
+    Op2::Shr => PrimOp2::ShrI64,
+    Op2::Sub => PrimOp2::SubI64,
+  }
 }

@@ -7,7 +7,7 @@ pub(crate) fn dump(out: &mut impl std::fmt::Write, source: &str) {
 
   let (environment, inst_types, solver) = lilac::typecheck::typecheck(&module);
 
-  for f in module.funs.iter() {
+  for f in module.decl.iter() {
     write!(out, "=== fun {} : {:?} ===\n", f.name, environment[f.name]).unwrap();
 
     for i in f.pos .. f.pos + f.len {

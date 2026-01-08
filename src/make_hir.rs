@@ -37,13 +37,13 @@ pub fn compile<'a>(item_list: &Arr<ast::Item<'a>>) -> Module {
 
     compile_block_tail(f.body, &mut ctx, &mut out);
     pop_scope(&mut ctx.scopes);
-    out.funs.put(Fun { name: f.name, pos, len: out.code.len() - pos });
+    out.decl.put(Fun { name: f.name, pos, len: out.code.len() - pos });
   }
 
   return
     Module {
       code: out.code.drain().collect(),
-      funs: out.funs.drain().collect(),
+      decl: out.decl.drain().collect(),
     };
 }
 
@@ -174,14 +174,14 @@ fn pop_loop_tail(t: &mut LoopStack) {
 
 struct Out {
   code: Buf<Inst>,
-  funs: Buf<Fun>,
+  decl: Buf<Fun>,
 }
 
 impl Out {
   fn new() -> Self {
     Self {
       code: Buf::new(),
-      funs: Buf::new(),
+      decl: Buf::new(),
     }
   }
 

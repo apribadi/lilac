@@ -17,7 +17,7 @@ type Value = u32;
 
 pub struct Module {
   pub code: Arr<Inst>,
-  pub funs: Arr<Fun>,
+  pub decl: Arr<Fun>,
 }
 
 #[derive(Debug)]
