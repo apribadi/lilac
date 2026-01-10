@@ -18,7 +18,7 @@ use std::mem::replace;
 use tangerine::map::HashMap;
 
 #[derive(Clone, Copy, Debug)]
-pub struct TypeVar(u32);
+pub struct TypeVar(pub u32);
 
 #[derive(Clone)]
 pub enum InstType {
@@ -311,13 +311,15 @@ impl Ctx {
   }
 }
 
-pub fn typecheck(module: &hir::Module) -> (HashMap<Symbol, TypeScheme>, Buf<InstType>, TypeSolver) {
+pub fn typecheck(module: &hir::Module) -> (HashMap<Symbol, TypeScheme>, TypeSolver) {
   let mut ctx = Ctx::new();
 
   // assign type variables for all relevant program points
 
   for inst in module.code.iter() {
-    let i = ctx.solver.fresh();
+    let _ = ctx.solver.fresh();
+    ctx.insts.put(InstType::Nil);
+    /*
     match *inst {
       | Inst::GotoStaticError
       | Inst::Put(..)
@@ -346,6 +348,7 @@ pub fn typecheck(module: &hir::Module) -> (HashMap<Symbol, TypeScheme>, Buf<Inst
         ctx.insts.put(InstType::Nil);
       }
     }
+    */
   }
 
   for f in module.decl.iter() {
@@ -466,7 +469,7 @@ pub fn typecheck(module: &hir::Module) -> (HashMap<Symbol, TypeScheme>, Buf<Inst
     ctx.environment.insert(f.name, ctx.solver.generalize(funtypevar));
   }
 
-  return (ctx.environment, ctx.insts.insts, ctx.solver);
+  return (ctx.environment, ctx.solver);
 }
 
 // TODO: operator overloading

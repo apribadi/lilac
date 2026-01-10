@@ -5,26 +5,44 @@ pub(crate) fn dump(out: &mut impl std::fmt::Write, source: &str) {
   let module = lilac::make_ast::parse(source.as_bytes(), &mut arena);
   let module = lilac::make_hir::compile(&module);
 
-  let (environment, inst_types, solver) = lilac::typecheck::typecheck(&module);
+  let (environment, solver) = lilac::typecheck::typecheck(&module);
 
   for f in module.decl.iter() {
     write!(out, "=== fun {} : {:?} ===\n", f.name, environment[f.name]).unwrap();
 
     for i in f.pos .. f.pos + f.len {
       let inst = module.code[i];
-      match inst_types[i] {
-        lilac::typecheck::InstType::Label(ref xs) => {
-          let xs = xs.iter().map(|x| solver.resolve(*x)).collect::<Box<[_]>>();
-          write!(out, "%{} {} : {:?}\n", i, inst, xs).unwrap();
+      match inst {
+        | lilac::hir::Inst::GotoStaticError
+        | lilac::hir::Inst::Put(..)
+        | lilac::hir::Inst::Goto(..)
+        | lilac::hir::Inst::Cond(..)
+        | lilac::hir::Inst::Ret
+        | lilac::hir::Inst::Call(..)
+        | lilac::hir::Inst::TailCall(..)
+        | lilac::hir::Inst::SetField(..)
+        | lilac::hir::Inst::SetIndex(..)
+        | lilac::hir::Inst::SetLocal(..) =>
+          write!(out, "%{} {}\n", i, inst).unwrap(),
+        | lilac::hir::Inst::Get(..)
+        | lilac::hir::Inst::Const(..)
+        | lilac::hir::Inst::ConstBool(..)
+        | lilac::hir::Inst::ConstInt(..)
+        | lilac::hir::Inst::Field(..)
+        | lilac::hir::Inst::Index(..)
+        | lilac::hir::Inst::GetLocal(..)
+        | lilac::hir::Inst::Op1(..)
+        | lilac::hir::Inst::Op2(..) => {
+          let x = lilac::typecheck::TypeVar(i);
+          write!(out, "%{} {} : Value {:?}\n", i, inst, solver.resolve(x)).unwrap();
         }
-        lilac::typecheck::InstType::Local(x) => {
+        | lilac::hir::Inst::Local(..) => {
+          let x = lilac::typecheck::TypeVar(i);
           write!(out, "%{} {} : Local {:?}\n", i, inst, solver.resolve(x)).unwrap();
         }
-        lilac::typecheck::InstType::Nil => {
-          write!(out, "%{} {}\n", i, inst).unwrap();
-        }
-        lilac::typecheck::InstType::Value(x) => {
-          write!(out, "%{} {} : Value {:?}\n", i, inst, solver.resolve(x)).unwrap();
+        | lilac::hir::Inst::Label(_) => {
+          let x = lilac::typecheck::TypeVar(i);
+          write!(out, "%{} {} : {:?}\n", i, inst, solver.resolve_ret(x).unwrap()).unwrap();
         }
       }
     }
