@@ -21,7 +21,7 @@ fn test_fib_loop() {
   ");
 
   expect![[r#"
-      === fun fib : Fun([I64], Some([I64])) ===
+      === fun fib : TypeScheme(0, Bool) ===
       %0 LABEL 1 : [I64]
       %1 = GET 0 : Value I64
       %2 = 1 : Value I64
@@ -75,7 +75,7 @@ fn test_fib_tailcall() {
   ");
 
   expect![[r#"
-      === fun aux : Fun([I64, I64, I64], Some([I64])) ===
+      === fun aux : TypeScheme(0, Bool) ===
       %0 LABEL 3 : [I64, I64, I64]
       %1 = GET 0 : Value I64
       %2 = GET 1 : Value I64
@@ -89,7 +89,7 @@ fn test_fib_tailcall() {
       %10 = %1 + %2 : Value I64
       %11 = 1 : Value I64
       %12 = %3 - %11 : Value I64
-      %13 = CONST aux : Value Fun([I64, I64, I64], Some([I64]))
+      %13 = CONST aux : Value Fun([I64, I64, I64], [I64])
       %14 PUT 0 %2
       %15 PUT 1 %10
       %16 PUT 2 %12
@@ -97,12 +97,12 @@ fn test_fib_tailcall() {
       %18 LABEL 0 : []
       %19 PUT 0 %2
       %20 RET
-      === fun fib : Fun([I64], Some([I64])) ===
-      %21 LABEL 1 : [I64]
-      %22 = GET 0 : Value I64
+      === fun fib : TypeScheme(0, Bool) ===
+      %21 LABEL 1 : [Var(TypeVar(111))]
+      %22 = GET 0 : Value Var(TypeVar(111))
       %23 = 1 : Value I64
       %24 = 0 : Value I64
-      %25 = CONST aux : Value Fun([I64, I64, I64], Some([I64]))
+      %25 = CONST aux : Value Fun([I64, I64, Var(TypeVar(111))], [])
       %26 PUT 0 %23
       %27 PUT 1 %24
       %28 PUT 2 %22

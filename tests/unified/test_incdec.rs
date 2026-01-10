@@ -17,7 +17,7 @@ fn test_loop() {
   ");
 
   expect![[r#"
-      === fun foo : Fun([I64], Some([I64])) ===
+      === fun foo : TypeScheme(0, Bool) ===
       %0 LABEL 1 : [I64]
       %1 = GET 0 : Value I64
       %2 = LOCAL %1 : Local I64

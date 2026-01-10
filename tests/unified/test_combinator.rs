@@ -11,11 +11,11 @@ fn test_select() {
   ");
 
   expect![[r#"
-      === fun select : Fun([Bool, I64, I64], Some([I64])) ===
-      %0 LABEL 3 : [Bool, I64, I64]
+      === fun select : TypeScheme(0, Bool) ===
+      %0 LABEL 3 : [Bool, Var(TypeVar(111)), Var(TypeVar(111))]
       %1 = GET 0 : Value Bool
-      %2 = GET 1 : Value I64
-      %3 = GET 2 : Value I64
+      %2 = GET 1 : Value Var(TypeVar(111))
+      %3 = GET 2 : Value Var(TypeVar(111))
       %4 COND %1
       %5 ==> GOTO %7
       %6 ==> GOTO %10
@@ -25,13 +25,13 @@ fn test_select() {
       %10 LABEL 0 : []
       %11 PUT 0 %2
       %12 RET
-      === fun relu : Fun([I64], Some([I64])) ===
+      === fun relu : TypeScheme(0, Bool) ===
       %13 LABEL 1 : [I64]
       %14 = GET 0 : Value I64
       %15 = 0 : Value I64
       %16 = %14 >= %15 : Value Bool
       %17 = 0 : Value I64
-      %18 = CONST select : Value Fun([Bool, I64, I64], Some([I64]))
+      %18 = CONST select : Value Fun([Bool, I64, I64], [I64])
       %19 PUT 0 %16
       %20 PUT 1 %14
       %21 PUT 2 %17
@@ -61,11 +61,11 @@ fn test_foo() {
   ");
 
   expect![[r#"
-      === fun foo : Fun([Abstract, Fun([Abstract], Some([Bool])), Fun([Abstract], Some([Abstract]))], Some([Abstract])) ===
-      %0 LABEL 3 : [Abstract, Fun([Abstract], Some([Bool])), Fun([Abstract], Some([Abstract]))]
-      %1 = GET 0 : Value Abstract
-      %2 = GET 1 : Value Fun([Abstract], Some([Bool]))
-      %3 = GET 2 : Value Fun([Abstract], Some([Abstract]))
+      === fun foo : TypeScheme(0, Bool) ===
+      %0 LABEL 3 : [Var(TypeVar(111)), Fun([Var(TypeVar(111))], [Bool]), Fun([Var(TypeVar(111))], [Var(TypeVar(111))])]
+      %1 = GET 0 : Value Var(TypeVar(111))
+      %2 = GET 1 : Value Fun([Var(TypeVar(111))], [Bool])
+      %3 = GET 2 : Value Fun([Var(TypeVar(111))], [Var(TypeVar(111))])
       %4 PUT 0 %1
       %5 CALL %2
       %6 ==> GOTO %7

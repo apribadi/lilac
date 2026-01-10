@@ -13,7 +13,7 @@ fn test_array() {
   ");
 
   expect![[r#"
-      === fun foo : Fun([Array(I64)], Some([I64])) ===
+      === fun foo : TypeScheme(0, Bool) ===
       %0 LABEL 1 : [Array(I64)]
       %1 = GET 0 : Value Array(I64)
       %2 = 0 : Value I64
@@ -44,14 +44,14 @@ fn test_array() {
   ");
 
   expect![[r#"
-      === fun sum : Fun([Array(I64)], Some([I64])) ===
+      === fun sum : TypeScheme(0, Bool) ===
       %0 LABEL 1 : [Array(I64)]
       %1 = GET 0 : Value Array(I64)
       %2 = 0 : Value I64
       %3 = LOCAL %2 : Local I64
       %4 = 0 : Value I64
       %5 = LOCAL %4 : Local I64
-      %6 = CONST len : Value Fun([Array(I64)], Some([I64]))
+      %6 = CONST len : Value Fun([Array(I64)], [I64])
       %7 PUT 0 %1
       %8 CALL %6
       %9 ==> GOTO %10
