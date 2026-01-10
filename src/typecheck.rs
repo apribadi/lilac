@@ -21,10 +21,16 @@ use tangerine::map::HashMap;
 #[derive(Clone, Debug)]
 pub enum ValueType {
   Array(Box<ValueType>),
-  Fun(Arr<ValueType>, Arr<ValueType>),
+  Fun(TupleType, TupleType),
   I64,
   Bool,
   BoundTypeVar(TypeVar),
+}
+
+#[derive(Clone, Debug)]
+pub enum TupleType {
+  BoundTypeVar(TypeVar),
+  Tuple(Arr<ValueType>),
 }
 
 #[derive(Clone, Debug)]
@@ -42,6 +48,7 @@ type TupleTypeNode = Arr<TypeVar>;
 #[derive(Debug)]
 pub enum TypeNode {
   Abstract,
+  BoundTypeVar(TypeVar),
   TupleType(TupleTypeNode),
   TypeError,
   ValueType(ValueTypeNode),
@@ -121,12 +128,12 @@ impl Solver {
 
     *x =
       match replace(x, TypeNode::Abstract) {
-        TypeNode::TypeError | TypeNode::TupleType(..) =>
-          TypeNode::TypeError,
         TypeNode::Abstract =>
           TypeNode::ValueType(y),
         TypeNode::ValueType(x) =>
           unify_value_type(x, y, &mut self.to_unify),
+        _ =>
+          TypeNode::TypeError,
       };
   }
 
@@ -135,12 +142,12 @@ impl Solver {
 
     *x =
       match replace(x, TypeNode::Abstract) {
-        TypeNode::TypeError | TypeNode::ValueType(..) =>
-          TypeNode::TypeError,
         TypeNode::Abstract =>
           TypeNode::TupleType(y),
         TypeNode::TupleType(x) =>
           unify_tuple_type(x, y, &mut self.to_unify),
+          _ =>
+          TypeNode::TypeError,
       };
   }
 
@@ -167,10 +174,10 @@ impl Solver {
   }
 
   fn instantiate(&mut self, t: &TypeScheme) -> TypeVar {
-    let bound_type_vars = Arr::new((0 .. t.0).map(|_| self.fresh()));
-    let _ = self;
-    let _ = t;
-    return self.fresh();
+    let n = t.0;
+    let t = &t.1;
+    let bound_type_vars = Arr::new((0 .. n).map(|_| self.fresh()));
+    return self.instantiate_value_type(&bound_type_vars, t);
   }
 
   fn instantiate_value_type(&mut self, bound_type_vars: &Arr<TypeVar>, t: &ValueType) -> TypeVar {
@@ -204,7 +211,8 @@ impl Solver {
     }
   }
 
-  fn instantiate_tuple_type(&mut self, bound_type_vars: &Arr<TypeVar>, t: &Arr<ValueType>) -> TypeVar {
+  fn instantiate_tuple_type(&mut self, bound_type_vars: &Arr<TypeVar>, t: &TupleType) -> TypeVar {
+    // TODO:
     let _ = bound_type_vars;
     let _ = t;
     return self.fresh();
@@ -214,16 +222,84 @@ impl Solver {
     // TODO: we actually need to generalize multiple typevars at the same time,
     // from a strongly-connected-component of top-level items
 
-    let _ = self;
-    let _ = t;
-    return TypeScheme(0, ValueType::Bool);
+    let mut count = 0;
+    let t = self.generalize_value_type(&mut count, t);
+    return TypeScheme(count, t);
+  }
+
+  fn generalize_value_type(&mut self, count: &mut u32, t: TypeVar) -> ValueType {
+    let t = &mut self.union_find[t.0];
+
+    match *t {
+      TypeNode::Abstract => {
+        let i = *count;
+        *count = i + 1;
+        let a = TypeVar(i);
+        *t = TypeNode::BoundTypeVar(a);
+        ValueType::BoundTypeVar(a)
+      }
+      TypeNode::BoundTypeVar(a) => {
+        ValueType::BoundTypeVar(a)
+      }
+      TypeNode::TupleType(..) => {
+        panic!()
+      }
+      TypeNode::TypeError => {
+        panic!()
+      }
+      TypeNode::ValueType(ValueTypeNode::Array(a)) => {
+        let a = self.generalize_value_type(count, a);
+        ValueType::Array(Box::new(a))
+      }
+      TypeNode::ValueType(ValueTypeNode::Fun(a, b)) => {
+        let a = self.generalize_tuple_type(count, a);
+        let b = self.generalize_tuple_type(count, b);
+        ValueType::Fun(a, b)
+      }
+      TypeNode::ValueType(ValueTypeNode::PrimType(PrimType::Bool)) => {
+        ValueType::Bool
+      }
+      TypeNode::ValueType(ValueTypeNode::PrimType(PrimType::I64)) => {
+        ValueType::I64
+      }
+    }
+  }
+
+  fn generalize_tuple_type(&mut self, count: &mut u32, t: TypeVar) -> TupleType {
+    let t = &mut self.union_find[t.0];
+
+    match *t {
+      TypeNode::Abstract => {
+        let i = *count;
+        *count = i + 1;
+        let a = TypeVar(i);
+        *t = TypeNode::BoundTypeVar(a);
+        TupleType::BoundTypeVar(a)
+      }
+      TypeNode::BoundTypeVar(a) => {
+        TupleType::BoundTypeVar(a)
+      }
+      TypeNode::TypeError => {
+        panic!()
+      }
+      TypeNode::ValueType(..) => {
+        panic!()
+      }
+      TypeNode::TupleType(ref a) => {
+        let a = a.clone(); // ??!!
+        TupleType::Tuple(Arr::new(a.iter().map(|a| self.generalize_value_type(count, *a))))
+      }
+    }
   }
 
   pub fn resolve_value_type(&self, t: TypeVar) -> ValueType {
     match self.union_find[t.0] {
-      TypeNode::Abstract => ValueType::BoundTypeVar(TypeVar(111)), // ???
-      TypeNode::TupleType(..) => ValueType::BoundTypeVar(TypeVar(999)), // ???
-      TypeNode::TypeError => ValueType::BoundTypeVar(TypeVar(999)), // ???
+      TypeNode::BoundTypeVar(a) =>
+        ValueType::BoundTypeVar(a),
+      TypeNode::Abstract =>
+        ValueType::BoundTypeVar(TypeVar(111)), // ???
+      TypeNode::TupleType(..) | TypeNode::TypeError =>
+        ValueType::BoundTypeVar(TypeVar(999)), // ???
       TypeNode::ValueType(ValueTypeNode::Array(a)) =>
         ValueType::Array(Box::new(self.resolve_value_type(a))),
       TypeNode::ValueType(ValueTypeNode::Fun(a, b)) =>
@@ -235,13 +311,14 @@ impl Solver {
     }
   }
 
-  pub fn resolve_tuple_type(&self, t: TypeVar) -> Arr<ValueType> {
+  pub fn resolve_tuple_type(&self, t: TypeVar) -> TupleType {
     match self.union_find[t.0] {
-      TypeNode::Abstract => Arr::EMPTY,
-      TypeNode::ValueType(..) => Arr::EMPTY,
-      TypeNode::TypeError => Arr::EMPTY,
+      TypeNode::BoundTypeVar(a) =>
+        TupleType::BoundTypeVar(a),
       TypeNode::TupleType(ref t) =>
-        Arr::new(t.iter().map(|t| self.resolve_value_type(*t))),
+        TupleType::Tuple(Arr::new(t.iter().map(|t| self.resolve_value_type(*t)))),
+      _ =>
+        panic!(),
     }
   }
 }
@@ -261,7 +338,11 @@ impl Ctx {
 
     ctx.global_environment.insert(
       Symbol::from_str("len"),
-      TypeScheme(1, ValueType::Fun(Arr::new([ValueType::BoundTypeVar(TypeVar(0))]), Arr::new([ValueType::I64])))
+      TypeScheme(
+        1,
+        ValueType::Fun(
+          TupleType::Tuple(Arr::new([ValueType::BoundTypeVar(TypeVar(0))])),
+          TupleType::Tuple(Arr::new([ValueType::I64]))))
     );
 
     return ctx;
