@@ -518,3 +518,41 @@ fn lower_op2(op: Op2) -> PrimOp2 {
     Op2::Sub => PrimOp2::SubI64,
   }
 }
+
+impl std::fmt::Display for ValueType {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    match *self {
+      Self::Array(ref a) =>
+        write!(f, "Array[{}]", a)?,
+      Self::Fun(ref a, ref b) =>
+        write!(f, "Fun {} -> {}", a, b)?,
+      Self::I64 =>
+        write!(f, "I64")?,
+      Self::Bool =>
+        write!(f, "Bool")?,
+      Self::TypeVar(a) =>
+        write!(f, "'{}", a.0)?,
+    }
+    Ok(())
+  }
+}
+
+impl std::fmt::Display for TupleType {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    match *self {
+      Self::TypeVar(a) =>
+        write!(f, "'{}", a.0)?,
+      Self::Tuple(ref a) => {
+        write!(f, "(")?;
+        for (i, a) in a.iter().enumerate() {
+          if i != 0 {
+            write!(f, ", ")?;
+          }
+          write!(f, "{}", a)?;
+        }
+        write!(f, ")")?;
+      }
+    }
+    Ok(())
+  }
+}
