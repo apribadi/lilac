@@ -21,7 +21,7 @@ fn test_fib_loop() {
   ");
 
   expect![[r#"
-      === fun fib : TypeScheme(1, Fun(BoundTypeVar(TypeVar(0)), Tuple([I64]))) ===
+      === fun fib : TypeScheme(0, Fun(Tuple([I64]), Tuple([I64]))) ===
       %0 LABEL 1 : [I64]
       %1 = GET 0 : Value I64
       %2 = 1 : Value I64
@@ -97,12 +97,12 @@ fn test_fib_tailcall() {
       %18 LABEL 0 : []
       %19 PUT 0 %2
       %20 RET
-      === fun fib : TypeScheme(2, Fun(BoundTypeVar(TypeVar(0)), BoundTypeVar(TypeVar(1)))) ===
-      %21 LABEL 1 : [BoundTypeVar(TypeVar(111))]
-      %22 = GET 0 : Value BoundTypeVar(TypeVar(111))
+      === fun fib : TypeScheme(0, Fun(Tuple([I64]), Tuple([I64]))) ===
+      %21 LABEL 1 : [I64]
+      %22 = GET 0 : Value I64
       %23 = 1 : Value I64
       %24 = 0 : Value I64
-      %25 = CONST aux : Value Fun(Tuple([I64, I64, BoundTypeVar(TypeVar(111))]), BoundTypeVar(TypeVar(1)))
+      %25 = CONST aux : Value Fun(Tuple([I64, I64, I64]), Tuple([I64]))
       %26 PUT 0 %23
       %27 PUT 1 %24
       %28 PUT 2 %22

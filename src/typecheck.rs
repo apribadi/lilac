@@ -192,7 +192,7 @@ impl Solver {
         let t = self.fresh();
         let a = self.instantiate_tuple_type(bound_type_vars, a);
         let b = self.instantiate_tuple_type(bound_type_vars, b);
-        self.value_type(b, ValueTypeNode::Fun(a, b));
+        self.value_type(t, ValueTypeNode::Fun(a, b));
         t
       }
       ValueType::I64 => {
@@ -212,10 +212,17 @@ impl Solver {
   }
 
   fn instantiate_tuple_type(&mut self, bound_type_vars: &Arr<TypeVar>, t: &TupleType) -> TypeVar {
-    // TODO:
-    let _ = bound_type_vars;
-    let _ = t;
-    return self.fresh();
+    match *t {
+      TupleType::BoundTypeVar(a) => {
+        bound_type_vars[a.0]
+      }
+      TupleType::Tuple(ref a) => {
+        let t = self.fresh();
+        let a = Arr::new(a.iter().map(|a| self.instantiate_value_type(bound_type_vars, a)));
+        self.tuple_type(t, a);
+        t
+      }
+    }
   }
 
   fn generalize(&mut self, t: TypeVar) -> TypeScheme {
@@ -365,6 +372,7 @@ pub fn typecheck(module: &hir::Module) -> (HashMap<Symbol, TypeScheme>, Solver) 
     let argtypevar = ctx.solver.fresh();
     let rettypevar = ctx.solver.fresh();
     ctx.solver.value_type(funtypevar, ValueTypeNode::Fun(argtypevar, rettypevar));
+    ctx.solver.unify(argtypevar, TypeVar(f.pos));
     ctx.solver_environment.insert(f.name, funtypevar);
 
     // apply initial type constraints
@@ -453,8 +461,10 @@ pub fn typecheck(module: &hir::Module) -> (HashMap<Symbol, TypeScheme>, Solver) 
           } else if let Some(t) = ctx.global_environment.get(symbol) {
             let x = ctx.solver.instantiate(t);
             ctx.solver.unify(TypeVar(i), x);
+
           } else {
             // TODO: error unbound variable
+            panic!()
           }
         }
         | Inst::Field(..)
@@ -468,7 +478,7 @@ pub fn typecheck(module: &hir::Module) -> (HashMap<Symbol, TypeScheme>, Solver) 
 
     ctx.solver.propagate();
 
-    // TODO: generalize
+    // generalize
 
     ctx.solver_environment.clear();
     ctx.global_environment.insert(f.name, ctx.solver.generalize(funtypevar));

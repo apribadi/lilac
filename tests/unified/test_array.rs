@@ -13,7 +13,7 @@ fn test_array() {
   ");
 
   expect![[r#"
-      === fun foo : TypeScheme(1, Fun(BoundTypeVar(TypeVar(0)), Tuple([I64]))) ===
+      === fun foo : TypeScheme(0, Fun(Tuple([Array(I64)]), Tuple([I64]))) ===
       %0 LABEL 1 : [Array(I64)]
       %1 = GET 0 : Value Array(I64)
       %2 = 0 : Value I64
@@ -44,7 +44,7 @@ fn test_array() {
   ");
 
   expect![[r#"
-      === fun sum : TypeScheme(1, Fun(BoundTypeVar(TypeVar(0)), Tuple([I64]))) ===
+      === fun sum : TypeScheme(0, Fun(Tuple([Array(I64)]), Tuple([I64]))) ===
       %0 LABEL 1 : [Array(I64)]
       %1 = GET 0 : Value Array(I64)
       %2 = 0 : Value I64
