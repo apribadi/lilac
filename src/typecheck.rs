@@ -116,7 +116,7 @@ impl Solver {
     return TypeVar(self.union_find.put(TypeState::Abstract));
   }
 
-  fn constrain_value_type(&mut self, x: TypeVar, y: ValueTypeState) {
+  fn value_type(&mut self, x: TypeVar, y: ValueTypeState) {
     let x = &mut self.union_find[x.0];
 
     *x =
@@ -130,7 +130,7 @@ impl Solver {
       };
   }
 
-  fn constrain_tuple_type(&mut self, x: TypeVar, y: TupleTypeState) {
+  fn tuple_type(&mut self, x: TypeVar, y: TupleTypeState) {
     let x = &mut self.union_find[x.0];
 
     *x =
@@ -245,7 +245,7 @@ pub fn typecheck(module: &hir::Module) -> (HashMap<Symbol, TypeScheme>, Solver) 
     let funtypevar = ctx.solver.fresh();
     let argtypevar = ctx.solver.fresh();
     let rettypevar = ctx.solver.fresh();
-    ctx.solver.constrain_value_type(funtypevar, ValueTypeState::Fun(argtypevar, rettypevar));
+    ctx.solver.value_type(funtypevar, ValueTypeState::Fun(argtypevar, rettypevar));
     ctx.solver_environment.insert(f.name, funtypevar);
 
     // apply initial type constraints
@@ -253,9 +253,9 @@ pub fn typecheck(module: &hir::Module) -> (HashMap<Symbol, TypeScheme>, Solver) 
     for i in f.pos .. f.pos + f.len {
       match module.code[i] {
         Inst::ConstBool(_) =>
-          ctx.solver.constrain_value_type(TypeVar(i), ValueTypeState::PrimType(PrimType::Bool)),
+          ctx.solver.value_type(TypeVar(i), ValueTypeState::PrimType(PrimType::Bool)),
         Inst::ConstInt(_) =>
-          ctx.solver.constrain_value_type(TypeVar(i), ValueTypeState::PrimType(PrimType::I64)),
+          ctx.solver.value_type(TypeVar(i), ValueTypeState::PrimType(PrimType::I64)),
         Inst::Local(x) =>
           ctx.solver.unify(TypeVar(x), TypeVar(i)),
         Inst::GetLocal(v) =>
@@ -264,35 +264,35 @@ pub fn typecheck(module: &hir::Module) -> (HashMap<Symbol, TypeScheme>, Solver) 
           ctx.solver.unify(TypeVar(x), TypeVar(v)),
         Inst::Index(x, y) => {
           let a = ctx.solver.fresh();
-          ctx.solver.constrain_value_type(TypeVar(x), ValueTypeState::Array(a));
-          ctx.solver.constrain_value_type(TypeVar(y), ValueTypeState::PrimType(PrimType::I64));
+          ctx.solver.value_type(TypeVar(x), ValueTypeState::Array(a));
+          ctx.solver.value_type(TypeVar(y), ValueTypeState::PrimType(PrimType::I64));
           ctx.solver.unify(a, TypeVar(i));
         }
         Inst::SetIndex(x, y, z) => {
           let a = ctx.solver.fresh();
-          ctx.solver.constrain_value_type(TypeVar(x), ValueTypeState::Array(a));
-          ctx.solver.constrain_value_type(TypeVar(y), ValueTypeState::PrimType(PrimType::I64));
+          ctx.solver.value_type(TypeVar(x), ValueTypeState::Array(a));
+          ctx.solver.value_type(TypeVar(y), ValueTypeState::PrimType(PrimType::I64));
           ctx.solver.unify(TypeVar(z), a);
         }
         Inst::Op1(f, x) => {
           let f = lower_op1(f);
           let a = ValueTypeState::PrimType(f.arg_type());
           let b = ValueTypeState::PrimType(f.out_type());
-          ctx.solver.constrain_value_type(TypeVar(x), a);
-          ctx.solver.constrain_value_type(TypeVar(i), b);
+          ctx.solver.value_type(TypeVar(x), a);
+          ctx.solver.value_type(TypeVar(i), b);
         }
         Inst::Op2(f, x, y) => {
           let f = lower_op2(f);
           let a = ValueTypeState::PrimType(f.arg_type().0);
           let b = ValueTypeState::PrimType(f.arg_type().1);
           let c = ValueTypeState::PrimType(f.out_type());
-          ctx.solver.constrain_value_type(TypeVar(x), a);
-          ctx.solver.constrain_value_type(TypeVar(y), b);
-          ctx.solver.constrain_value_type(TypeVar(i), c);
+          ctx.solver.value_type(TypeVar(x), a);
+          ctx.solver.value_type(TypeVar(y), b);
+          ctx.solver.value_type(TypeVar(i), c);
         }
         Inst::Label(n) => {
           let a = Arr::new((0 .. n).map(|_| ctx.solver.fresh()));
-          ctx.solver.constrain_tuple_type(TypeVar(i), a.clone());
+          ctx.solver.tuple_type(TypeVar(i), a.clone());
           ctx.block = i;
           ctx.block_args = a;
           ctx.block_outs.clear();
@@ -303,31 +303,29 @@ pub fn typecheck(module: &hir::Module) -> (HashMap<Symbol, TypeScheme>, Solver) 
         Inst::Put(_, x) =>
           ctx.block_outs.put(TypeVar(x)),
         Inst::Ret =>
-          ctx.solver.constrain_tuple_type(rettypevar, ctx.block_outs.drain().collect()),
+          ctx.solver.tuple_type(rettypevar, ctx.block_outs.drain().collect()),
         Inst::Cond(x) =>
-          ctx.solver.constrain_value_type(TypeVar(x), ValueTypeState::PrimType(PrimType::Bool)),
+          ctx.solver.value_type(TypeVar(x), ValueTypeState::PrimType(PrimType::Bool)),
         Inst::Goto(a) => {
           match ctx.call_rettypevar {
-            None => {
-              ctx.solver.constrain_tuple_type(TypeVar(a), ctx.block_outs.iter().map(|x| *x).collect());
-            }
-            Some(ret) => {
-              ctx.solver.unify(TypeVar(a), ret);
-            }
+            None =>
+              ctx.solver.tuple_type(TypeVar(a), ctx.block_outs.iter().map(|x| *x).collect()),
+            Some(ret) =>
+              ctx.solver.unify(TypeVar(a), ret),
           }
         }
         Inst::Call(f) => {
           let x = ctx.solver.fresh();
           let y = ctx.solver.fresh();
-          ctx.solver.constrain_value_type(TypeVar(f), ValueTypeState::Fun(x, y));
-          ctx.solver.constrain_tuple_type(x, ctx.block_outs.drain().collect());
+          ctx.solver.value_type(TypeVar(f), ValueTypeState::Fun(x, y));
+          ctx.solver.tuple_type(x, ctx.block_outs.drain().collect());
           ctx.call_rettypevar = Some(y);
         }
         Inst::TailCall(f) => {
           let x = ctx.solver.fresh();
           let y = ctx.solver.fresh();
-          ctx.solver.constrain_value_type(TypeVar(f), ValueTypeState::Fun(x, y));
-          ctx.solver.constrain_tuple_type(x, ctx.block_outs.drain().collect());
+          ctx.solver.value_type(TypeVar(f), ValueTypeState::Fun(x, y));
+          ctx.solver.tuple_type(x, ctx.block_outs.drain().collect());
           ctx.solver.unify(rettypevar, y);
         }
         Inst::Const(symbol) => {
