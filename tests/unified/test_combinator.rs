@@ -11,11 +11,11 @@ fn test_select() {
   ");
 
   expect![[r#"
-      === fun select : TypeScheme(1, Fun(Tuple([Bool, BoundTypeVar(TypeVar(0)), BoundTypeVar(TypeVar(0))]), Tuple([BoundTypeVar(TypeVar(0))]))) ===
-      %0 LABEL 3 : [Bool, BoundTypeVar(TypeVar(0)), BoundTypeVar(TypeVar(0))]
+      === fun select : TypeScheme(1, Fun(Tuple([Bool, TypeVar(TypeVar(0)), TypeVar(TypeVar(0))]), Tuple([TypeVar(TypeVar(0))]))) ===
+      %0 LABEL 3 : [Bool, TypeVar(TypeVar(0)), TypeVar(TypeVar(0))]
       %1 = GET 0 : Value Bool
-      %2 = GET 1 : Value BoundTypeVar(TypeVar(0))
-      %3 = GET 2 : Value BoundTypeVar(TypeVar(0))
+      %2 = GET 1 : Value TypeVar(TypeVar(0))
+      %3 = GET 2 : Value TypeVar(TypeVar(0))
       %4 COND %1
       %5 ==> GOTO %7
       %6 ==> GOTO %10
@@ -61,11 +61,11 @@ fn test_foo() {
   ");
 
   expect![[r#"
-      === fun foo : TypeScheme(1, Fun(Tuple([BoundTypeVar(TypeVar(0)), Fun(Tuple([BoundTypeVar(TypeVar(0))]), Tuple([Bool])), Fun(Tuple([BoundTypeVar(TypeVar(0))]), Tuple([BoundTypeVar(TypeVar(0))]))]), Tuple([BoundTypeVar(TypeVar(0))]))) ===
-      %0 LABEL 3 : [BoundTypeVar(TypeVar(0)), Fun(Tuple([BoundTypeVar(TypeVar(0))]), Tuple([Bool])), Fun(Tuple([BoundTypeVar(TypeVar(0))]), Tuple([BoundTypeVar(TypeVar(0))]))]
-      %1 = GET 0 : Value BoundTypeVar(TypeVar(0))
-      %2 = GET 1 : Value Fun(Tuple([BoundTypeVar(TypeVar(0))]), Tuple([Bool]))
-      %3 = GET 2 : Value Fun(Tuple([BoundTypeVar(TypeVar(0))]), Tuple([BoundTypeVar(TypeVar(0))]))
+      === fun foo : TypeScheme(1, Fun(Tuple([TypeVar(TypeVar(0)), Fun(Tuple([TypeVar(TypeVar(0))]), Tuple([Bool])), Fun(Tuple([TypeVar(TypeVar(0))]), Tuple([TypeVar(TypeVar(0))]))]), Tuple([TypeVar(TypeVar(0))]))) ===
+      %0 LABEL 3 : [TypeVar(TypeVar(0)), Fun(Tuple([TypeVar(TypeVar(0))]), Tuple([Bool])), Fun(Tuple([TypeVar(TypeVar(0))]), Tuple([TypeVar(TypeVar(0))]))]
+      %1 = GET 0 : Value TypeVar(TypeVar(0))
+      %2 = GET 1 : Value Fun(Tuple([TypeVar(TypeVar(0))]), Tuple([Bool]))
+      %3 = GET 2 : Value Fun(Tuple([TypeVar(TypeVar(0))]), Tuple([TypeVar(TypeVar(0))]))
       %4 PUT 0 %1
       %5 CALL %2
       %6 ==> GOTO %7

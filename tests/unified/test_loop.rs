@@ -20,7 +20,7 @@ fn test_loop() {
       %3 = 1 : Value I64
       %4 PUT 0 %3
       %5 RET
-      === fun bar : TypeScheme(1, Fun(Tuple([]), BoundTypeVar(TypeVar(0)))) ===
+      === fun bar : TypeScheme(1, Fun(Tuple([]), TypeVar(TypeVar(0)))) ===
       %6 LABEL 0 : []
       %7 ==> GOTO %8
       %8 LABEL 0 : []

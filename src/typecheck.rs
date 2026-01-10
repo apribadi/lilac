@@ -24,12 +24,12 @@ pub enum ValueType {
   Fun(TupleType, TupleType),
   I64,
   Bool,
-  BoundTypeVar(TypeVar),
+  TypeVar(TypeVar),
 }
 
 #[derive(Clone, Debug)]
 pub enum TupleType {
-  BoundTypeVar(TypeVar),
+  TypeVar(TypeVar),
   Tuple(Arr<ValueType>),
 }
 
@@ -48,7 +48,7 @@ type TupleTypeNode = Arr<TypeVar>;
 #[derive(Debug)]
 pub enum TypeNode {
   Abstract,
-  BoundTypeVar(TypeVar),
+  TypeVar(TypeVar),
   TupleType(TupleTypeNode),
   TypeError,
   ValueType(ValueTypeNode),
@@ -205,7 +205,7 @@ impl Solver {
         self.value_type(t, ValueTypeNode::PrimType(PrimType::Bool));
         t
       }
-      ValueType::BoundTypeVar(x) => {
+      ValueType::TypeVar(x) => {
         bound_type_vars[x.0]
       }
     }
@@ -213,7 +213,7 @@ impl Solver {
 
   fn instantiate_tuple_type(&mut self, bound_type_vars: &Arr<TypeVar>, t: &TupleType) -> TypeVar {
     match *t {
-      TupleType::BoundTypeVar(a) => {
+      TupleType::TypeVar(a) => {
         bound_type_vars[a.0]
       }
       TupleType::Tuple(ref a) => {
@@ -242,11 +242,11 @@ impl Solver {
         let i = *count;
         *count = i + 1;
         let a = TypeVar(i);
-        *t = TypeNode::BoundTypeVar(a);
-        ValueType::BoundTypeVar(a)
+        *t = TypeNode::TypeVar(a);
+        ValueType::TypeVar(a)
       }
-      TypeNode::BoundTypeVar(a) => {
-        ValueType::BoundTypeVar(a)
+      TypeNode::TypeVar(a) => {
+        ValueType::TypeVar(a)
       }
       TypeNode::TupleType(..) => {
         panic!()
@@ -280,11 +280,11 @@ impl Solver {
         let i = *count;
         *count = i + 1;
         let a = TypeVar(i);
-        *t = TypeNode::BoundTypeVar(a);
-        TupleType::BoundTypeVar(a)
+        *t = TypeNode::TypeVar(a);
+        TupleType::TypeVar(a)
       }
-      TypeNode::BoundTypeVar(a) => {
-        TupleType::BoundTypeVar(a)
+      TypeNode::TypeVar(a) => {
+        TupleType::TypeVar(a)
       }
       TypeNode::TypeError => {
         panic!()
@@ -301,12 +301,12 @@ impl Solver {
 
   pub fn resolve_value_type(&self, t: TypeVar) -> ValueType {
     match self.union_find[t.0] {
-      TypeNode::BoundTypeVar(a) =>
-        ValueType::BoundTypeVar(a),
+      TypeNode::TypeVar(a) =>
+        ValueType::TypeVar(a),
       TypeNode::Abstract =>
-        ValueType::BoundTypeVar(TypeVar(111)), // ???
+        ValueType::TypeVar(TypeVar(111)), // ???
       TypeNode::TupleType(..) | TypeNode::TypeError =>
-        ValueType::BoundTypeVar(TypeVar(999)), // ???
+        ValueType::TypeVar(TypeVar(999)), // ???
       TypeNode::ValueType(ValueTypeNode::Array(a)) =>
         ValueType::Array(Box::new(self.resolve_value_type(a))),
       TypeNode::ValueType(ValueTypeNode::Fun(a, b)) =>
@@ -320,8 +320,8 @@ impl Solver {
 
   pub fn resolve_tuple_type(&self, t: TypeVar) -> TupleType {
     match self.union_find[t.0] {
-      TypeNode::BoundTypeVar(a) =>
-        TupleType::BoundTypeVar(a),
+      TypeNode::TypeVar(a) =>
+        TupleType::TypeVar(a),
       TypeNode::TupleType(ref t) =>
         TupleType::Tuple(Arr::new(t.iter().map(|t| self.resolve_value_type(*t)))),
       _ =>
@@ -348,7 +348,7 @@ impl Ctx {
       TypeScheme(
         1,
         ValueType::Fun(
-          TupleType::Tuple(Arr::new([ValueType::BoundTypeVar(TypeVar(0))])),
+          TupleType::Tuple(Arr::new([ValueType::TypeVar(TypeVar(0))])),
           TupleType::Tuple(Arr::new([ValueType::I64]))))
     );
 
