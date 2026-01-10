@@ -5,7 +5,6 @@
 use crate::arr::Arr;
 use crate::buf::Buf;
 use crate::hir::Inst;
-use crate::hir::Module;
 use crate::prim::PrimType;
 use crate::prim::PrimOp1;
 use crate::prim::PrimOp2;
@@ -34,13 +33,6 @@ pub struct TypeMap {
 }
 
 #[derive(Clone, Debug)]
-pub enum TypeCon {
-  Array(TypeVar),
-  Fun(Arr<TypeVar>, TypeVar),
-  PrimType(PrimType),
-}
-
-#[derive(Clone, Debug)]
 pub enum Type {
   Array(Box<Type>),
   Bool,
@@ -52,14 +44,20 @@ pub enum Type {
 #[derive(Clone, Debug)]
 pub struct TypeScheme(/* arity */ u32, Type);
 
-type TypeSeq = Arr<TypeVar>;
+#[derive(Clone, Debug)]
+pub enum ValueType {
+  Array(TypeVar),
+  Fun(TypeVar, TypeVar),
+  PrimType(PrimType),
+}
+
+type TupleType = Arr<TypeVar>;
 
 pub enum TypeState {
   Abstract,
-  TypeCon(TypeCon),
+  TupleType(TupleType),
   TypeError,
-  TypeGen(TypeVar),
-  TypeSeq(TypeSeq),
+  ValueType(ValueType),
 }
 
 pub struct TypeSolver {
@@ -86,19 +84,24 @@ impl TypeMap {
     self.insts.put(x);
   }
 
-  fn label(&self, i: u32) -> &Arr<TypeVar> {
+  fn label_tuple(&self, i: u32) -> &Arr<TypeVar> {
     let InstType::Label(ref xs) = self.insts[i] else { unreachable!() };
     return xs;
   }
 
+  fn label(&self, i: u32) -> TypeVar {
+    let _ = self;
+    return TypeVar(i)
+  }
+
   fn local(&self, i: u32) -> TypeVar {
-    let InstType::Local(x) = self.insts[i] else { unreachable!() };
-    return x;
+    let _ = self;
+    return TypeVar(i)
   }
 
   fn value(&self, i: u32) -> TypeVar {
-    let InstType::Value(x) = self.insts[i] else { unreachable!() };
-    return x;
+    let _ = self;
+    return TypeVar(i)
   }
 
   pub fn insts(&self) -> impl Iterator<Item = &InstType> {
@@ -106,25 +109,19 @@ impl TypeMap {
   }
 }
 
-fn unify_valtype(x: TypeCon, y: TypeCon, todo: &mut Buf<(TypeVar, TypeVar)>) -> TypeState {
+fn unify_value_type(x: ValueType, y: ValueType, todo: &mut Buf<(TypeVar, TypeVar)>) -> TypeState {
   match (x, y) {
-    (TypeCon::PrimType(x), TypeCon::PrimType(y)) if x == y => {
-      TypeState::TypeCon(TypeCon::PrimType(x))
+    (ValueType::PrimType(x), ValueType::PrimType(y)) if x == y => {
+      TypeState::ValueType(ValueType::PrimType(x))
     }
-    (TypeCon::Array(x), TypeCon::Array(y)) => {
+    (ValueType::Array(x), ValueType::Array(y)) => {
       todo.put((x, y));
-      TypeState::TypeCon(TypeCon::Array(x))
+      TypeState::ValueType(ValueType::Array(x))
     }
-    (TypeCon::Fun(xs, u), TypeCon::Fun(ys, v)) => {
-      if xs.len() != ys.len() {
-        TypeState::TypeError
-      } else {
-        for (x, y) in zip(xs.iter(), ys.iter()) {
-          todo.put((*x, *y));
-        }
-        todo.put((u, v));
-        TypeState::TypeCon(TypeCon::Fun(xs, u))
-      }
+    (ValueType::Fun(a, b), ValueType::Fun(c, d)) => {
+      todo.put((a, c));
+      todo.put((b, d));
+      TypeState::ValueType(ValueType::Fun(a, c))
     }
     (_, _) => {
       TypeState::TypeError
@@ -132,7 +129,7 @@ fn unify_valtype(x: TypeCon, y: TypeCon, todo: &mut Buf<(TypeVar, TypeVar)>) -> 
   }
 }
 
-fn unify_rettype(xs: TypeSeq, ys: TypeSeq, todo: &mut Buf<(TypeVar, TypeVar)>) -> TypeState {
+fn unify_tuple_type(xs: TupleType, ys: TupleType, todo: &mut Buf<(TypeVar, TypeVar)>) -> TypeState {
   if xs.len() != ys.len() {
     return TypeState::TypeError;
   }
@@ -141,7 +138,7 @@ fn unify_rettype(xs: TypeSeq, ys: TypeSeq, todo: &mut Buf<(TypeVar, TypeVar)>) -
     todo.put((*x, *y));
   }
 
-  return TypeState::TypeSeq(xs);
+  return TypeState::TupleType(xs);
 }
 
 impl TypeSolver {
@@ -156,31 +153,31 @@ impl TypeSolver {
     return TypeVar(self.vars.put(TypeState::Abstract));
   }
 
-  fn bound(&mut self, x: TypeVar, t: TypeCon) {
+  fn bound_value_type(&mut self, x: TypeVar, t: ValueType) {
     let x = &mut self.vars[x.0];
 
     *x =
       match replace(x, TypeState::Abstract) {
-        TypeState::TypeError | TypeState::TypeGen(..) | TypeState::TypeSeq(..) =>
+        TypeState::TypeError | TypeState::TupleType(..) =>
           TypeState::TypeError,
         TypeState::Abstract =>
-          TypeState::TypeCon(t),
-        TypeState::TypeCon(x) =>
-          unify_valtype(x, t, &mut self.todo),
+          TypeState::ValueType(t),
+        TypeState::ValueType(x) =>
+          unify_value_type(x, t, &mut self.todo),
       };
   }
 
-  fn bound_ret(&mut self, x: TypeVar, t: TypeSeq) {
+  fn bound_tuple_type(&mut self, x: TypeVar, t: TupleType) {
     let x = &mut self.vars[x.0];
 
     *x =
       match replace(x, TypeState::Abstract) {
-        TypeState::TypeError | TypeState::TypeGen(..) | TypeState::TypeCon(..) =>
+        TypeState::TypeError | TypeState::ValueType(..) =>
           TypeState::TypeError,
         TypeState::Abstract =>
-          TypeState::TypeSeq(t),
-        TypeState::TypeSeq(x) =>
-          unify_rettype(x, t, &mut self.todo),
+          TypeState::TupleType(t),
+        TypeState::TupleType(x) =>
+          unify_tuple_type(x, t, &mut self.todo),
       };
   }
 
@@ -188,20 +185,14 @@ impl TypeSolver {
     if let (x, Some(y)) = self.vars.union(x.0, y.0) {
       *x =
         match (replace(x, TypeState::Abstract), y) {
-          | (TypeState::TypeError, _)
-          | (_, TypeState::TypeError)
-          | (TypeState::TypeGen(..), _)
-          | (_, TypeState::TypeGen(..))
-          | (TypeState::TypeCon(..), TypeState::TypeSeq(..))
-          | (TypeState::TypeSeq(..), TypeState::TypeCon(..)) =>
-            TypeState::TypeError,
-          | (TypeState::Abstract, t)
-          | (t, TypeState::Abstract) =>
+          (TypeState::Abstract, t) | (t, TypeState::Abstract) =>
             t,
-          (TypeState::TypeCon(x), TypeState::TypeCon(y)) =>
-            unify_valtype(x, y, &mut self.todo),
-          (TypeState::TypeSeq(x), TypeState::TypeSeq(y)) =>
-            unify_rettype(x, y, &mut self.todo),
+          (TypeState::ValueType(x), TypeState::ValueType(y)) =>
+            unify_value_type(x, y, &mut self.todo),
+          (TypeState::TupleType(x), TypeState::TupleType(y)) =>
+            unify_tuple_type(x, y, &mut self.todo),
+          _ =>
+            TypeState::TypeError,
         };
     }
   }
@@ -223,26 +214,28 @@ impl TypeSolver {
       Type::Array(ref t) => {
         let a = self.fresh();
         let b = self.instantiate_type(v, t);
-        self.bound(a, TypeCon::Array(b));
+        self.bound_value_type(a, ValueType::Array(b));
         return a;
       }
       Type::Bool => {
         let a = self.fresh();
-        self.bound(a, TypeCon::PrimType(PrimType::Bool));
+        self.bound_value_type(a, ValueType::PrimType(PrimType::Bool));
         return a;
       }
       Type::Fun(ref x, ref y) => {
         let a = self.fresh();
-        let x = Arr::new(x.iter().map(|x| self.instantiate_type(v, x)));
         let b = self.fresh();
+        let c = self.fresh();
+        self.bound_value_type(a, ValueType::Fun(b, c));
+        let x = Arr::new(x.iter().map(|x| self.instantiate_type(v, x)));
+        self.bound_tuple_type(b, x);
         let y = Arr::new(y.iter().map(|y| self.instantiate_type(v, y)));
-        self.bound_ret(b, y);
-        self.bound(a, TypeCon::Fun(x, b));
+        self.bound_tuple_type(c, y);
         return a;
       }
       Type::I64 => {
         let a = self.fresh();
-        self.bound(a, TypeCon::PrimType(PrimType::Bool));
+        self.bound_value_type(a, ValueType::PrimType(PrimType::Bool));
         return a;
       }
       Type::Var(TypeVar(i)) => {
@@ -272,19 +265,15 @@ impl TypeSolver {
     // TODO: we should do an occurs check to prohibit recursive types.
 
     match self.vars[x.0] {
-      TypeState::TypeGen(..) => unimplemented!(),
       TypeState::Abstract => hir::ValType::Abstract,
       TypeState::TypeError => hir::ValType::TypeError, // ???
-      TypeState::TypeSeq(..) => hir::ValType::TypeError, // ???
-      TypeState::TypeCon(ref t) => {
+      TypeState::TupleType(..) => hir::ValType::TypeError, // ???
+      TypeState::ValueType(ref t) => {
         match *t {
-          TypeCon::Array(a) => hir::ValType::Array(Box::new(self.resolve(a))),
-          TypeCon::PrimType(PrimType::Bool) => hir::ValType::Bool,
-          TypeCon::PrimType(PrimType::I64) => hir::ValType::I64,
-          TypeCon::Fun(ref xs, y) =>
-            hir::ValType::Fun(
-              xs.iter().map(|x| self.resolve(*x)).collect(),
-              self.resolve_ret(y)),
+          ValueType::Array(a) => hir::ValType::Array(Box::new(self.resolve(a))),
+          ValueType::PrimType(PrimType::Bool) => hir::ValType::Bool,
+          ValueType::PrimType(PrimType::I64) => hir::ValType::I64,
+          ValueType::Fun(x, y) => hir::ValType::Fun(self.resolve_ret(x), self.resolve_ret(y)),
         }
       }
     }
@@ -292,7 +281,7 @@ impl TypeSolver {
 
   pub fn resolve_ret(&self, x: TypeVar) -> Option<Arr<hir::ValType>> {
     // ???
-    if let TypeState::TypeSeq(ref xs) = self.vars[x.0] {
+    if let TypeState::TupleType(ref xs) = self.vars[x.0] {
       return Some(xs.iter().map(|x| self.resolve(*x)).collect());
     } else {
       return None;
@@ -322,12 +311,13 @@ impl Ctx {
   }
 }
 
-pub fn typecheck(module: &Module) -> (HashMap<Symbol, TypeScheme>, Buf<InstType>, TypeSolver) {
+pub fn typecheck(module: &hir::Module) -> (HashMap<Symbol, TypeScheme>, Buf<InstType>, TypeSolver) {
   let mut ctx = Ctx::new();
 
   // assign type variables for all relevant program points
 
   for inst in module.code.iter() {
+    let i = ctx.solver.fresh();
     match *inst {
       | Inst::GotoStaticError
       | Inst::Put(..)
@@ -349,12 +339,11 @@ pub fn typecheck(module: &Module) -> (HashMap<Symbol, TypeScheme>, Buf<InstType>
       | Inst::GetLocal(..)
       | Inst::Op1(..)
       | Inst::Op2(..) =>
-        ctx.insts.put(InstType::Value(ctx.solver.fresh())),
+        ctx.insts.put(InstType::Value(i)),
       | Inst::Local(..) =>
-        ctx.insts.put(InstType::Local(ctx.solver.fresh())),
-      | Inst::Label(n) => {
-        let xs = (0 .. n).map(|_| ctx.solver.fresh()).collect();
-        ctx.insts.put(InstType::Label(xs));
+        ctx.insts.put(InstType::Local(i)),
+      | Inst::Label(_) => {
+        ctx.insts.put(InstType::Nil);
       }
     }
   }
@@ -362,7 +351,7 @@ pub fn typecheck(module: &Module) -> (HashMap<Symbol, TypeScheme>, Buf<InstType>
   for f in module.decl.iter() {
     let funtypevar = ctx.solver.fresh();
     let rettypevar = ctx.solver.fresh();
-    ctx.solver.bound(funtypevar, TypeCon::Fun(ctx.insts.label(f.pos).clone(), rettypevar));
+
     ctx.current_items.insert(f.name, funtypevar);
 
     // apply initial type constraints
@@ -370,9 +359,9 @@ pub fn typecheck(module: &Module) -> (HashMap<Symbol, TypeScheme>, Buf<InstType>
     for i in f.pos .. f.pos + f.len {
       match module.code[i] {
         Inst::ConstBool(_) =>
-          ctx.solver.bound(ctx.insts.value(i), TypeCon::PrimType(PrimType::Bool)),
+          ctx.solver.bound_value_type(ctx.insts.value(i), ValueType::PrimType(PrimType::Bool)),
         Inst::ConstInt(_) =>
-          ctx.solver.bound(ctx.insts.value(i), TypeCon::PrimType(PrimType::I64)),
+          ctx.solver.bound_value_type(ctx.insts.value(i), ValueType::PrimType(PrimType::I64)),
         Inst::Local(x) =>
           ctx.solver.unify(ctx.insts.value(x), ctx.insts.local(i)),
         Inst::GetLocal(v) =>
@@ -381,67 +370,70 @@ pub fn typecheck(module: &Module) -> (HashMap<Symbol, TypeScheme>, Buf<InstType>
           ctx.solver.unify(ctx.insts.value(x), ctx.insts.local(v)),
         Inst::Index(x, y) => {
           let a = ctx.solver.fresh();
-          ctx.solver.bound(ctx.insts.value(x), TypeCon::Array(a));
-          ctx.solver.bound(ctx.insts.value(y), TypeCon::PrimType(PrimType::I64));
+          ctx.solver.bound_value_type(ctx.insts.value(x), ValueType::Array(a));
+          ctx.solver.bound_value_type(ctx.insts.value(y), ValueType::PrimType(PrimType::I64));
           ctx.solver.unify(a, ctx.insts.value(i));
         }
         Inst::SetIndex(x, y, z) => {
           let a = ctx.solver.fresh();
-          ctx.solver.bound(ctx.insts.value(x), TypeCon::Array(a));
-          ctx.solver.bound(ctx.insts.value(y), TypeCon::PrimType(PrimType::I64));
+          ctx.solver.bound_value_type(ctx.insts.value(x), ValueType::Array(a));
+          ctx.solver.bound_value_type(ctx.insts.value(y), ValueType::PrimType(PrimType::I64));
           ctx.solver.unify(ctx.insts.value(z), a);
         }
         Inst::Op1(f, x) => {
           let f = lower_op1(f);
-          let a = TypeCon::PrimType(f.arg_type());
-          let b = TypeCon::PrimType(f.out_type());
-          ctx.solver.bound(ctx.insts.value(x), a);
-          ctx.solver.bound(ctx.insts.value(i), b);
+          let a = ValueType::PrimType(f.arg_type());
+          let b = ValueType::PrimType(f.out_type());
+          ctx.solver.bound_value_type(ctx.insts.value(x), a);
+          ctx.solver.bound_value_type(ctx.insts.value(i), b);
         }
         Inst::Op2(f, x, y) => {
           let f = lower_op2(f);
-          let a = TypeCon::PrimType(f.arg_type().0);
-          let b = TypeCon::PrimType(f.arg_type().1);
-          let c = TypeCon::PrimType(f.out_type());
-          ctx.solver.bound(ctx.insts.value(x), a);
-          ctx.solver.bound(ctx.insts.value(y), b);
-          ctx.solver.bound(ctx.insts.value(i), c);
+          let a = ValueType::PrimType(f.arg_type().0);
+          let b = ValueType::PrimType(f.arg_type().1);
+          let c = ValueType::PrimType(f.out_type());
+          ctx.solver.bound_value_type(ctx.insts.value(x), a);
+          ctx.solver.bound_value_type(ctx.insts.value(y), b);
+          ctx.solver.bound_value_type(ctx.insts.value(i), c);
         }
-        Inst::Label(..) => {
+        Inst::Label(n) => {
+          let a = Arr::new((0 .. n).map(|_| ctx.solver.fresh()));
           ctx.block = i;
           ctx.call_rettypevar = None;
           ctx.outs.clear();
+          ctx.solver.bound_tuple_type(ctx.insts.label(i), a.clone());
+          ctx.insts.insts[i] = InstType::Label(a);
         }
         Inst::Get(k) =>
-          ctx.solver.unify(ctx.insts.value(i), ctx.insts.label(ctx.block)[k]),
+          ctx.solver.unify(ctx.insts.value(i), ctx.insts.label_tuple(ctx.block)[k]),
         Inst::Put(_, x) =>
           ctx.outs.put(ctx.insts.value(x)),
         Inst::Ret =>
-          ctx.solver.bound_ret(rettypevar, ctx.outs.drain().collect()),
+          ctx.solver.bound_tuple_type(rettypevar, ctx.outs.drain().collect()),
         Inst::Cond(x) =>
-          ctx.solver.bound(ctx.insts.value(x), TypeCon::PrimType(PrimType::Bool)),
+          ctx.solver.bound_value_type(ctx.insts.value(x), ValueType::PrimType(PrimType::Bool)),
         Inst::Goto(a) => {
           match ctx.call_rettypevar {
             None => {
-              for (&x, &y) in zip(ctx.outs.iter(), ctx.insts.label(a).iter()) {
-                ctx.solver.unify(x, y);
-              }
+              ctx.solver.bound_tuple_type(ctx.insts.label(a), ctx.outs.iter().map(|x| *x).collect());
             }
-            Some(ret) =>  {
-              ctx.solver.bound_ret(ret, ctx.insts.label(a).clone());
+            Some(ret) => {
+              ctx.solver.unify(ctx.insts.label(a), ret);
             }
           }
         }
         Inst::Call(f) => {
-          let xs = ctx.outs.drain().collect();
+          let x = ctx.solver.fresh();
           let y = ctx.solver.fresh();
-          ctx.solver.bound(ctx.insts.value(f), TypeCon::Fun(xs, y));
+          ctx.solver.bound_value_type(ctx.insts.value(f), ValueType::Fun(x, y));
+          ctx.solver.bound_tuple_type(x, ctx.outs.drain().collect());
           ctx.call_rettypevar = Some(y);
         }
         Inst::TailCall(f) => {
-          let xs = ctx.outs.drain().collect();
+          let x = ctx.solver.fresh();
           let y = ctx.solver.fresh();
-          ctx.solver.bound(ctx.insts.value(f), TypeCon::Fun(xs, y));
+          ctx.solver.bound_value_type(ctx.insts.value(f), ValueType::Fun(x, y));
+          ctx.solver.bound_tuple_type(x, ctx.outs.drain().collect());
           ctx.solver.unify(rettypevar, y);
         }
         Inst::Const(symbol) => {
@@ -461,6 +453,9 @@ pub fn typecheck(module: &Module) -> (HashMap<Symbol, TypeScheme>, Buf<InstType>
       }
     }
 
+    let argtypevar = ctx.insts.label(f.pos);
+    ctx.solver.bound_value_type(funtypevar, ValueType::Fun(argtypevar, rettypevar));
+
     // solve all type constraints
 
     ctx.solver.propagate();
@@ -473,6 +468,8 @@ pub fn typecheck(module: &Module) -> (HashMap<Symbol, TypeScheme>, Buf<InstType>
 
   return (ctx.environment, ctx.insts.insts, ctx.solver);
 }
+
+// TODO: operator overloading
 
 fn lower_op1(op: Op1) -> PrimOp1 {
   match op {
