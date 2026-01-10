@@ -400,8 +400,8 @@ pub fn typecheck(module: &Module) -> (HashMap<Symbol, TypeScheme>, Buf<InstType>
         }
         Inst::Op2(f, x, y) => {
           let f = lower_op2(f);
-          let a = TypeCon::PrimType(f.arg_type()[0]);
-          let b = TypeCon::PrimType(f.arg_type()[1]);
+          let a = TypeCon::PrimType(f.arg_type().0);
+          let b = TypeCon::PrimType(f.arg_type().1);
           let c = TypeCon::PrimType(f.out_type());
           ctx.solver.bound(ctx.insts.value(x), a);
           ctx.solver.bound(ctx.insts.value(y), b);

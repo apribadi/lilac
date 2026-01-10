@@ -35,9 +35,9 @@ pub struct Fun {
 pub enum Type {
   Array(ValueType),
   Fun(TupleType, TupleType),
-  Multi(Arity),
-  MultiElt(ValueType),
   PrimType(PrimType),
+  Tuple(Arity),
+  TupleElt(ValueType),
 }
 
 #[derive(Clone, Copy)]

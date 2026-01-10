@@ -62,23 +62,23 @@ pub enum PrimOp2 {
   SubI64,
 }
 
-static OP2_TABLE: [(&'static str, [PrimType; 2], PrimType); 16] = [
-  ("add.i64", [PrimType::I64, PrimType::I64], PrimType::I64),
-  ("bitand.i64", [PrimType::I64, PrimType::I64], PrimType::I64),
-  ("bitor.i64", [PrimType::I64, PrimType::I64], PrimType::I64),
-  ("bitxor.i64", [PrimType::I64, PrimType::I64], PrimType::I64),
-  ("cmpeq.i64", [PrimType::I64, PrimType::I64], PrimType::Bool),
-  ("cmpge.i64", [PrimType::I64, PrimType::I64], PrimType::Bool),
-  ("cmpgt.i64", [PrimType::I64, PrimType::I64], PrimType::Bool),
-  ("cmple.i64", [PrimType::I64, PrimType::I64], PrimType::Bool),
-  ("cmplt.i64", [PrimType::I64, PrimType::I64], PrimType::Bool),
-  ("cmpne.i64", [PrimType::I64, PrimType::I64], PrimType::Bool),
-  ("div.i64", [PrimType::I64, PrimType::I64], PrimType::Bool),
-  ("mul.i64", [PrimType::I64, PrimType::I64], PrimType::Bool),
-  ("rem.i64", [PrimType::I64, PrimType::I64], PrimType::I64),
-  ("shl.i64", [PrimType::I64, PrimType::I64], PrimType::I64),
-  ("shr.i64", [PrimType::I64, PrimType::I64], PrimType::I64),
-  ("sub.i64", [PrimType::I64, PrimType::I64], PrimType::I64),
+static OP2_TABLE: [(&'static str, (PrimType, PrimType), PrimType); 16] = [
+  ("add.i64", (PrimType::I64, PrimType::I64), PrimType::I64),
+  ("bitand.i64", (PrimType::I64, PrimType::I64), PrimType::I64),
+  ("bitor.i64", (PrimType::I64, PrimType::I64), PrimType::I64),
+  ("bitxor.i64", (PrimType::I64, PrimType::I64), PrimType::I64),
+  ("cmpeq.i64", (PrimType::I64, PrimType::I64), PrimType::Bool),
+  ("cmpge.i64", (PrimType::I64, PrimType::I64), PrimType::Bool),
+  ("cmpgt.i64", (PrimType::I64, PrimType::I64), PrimType::Bool),
+  ("cmple.i64", (PrimType::I64, PrimType::I64), PrimType::Bool),
+  ("cmplt.i64", (PrimType::I64, PrimType::I64), PrimType::Bool),
+  ("cmpne.i64", (PrimType::I64, PrimType::I64), PrimType::Bool),
+  ("div.i64", (PrimType::I64, PrimType::I64), PrimType::Bool),
+  ("mul.i64", (PrimType::I64, PrimType::I64), PrimType::Bool),
+  ("rem.i64", (PrimType::I64, PrimType::I64), PrimType::I64),
+  ("shl.i64", (PrimType::I64, PrimType::I64), PrimType::I64),
+  ("shr.i64", (PrimType::I64, PrimType::I64), PrimType::I64),
+  ("sub.i64", (PrimType::I64, PrimType::I64), PrimType::I64),
 ];
 
 impl PrimOp2 {
@@ -86,7 +86,7 @@ impl PrimOp2 {
     return OP2_TABLE[*self as usize].0;
   }
 
-  pub fn arg_type(&self) -> [PrimType; 2] {
+  pub fn arg_type(&self) -> (PrimType, PrimType) {
     return OP2_TABLE[*self as usize].1;
   }
 
