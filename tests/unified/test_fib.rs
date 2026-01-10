@@ -98,11 +98,11 @@ fn test_fib_tailcall() {
       %19 PUT 0 %2
       %20 RET
       === fun fib : TypeScheme(0, Bool) ===
-      %21 LABEL 1 : [Var(TypeVar(111))]
-      %22 = GET 0 : Value Var(TypeVar(111))
+      %21 LABEL 1 : [BoundTypeVar(TypeVar(111))]
+      %22 = GET 0 : Value BoundTypeVar(TypeVar(111))
       %23 = 1 : Value I64
       %24 = 0 : Value I64
-      %25 = CONST aux : Value Fun([I64, I64, Var(TypeVar(111))], [])
+      %25 = CONST aux : Value Fun([I64, I64, BoundTypeVar(TypeVar(111))], [])
       %26 PUT 0 %23
       %27 PUT 1 %24
       %28 PUT 2 %22
