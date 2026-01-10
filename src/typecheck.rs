@@ -127,12 +127,9 @@ impl Solver {
 
     *x =
       match replace(x, TypeNode::Abstract) {
-        TypeNode::Abstract =>
-          TypeNode::ValueType(y),
-        TypeNode::ValueType(x) =>
-          unify_value_type(x, y, &mut self.to_unify),
-        _ =>
-          TypeNode::TypeError,
+        TypeNode::Abstract => TypeNode::ValueType(y),
+        TypeNode::ValueType(x) => unify_value_type(x, y, &mut self.to_unify),
+        _ => TypeNode::TypeError,
       };
   }
 
@@ -141,12 +138,9 @@ impl Solver {
 
     *x =
       match replace(x, TypeNode::Abstract) {
-        TypeNode::Abstract =>
-          TypeNode::TupleType(y),
-        TypeNode::TupleType(x) =>
-          unify_tuple_type(x, y, &mut self.to_unify),
-          _ =>
-          TypeNode::TypeError,
+        TypeNode::Abstract => TypeNode::TupleType(y),
+        TypeNode::TupleType(x) => unify_tuple_type(x, y, &mut self.to_unify),
+          _ => TypeNode::TypeError,
       };
   }
 
@@ -154,14 +148,10 @@ impl Solver {
     if let (x, Some(y)) = self.union_find.union(x.0, y.0) {
       *x =
         match (replace(x, TypeNode::Abstract), y) {
-          (TypeNode::Abstract, t) | (t, TypeNode::Abstract) =>
-            t,
-          (TypeNode::ValueType(x), TypeNode::ValueType(y)) =>
-            unify_value_type(x, y, &mut self.to_unify),
-          (TypeNode::TupleType(x), TypeNode::TupleType(y)) =>
-            unify_tuple_type(x, y, &mut self.to_unify),
-          _ =>
-            TypeNode::TypeError,
+          (TypeNode::Abstract, t) | (t, TypeNode::Abstract) => t,
+          (TypeNode::ValueType(x), TypeNode::ValueType(y)) => unify_value_type(x, y, &mut self.to_unify),
+          (TypeNode::TupleType(x), TypeNode::TupleType(y)) => unify_tuple_type(x, y, &mut self.to_unify),
+          _ => TypeNode::TypeError,
         };
     }
   }
@@ -173,10 +163,8 @@ impl Solver {
   }
 
   fn instantiate(&mut self, t: &TypeScheme) -> TypeVar {
-    let n = t.0;
-    let t = &t.1;
-    let bound_type_vars = Arr::new((0 .. n).map(|_| self.fresh()));
-    return self.instantiate_value_type(&bound_type_vars, t);
+    let bound_type_vars = Arr::new((0 .. t.0).map(|_| self.fresh()));
+    return self.instantiate_value_type(&bound_type_vars, &t.1);
   }
 
   fn instantiate_value_type(&mut self, bound_type_vars: &Arr<TypeVar>, t: &ValueType) -> TypeVar {
@@ -222,6 +210,8 @@ impl Solver {
   fn generalize(&mut self, t: TypeVar) -> TypeScheme {
     // TODO: we actually need to generalize multiple typevars at the same time,
     // from a strongly-connected-component of top-level items
+
+    // TODO: handle recursive types
 
     let mut count = 0;
     let t = self.generalize_value_type(&mut count, t);
