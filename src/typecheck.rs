@@ -22,8 +22,7 @@ use tangerine::map::HashMap;
 pub enum ValueType {
   Array(Box<ValueType>),
   Fun(TupleType, TupleType),
-  I64,
-  Bool,
+  PrimType(PrimType),
   TypeVar(TypeVar),
 }
 
@@ -195,14 +194,9 @@ impl Solver {
         self.value_type(t, ValueTypeNode::Fun(a, b));
         t
       }
-      ValueType::I64 => {
+      ValueType::PrimType(a) => {
         let t = self.fresh();
-        self.value_type(t, ValueTypeNode::PrimType(PrimType::I64));
-        t
-      }
-      ValueType::Bool => {
-        let t = self.fresh();
-        self.value_type(t, ValueTypeNode::PrimType(PrimType::Bool));
+        self.value_type(t, ValueTypeNode::PrimType(a));
         t
       }
       ValueType::TypeVar(x) => {
@@ -263,11 +257,8 @@ impl Solver {
         let b = self.generalize_tuple_type(count, b);
         ValueType::Fun(a, b)
       }
-      TypeNode::ValueType(ValueTypeNode::PrimType(PrimType::Bool)) => {
-        ValueType::Bool
-      }
-      TypeNode::ValueType(ValueTypeNode::PrimType(PrimType::I64)) => {
-        ValueType::I64
+      TypeNode::ValueType(ValueTypeNode::PrimType(a)) => {
+        ValueType::PrimType(a)
       }
     }
   }
@@ -311,10 +302,8 @@ impl Solver {
         ValueType::Array(Box::new(self.resolve_value_type(a))),
       TypeNode::ValueType(ValueTypeNode::Fun(a, b)) =>
         ValueType::Fun(self.resolve_tuple_type(a), self.resolve_tuple_type(b)),
-      TypeNode::ValueType(ValueTypeNode::PrimType(PrimType::Bool)) =>
-        ValueType::Bool,
-      TypeNode::ValueType(ValueTypeNode::PrimType(PrimType::I64)) =>
-        ValueType::I64,
+      TypeNode::ValueType(ValueTypeNode::PrimType(a)) =>
+        ValueType::PrimType(a),
     }
   }
 
@@ -349,7 +338,7 @@ impl Ctx {
         1,
         ValueType::Fun(
           TupleType::Tuple(Arr::new([ValueType::TypeVar(TypeVar(0))])),
-          TupleType::Tuple(Arr::new([ValueType::I64]))))
+          TupleType::Tuple(Arr::new([ValueType::PrimType(PrimType::I64)]))))
     );
 
     return ctx;
@@ -526,10 +515,8 @@ impl std::fmt::Display for ValueType {
         write!(f, "Array[{}]", a)?,
       Self::Fun(ref a, ref b) =>
         write!(f, "Fun{} -> {}", a, b)?,
-      Self::I64 =>
-        write!(f, "I64")?,
-      Self::Bool =>
-        write!(f, "Bool")?,
+      Self::PrimType(a) =>
+        write!(f, "{}", a)?,
       Self::TypeVar(a) =>
         write!(f, "'{}", a.0)?,
     }

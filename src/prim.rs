@@ -5,6 +5,16 @@ pub enum PrimType {
   I64,
 }
 
+impl std::fmt::Display for PrimType {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    match *self {
+      Self::Bool => write!(f, "Bool")?,
+      Self::I64 => write!(f, "I64")?,
+    }
+    return Ok(());
+  }
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[repr(u8)]
 pub enum PrimOp1 {
