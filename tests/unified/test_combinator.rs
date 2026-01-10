@@ -11,7 +11,7 @@ fn test_select() {
   ");
 
   expect![[r#"
-      === fun select : TypeScheme(1, Fun(Tuple([Bool, TypeVar(TypeVar(0)), TypeVar(TypeVar(0))]), Tuple([TypeVar(TypeVar(0))]))) ===
+      === fun select : forall '0 . Fun(Bool, '0, '0) -> ('0) ===
       %0 LABEL 3 : (Bool, '0, '0)
       %1 = GET 0 : Value Bool
       %2 = GET 1 : Value '0
@@ -25,13 +25,13 @@ fn test_select() {
       %10 LABEL 0 : ()
       %11 PUT 0 %2
       %12 RET
-      === fun relu : TypeScheme(0, Fun(Tuple([I64]), Tuple([I64]))) ===
+      === fun relu : Fun(I64) -> (I64) ===
       %13 LABEL 1 : (I64)
       %14 = GET 0 : Value I64
       %15 = 0 : Value I64
       %16 = %14 >= %15 : Value Bool
       %17 = 0 : Value I64
-      %18 = CONST select : Value Fun (Bool, I64, I64) -> (I64)
+      %18 = CONST select : Value Fun(Bool, I64, I64) -> (I64)
       %19 PUT 0 %16
       %20 PUT 1 %14
       %21 PUT 2 %17
@@ -61,11 +61,11 @@ fn test_foo() {
   ");
 
   expect![[r#"
-      === fun foo : TypeScheme(1, Fun(Tuple([TypeVar(TypeVar(0)), Fun(Tuple([TypeVar(TypeVar(0))]), Tuple([Bool])), Fun(Tuple([TypeVar(TypeVar(0))]), Tuple([TypeVar(TypeVar(0))]))]), Tuple([TypeVar(TypeVar(0))]))) ===
-      %0 LABEL 3 : ('0, Fun ('0) -> (Bool), Fun ('0) -> ('0))
+      === fun foo : forall '0 . Fun('0, Fun('0) -> (Bool), Fun('0) -> ('0)) -> ('0) ===
+      %0 LABEL 3 : ('0, Fun('0) -> (Bool), Fun('0) -> ('0))
       %1 = GET 0 : Value '0
-      %2 = GET 1 : Value Fun ('0) -> (Bool)
-      %3 = GET 2 : Value Fun ('0) -> ('0)
+      %2 = GET 1 : Value Fun('0) -> (Bool)
+      %3 = GET 2 : Value Fun('0) -> ('0)
       %4 PUT 0 %1
       %5 CALL %2
       %6 ==> GOTO %7

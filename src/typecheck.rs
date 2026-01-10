@@ -525,7 +525,7 @@ impl std::fmt::Display for ValueType {
       Self::Array(ref a) =>
         write!(f, "Array[{}]", a)?,
       Self::Fun(ref a, ref b) =>
-        write!(f, "Fun {} -> {}", a, b)?,
+        write!(f, "Fun{} -> {}", a, b)?,
       Self::I64 =>
         write!(f, "I64")?,
       Self::Bool =>
@@ -533,7 +533,7 @@ impl std::fmt::Display for ValueType {
       Self::TypeVar(a) =>
         write!(f, "'{}", a.0)?,
     }
-    Ok(())
+    return Ok(());
   }
 }
 
@@ -553,6 +553,18 @@ impl std::fmt::Display for TupleType {
         write!(f, ")")?;
       }
     }
-    Ok(())
+    return Ok(());
+  }
+}
+
+impl std::fmt::Display for TypeScheme {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    if self.0 != 0 {
+      write!(f, "forall")?;
+      for i in 0 .. self.0 { write!(f, " '{}", i)?; }
+      write!(f, " . ")?;
+    }
+
+    return self.1.fmt(f);
   }
 }
