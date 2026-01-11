@@ -34,14 +34,14 @@ pub(crate) fn dump(out: &mut impl std::fmt::Write, source: &str) {
         | lilac::hir::Inst::Op1(..)
         | lilac::hir::Inst::Op2(..) => {
           let x = lilac::typevar::TypeVar(i);
-          write!(out, "%{} {} : {}\n", i, inst, solver.resolve_value_type(x)).unwrap();
+          write!(out, "%{} {} : {}\n", i, inst, solver.resolve_value_type(x).unwrap()).unwrap();
         }
         | lilac::hir::Inst::Local(..) => {
           let x = lilac::typevar::TypeVar(i);
-          write!(out, "%{} {} : Local {}\n", i, inst, solver.resolve_value_type(x)).unwrap();
+          write!(out, "%{} {} : Local {}\n", i, inst, solver.resolve_value_type(x).unwrap()).unwrap();
         }
         | lilac::hir::Inst::Label(_) => {
-          let x = solver.resolve_tuple_type(lilac::typevar::TypeVar(i));
+          let x = solver.resolve_tuple_type(lilac::typevar::TypeVar(i)).unwrap();
           write!(out, "%{} {} : {}\n", i, inst, x).unwrap();
         }
       }

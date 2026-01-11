@@ -193,28 +193,22 @@ impl Solver {
     }
   }
 
-  fn generalize(&mut self, t: TypeVar) -> TypeScheme {
+  fn generalize(&mut self, t: TypeVar) -> Result<TypeScheme, ()> {
     // TODO: we actually need to generalize multiple typevars at the same time,
     // from a strongly-connected-component of top-level items
 
-    // TODO: handle recursive types
+    // TODO: to handlerecursive types, replace type state with a black-hole
+    // when we reach it, and restore the old state after traversing descendant
+    // types.
+
 
     let mut count = 0;
-    let t = self.generalize_value_type(&mut count, t);
-    return TypeScheme(count, t);
+    let t = self.generalize_value_type(&mut count, t)?;
+    return Ok(TypeScheme(count, t));
   }
 
-  fn generalize_value_type(&mut self, count: &mut u32, t: TypeVar) -> ValueType {
+  fn generalize_value_type(&mut self, count: &mut u32, t: TypeVar) -> Result<ValueType, ()> {
     let t = &mut self.union_find[t.0];
-
-    // TODO:
-    //
-    // to catch recursive types, replace type state with a black-hole when we
-    // reach it, and restore the old state after traversing descendant types.
-
-    // TODO:
-    //
-    // return Result<ValueType, ()>
 
     match *t {
       TypeState::Abstract => {
@@ -222,33 +216,33 @@ impl Solver {
         *count = i + 1;
         let a = TypeVar(i);
         *t = TypeState::TypeVar(a);
-        ValueType::TypeVar(a)
+        Ok(ValueType::TypeVar(a))
       }
       TypeState::TypeVar(a) => {
-        ValueType::TypeVar(a)
+        Ok(ValueType::TypeVar(a))
       }
       TypeState::TupleType(..) => {
-        panic!()
+        Err(())
       }
       TypeState::TypeError => {
-        panic!()
+        Err(())
       }
       TypeState::ValueType(ValueTypeState::Array(a)) => {
-        let a = self.generalize_value_type(count, a);
-        ValueType::Array(Box::new(a))
+        let a = self.generalize_value_type(count, a)?;
+        Ok(ValueType::Array(Box::new(a)))
       }
       TypeState::ValueType(ValueTypeState::Fun(a, b)) => {
-        let a = self.generalize_tuple_type(count, a);
-        let b = self.generalize_tuple_type(count, b);
-        ValueType::Fun(a, b)
+        let a = self.generalize_tuple_type(count, a)?;
+        let b = self.generalize_tuple_type(count, b)?;
+        Ok(ValueType::Fun(a, b))
       }
       TypeState::ValueType(ValueTypeState::PrimType(a)) => {
-        ValueType::PrimType(a)
+        Ok(ValueType::PrimType(a))
       }
     }
   }
 
-  fn generalize_tuple_type(&mut self, count: &mut u32, t: TypeVar) -> TupleType {
+  fn generalize_tuple_type(&mut self, count: &mut u32, t: TypeVar) -> Result<TupleType, ()> {
     let t = &mut self.union_find[t.0];
 
     match *t {
@@ -257,49 +251,49 @@ impl Solver {
         *count = i + 1;
         let a = TypeVar(i);
         *t = TypeState::TypeVar(a);
-        TupleType::TypeVar(a)
+        Ok(TupleType::TypeVar(a))
       }
       TypeState::TypeVar(a) => {
-        TupleType::TypeVar(a)
+        Ok(TupleType::TypeVar(a))
       }
       TypeState::TypeError => {
-        panic!()
+        Err(())
       }
       TypeState::ValueType(..) => {
-        panic!()
+        Err(())
       }
       TypeState::TupleType(ref a) => {
-        let a = a.clone(); // ??!!
-        TupleType::Tuple(a.iter().map(|a| self.generalize_value_type(count, *a)).collect())
+        let a = a.clone(); // ???
+        Ok(TupleType::Tuple(a.iter().map(|a| self.generalize_value_type(count, *a)).collect::<Result<_, _>>()?))
       }
     }
   }
 
-  pub fn resolve_value_type(&self, t: TypeVar) -> ValueType {
+  pub fn resolve_value_type(&self, t: TypeVar) -> Result<ValueType, ()> {
     match self.union_find[t.0] {
       TypeState::TypeVar(a) =>
-        ValueType::TypeVar(a),
-      TypeState::Abstract =>
-        ValueType::TypeVar(TypeVar(111)), // ???
-      TypeState::TupleType(..) | TypeState::TypeError =>
-        ValueType::TypeVar(TypeVar(999)), // ???
+        Ok(ValueType::TypeVar(a)),
       TypeState::ValueType(ValueTypeState::Array(a)) =>
-        ValueType::Array(Box::new(self.resolve_value_type(a))),
+        Ok(ValueType::Array(Box::new(self.resolve_value_type(a)?))),
       TypeState::ValueType(ValueTypeState::Fun(a, b)) =>
-        ValueType::Fun(self.resolve_tuple_type(a), self.resolve_tuple_type(b)),
+        Ok(ValueType::Fun(self.resolve_tuple_type(a)?, self.resolve_tuple_type(b)?)),
       TypeState::ValueType(ValueTypeState::PrimType(a)) =>
-        ValueType::PrimType(a),
+        Ok(ValueType::PrimType(a)),
+      TypeState::Abstract =>
+        Err(()),
+      TypeState::TupleType(..) | TypeState::TypeError =>
+        Err(()),
     }
   }
 
-  pub fn resolve_tuple_type(&self, t: TypeVar) -> TupleType {
+  pub fn resolve_tuple_type(&self, t: TypeVar) -> Result<TupleType, ()> {
     match self.union_find[t.0] {
       TypeState::TypeVar(a) =>
-        TupleType::TypeVar(a),
+        Ok(TupleType::TypeVar(a)),
       TypeState::TupleType(ref t) =>
-        TupleType::Tuple(t.iter().map(|t| self.resolve_value_type(*t)).collect()),
+        Ok(TupleType::Tuple(t.iter().map(|t| self.resolve_value_type(*t)).collect::<Result<_, _>>()?)),
       _ =>
-        panic!(),
+        Err(())
     }
   }
 }
@@ -449,7 +443,7 @@ pub fn typecheck(module: &hir::Module) -> (HashMap<Symbol, TypeScheme>, Solver) 
     // generalize
 
     ctx.letrec_environment.clear();
-    ctx.global_environment.insert(f.name, ctx.solver.generalize(funtypevar));
+    ctx.global_environment.insert(f.name, ctx.solver.generalize(funtypevar).unwrap());
   }
 
   return (ctx.global_environment, ctx.solver);
