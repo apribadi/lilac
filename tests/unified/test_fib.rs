@@ -23,34 +23,34 @@ fn test_fib_loop() {
   expect![[r#"
       === fun fib : Fun(I64) -> (I64) ===
       %0 LABEL 1 : (I64)
-      %1 = GET 0 : Value I64
-      %2 = 1 : Value I64
+      %1 = GET 0 : I64
+      %2 = 1 : I64
       %3 = LOCAL %2 : Local I64
-      %4 = 0 : Value I64
+      %4 = 0 : I64
       %5 = LOCAL %4 : Local I64
       %6 = LOCAL %1 : Local I64
       %7 ==> GOTO %8
       %8 LABEL 0 : ()
-      %9 = [ %6 ] : Value I64
-      %10 = 0 : Value I64
-      %11 = %9 == %10 : Value Bool
+      %9 = [ %6 ] : I64
+      %10 = 0 : I64
+      %11 = %9 == %10 : Bool
       %12 COND %11
       %13 ==> GOTO %19
       %14 ==> GOTO %15
       %15 LABEL 0 : ()
-      %16 = [ %5 ] : Value I64
+      %16 = [ %5 ] : I64
       %17 PUT 0 %16
       %18 RET
       %19 LABEL 0 : ()
-      %20 = [ %3 ] : Value I64
-      %21 = [ %5 ] : Value I64
-      %22 = %20 + %21 : Value I64
-      %23 = [ %5 ] : Value I64
+      %20 = [ %3 ] : I64
+      %21 = [ %5 ] : I64
+      %22 = %20 + %21 : I64
+      %23 = [ %5 ] : I64
       %24 [ %3 ] <- %23
       %25 [ %5 ] <- %22
-      %26 = [ %6 ] : Value I64
-      %27 = 1 : Value I64
-      %28 = %26 - %27 : Value I64
+      %26 = [ %6 ] : I64
+      %27 = 1 : I64
+      %28 = %26 - %27 : I64
       %29 [ %6 ] <- %28
       %30 ==> GOTO %8
   "#]].assert_eq(out.drain(..).as_ref());
@@ -77,19 +77,19 @@ fn test_fib_tailcall() {
   expect![[r#"
       === fun aux : Fun(I64, I64, I64) -> (I64) ===
       %0 LABEL 3 : (I64, I64, I64)
-      %1 = GET 0 : Value I64
-      %2 = GET 1 : Value I64
-      %3 = GET 2 : Value I64
-      %4 = 0 : Value I64
-      %5 = %3 == %4 : Value Bool
+      %1 = GET 0 : I64
+      %2 = GET 1 : I64
+      %3 = GET 2 : I64
+      %4 = 0 : I64
+      %5 = %3 == %4 : Bool
       %6 COND %5
       %7 ==> GOTO %9
       %8 ==> GOTO %18
       %9 LABEL 0 : ()
-      %10 = %1 + %2 : Value I64
-      %11 = 1 : Value I64
-      %12 = %3 - %11 : Value I64
-      %13 = CONST aux : Value Fun(I64, I64, I64) -> (I64)
+      %10 = %1 + %2 : I64
+      %11 = 1 : I64
+      %12 = %3 - %11 : I64
+      %13 = CONST aux : Fun(I64, I64, I64) -> (I64)
       %14 PUT 0 %2
       %15 PUT 1 %10
       %16 PUT 2 %12
@@ -99,10 +99,10 @@ fn test_fib_tailcall() {
       %20 RET
       === fun fib : Fun(I64) -> (I64) ===
       %21 LABEL 1 : (I64)
-      %22 = GET 0 : Value I64
-      %23 = 1 : Value I64
-      %24 = 0 : Value I64
-      %25 = CONST aux : Value Fun(I64, I64, I64) -> (I64)
+      %22 = GET 0 : I64
+      %23 = 1 : I64
+      %24 = 0 : I64
+      %25 = CONST aux : Fun(I64, I64, I64) -> (I64)
       %26 PUT 0 %23
       %27 PUT 1 %24
       %28 PUT 2 %22

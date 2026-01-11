@@ -13,9 +13,9 @@ fn test_select() {
   expect![[r#"
       === fun select : forall '0 . Fun(Bool, '0, '0) -> ('0) ===
       %0 LABEL 3 : (Bool, '0, '0)
-      %1 = GET 0 : Value Bool
-      %2 = GET 1 : Value '0
-      %3 = GET 2 : Value '0
+      %1 = GET 0 : Bool
+      %2 = GET 1 : '0
+      %3 = GET 2 : '0
       %4 COND %1
       %5 ==> GOTO %7
       %6 ==> GOTO %10
@@ -27,20 +27,20 @@ fn test_select() {
       %12 RET
       === fun relu : Fun(I64) -> (I64) ===
       %13 LABEL 1 : (I64)
-      %14 = GET 0 : Value I64
-      %15 = 0 : Value I64
-      %16 = %14 >= %15 : Value Bool
-      %17 = 0 : Value I64
-      %18 = CONST select : Value Fun(Bool, I64, I64) -> (I64)
+      %14 = GET 0 : I64
+      %15 = 0 : I64
+      %16 = %14 >= %15 : Bool
+      %17 = 0 : I64
+      %18 = CONST select : Fun(Bool, I64, I64) -> (I64)
       %19 PUT 0 %16
       %20 PUT 1 %14
       %21 PUT 2 %17
       %22 CALL %18
       %23 ==> GOTO %24
       %24 LABEL 1 : (I64)
-      %25 = GET 0 : Value I64
-      %26 = 0 : Value I64
-      %27 = %25 + %26 : Value I64
+      %25 = GET 0 : I64
+      %26 = 0 : I64
+      %27 = %25 + %26 : I64
       %28 PUT 0 %27
       %29 RET
   "#]].assert_eq(out.drain(..).as_ref());
@@ -63,14 +63,14 @@ fn test_foo() {
   expect![[r#"
       === fun foo : forall '0 . Fun('0, Fun('0) -> (Bool), Fun('0) -> ('0)) -> ('0) ===
       %0 LABEL 3 : ('0, Fun('0) -> (Bool), Fun('0) -> ('0))
-      %1 = GET 0 : Value '0
-      %2 = GET 1 : Value Fun('0) -> (Bool)
-      %3 = GET 2 : Value Fun('0) -> ('0)
+      %1 = GET 0 : '0
+      %2 = GET 1 : Fun('0) -> (Bool)
+      %3 = GET 2 : Fun('0) -> ('0)
       %4 PUT 0 %1
       %5 CALL %2
       %6 ==> GOTO %7
       %7 LABEL 1 : (Bool)
-      %8 = GET 0 : Value Bool
+      %8 = GET 0 : Bool
       %9 COND %8
       %10 ==> GOTO %12
       %11 ==> GOTO %15
