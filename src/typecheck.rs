@@ -57,7 +57,6 @@ struct Ctx {
   global_environment: HashMap<Symbol, TypeScheme>,
   letrec_environment: HashMap<Symbol, TypeVar>,
   solver: Solver,
-  block: u32,
   block_args: Arr<TypeVar>,
   block_outs: Buf<TypeVar>,
   call_rettypevar: Option<TypeVar>,
@@ -117,36 +116,20 @@ impl Solver {
     return TypeVar(self.union_find.put(TypeState::Abstract));
   }
 
-  fn unify_value_type(&mut self, x: TypeVar, y: ValueTypeState) {
-    let x = &mut self.union_find[x.0];
-
-    *x =
-      match replace(x, TypeState::Abstract) {
-        TypeState::Abstract =>
-          TypeState::ValueType(y),
-        TypeState::ValueType(x) =>
-          update_value_type_state(x, y, &mut self.to_unify),
-        _ =>
-          TypeState::TypeError,
-      };
-  }
-
-  fn unify_tuple_type(&mut self, x: TypeVar, y: TupleTypeState) {
-    let x = &mut self.union_find[x.0];
-
-    *x =
-      match replace(x, TypeState::Abstract) {
-        TypeState::Abstract =>
-          TypeState::TupleType(y),
-        TypeState::TupleType(x) =>
-          update_tuple_type_state(x, y, &mut self.to_unify),
-        _ =>
-          TypeState::TypeError,
-      };
+  fn prim_type(&mut self, t: PrimType) -> TypeVar {
+    return TypeVar(self.union_find.put(TypeState::ValueType(ValueTypeState::PrimType(t))));
   }
 
   fn unify(&mut self, x: TypeVar, y: TypeVar) {
     self.to_unify.put((x, y));
+  }
+
+  fn unify_value_type(&mut self, x: TypeVar, t: ValueTypeState) {
+    self.to_unify.put((x, TypeVar(self.union_find.put(TypeState::ValueType(t)))));
+  }
+
+  fn unify_tuple_type(&mut self, x: TypeVar, t: TupleTypeState) {
+    self.to_unify.put((x, TypeVar(self.union_find.put(TypeState::TupleType(t)))));
   }
 
   fn propagate(&mut self) {
@@ -188,9 +171,7 @@ impl Solver {
         t
       }
       ValueType::PrimType(a) => {
-        let t = self.fresh();
-        self.unify_value_type(t, ValueTypeState::PrimType(a));
-        t
+        self.prim_type(a)
       }
       ValueType::TypeVar(x) => {
         bound_type_vars[x.0]
@@ -321,7 +302,6 @@ impl Ctx {
         global_environment: HashMap::new(),
         letrec_environment: HashMap::new(),
         solver: Solver::new(),
-        block: u32::MAX,
         block_args: Arr::EMPTY,
         block_outs: Buf::new(),
         call_rettypevar: None,
@@ -389,22 +369,16 @@ pub fn typecheck(module: &hir::Module) -> (HashMap<Symbol, TypeScheme>, Solver) 
         }
         Inst::Op1(f, x) => {
           let f = lower_op1(f);
-          let a = ValueTypeState::PrimType(f.arg_type());
-          let b = ValueTypeState::PrimType(f.out_type());
-          ctx.solver.unify_value_type(TypeVar(x), a);
-          ctx.solver.unify_value_type(TypeVar(i), b);
+          ctx.solver.unify_value_type(TypeVar(x), ValueTypeState::PrimType(f.arg_type()));
+          ctx.solver.unify_value_type(TypeVar(i), ValueTypeState::PrimType(f.out_type()));
         }
         Inst::Op2(f, x, y) => {
           let f = lower_op2(f);
-          let a = ValueTypeState::PrimType(f.arg_type().0);
-          let b = ValueTypeState::PrimType(f.arg_type().1);
-          let c = ValueTypeState::PrimType(f.out_type());
-          ctx.solver.unify_value_type(TypeVar(x), a);
-          ctx.solver.unify_value_type(TypeVar(y), b);
-          ctx.solver.unify_value_type(TypeVar(i), c);
+          ctx.solver.unify_value_type(TypeVar(x), ValueTypeState::PrimType(f.arg_type().0));
+          ctx.solver.unify_value_type(TypeVar(y), ValueTypeState::PrimType(f.arg_type().1));
+          ctx.solver.unify_value_type(TypeVar(i), ValueTypeState::PrimType(f.out_type()));
         }
         Inst::Label(n) => {
-          ctx.block = i;
           ctx.block_args = (0 .. n).map(|_| ctx.solver.fresh()).collect();
           ctx.block_outs.clear();
           ctx.call_rettypevar = None;
