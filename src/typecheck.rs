@@ -127,9 +127,12 @@ impl Solver {
 
     *x =
       match replace(x, TypeNode::Abstract) {
-        TypeNode::Abstract => TypeNode::ValueType(y),
-        TypeNode::ValueType(x) => unify_value_type(x, y, &mut self.to_unify),
-        _ => TypeNode::TypeError,
+        TypeNode::Abstract =>
+          TypeNode::ValueType(y),
+        TypeNode::ValueType(x) =>
+          unify_value_type(x, y, &mut self.to_unify),
+        _ =>
+          TypeNode::TypeError,
       };
   }
 
@@ -138,8 +141,10 @@ impl Solver {
 
     *x =
       match replace(x, TypeNode::Abstract) {
-        TypeNode::Abstract => TypeNode::TupleType(y),
-        TypeNode::TupleType(x) => unify_tuple_type(x, y, &mut self.to_unify),
+        TypeNode::Abstract =>
+          TypeNode::TupleType(y),
+        TypeNode::TupleType(x) =>
+          unify_tuple_type(x, y, &mut self.to_unify),
           _ => TypeNode::TypeError,
       };
   }
@@ -148,10 +153,14 @@ impl Solver {
     if let (x, Some(y)) = self.union_find.union(x.0, y.0) {
       *x =
         match (replace(x, TypeNode::Abstract), y) {
-          (TypeNode::Abstract, t) | (t, TypeNode::Abstract) => t,
-          (TypeNode::ValueType(x), TypeNode::ValueType(y)) => unify_value_type(x, y, &mut self.to_unify),
-          (TypeNode::TupleType(x), TypeNode::TupleType(y)) => unify_tuple_type(x, y, &mut self.to_unify),
-          _ => TypeNode::TypeError,
+          (TypeNode::Abstract, t) | (t, TypeNode::Abstract) =>
+            t,
+          (TypeNode::ValueType(x), TypeNode::ValueType(y)) =>
+            unify_value_type(x, y, &mut self.to_unify),
+          (TypeNode::TupleType(x), TypeNode::TupleType(y)) =>
+            unify_tuple_type(x, y, &mut self.to_unify),
+          _ =>
+            TypeNode::TypeError,
         };
     }
   }
@@ -163,7 +172,7 @@ impl Solver {
   }
 
   fn instantiate(&mut self, t: &TypeScheme) -> TypeVar {
-    let bound_type_vars = Arr::new((0 .. t.0).map(|_| self.fresh()));
+    let bound_type_vars = (0 .. t.0).map(|_| self.fresh()).collect();
     return self.instantiate_value_type(&bound_type_vars, &t.1);
   }
 
@@ -200,7 +209,7 @@ impl Solver {
       }
       TupleType::Tuple(ref a) => {
         let t = self.fresh();
-        let a = Arr::new(a.iter().map(|a| self.instantiate_value_type(bound_type_vars, a)));
+        let a = a.iter().map(|a| self.instantiate_value_type(bound_type_vars, a)).collect();
         self.tuple_type(t, a);
         t
       }
@@ -275,7 +284,7 @@ impl Solver {
       }
       TypeNode::TupleType(ref a) => {
         let a = a.clone(); // ??!!
-        TupleType::Tuple(Arr::new(a.iter().map(|a| self.generalize_value_type(count, *a))))
+        TupleType::Tuple(a.iter().map(|a| self.generalize_value_type(count, *a)).collect())
       }
     }
   }
@@ -302,7 +311,7 @@ impl Solver {
       TypeNode::TypeVar(a) =>
         TupleType::TypeVar(a),
       TypeNode::TupleType(ref t) =>
-        TupleType::Tuple(Arr::new(t.iter().map(|t| self.resolve_value_type(*t)))),
+        TupleType::Tuple(t.iter().map(|t| self.resolve_value_type(*t)).collect()),
       _ =>
         panic!(),
     }
@@ -397,12 +406,11 @@ pub fn typecheck(module: &hir::Module) -> (HashMap<Symbol, TypeScheme>, Solver) 
           ctx.solver.value_type(TypeVar(i), c);
         }
         Inst::Label(n) => {
-          let a = Arr::new((0 .. n).map(|_| ctx.solver.fresh()));
-          ctx.solver.tuple_type(TypeVar(i), a.clone());
           ctx.block = i;
-          ctx.block_args = a;
+          ctx.block_args = (0 .. n).map(|_| ctx.solver.fresh()).collect();
           ctx.block_outs.clear();
           ctx.call_rettypevar = None;
+          ctx.solver.tuple_type(TypeVar(i), ctx.block_args.clone());
         }
         Inst::Get(k) =>
           ctx.solver.unify(TypeVar(i), ctx.block_args[k]),
@@ -416,8 +424,8 @@ pub fn typecheck(module: &hir::Module) -> (HashMap<Symbol, TypeScheme>, Solver) 
           match ctx.call_rettypevar {
             None =>
               ctx.solver.tuple_type(TypeVar(a), ctx.block_outs.iter().map(|x| *x).collect()),
-            Some(ret) =>
-              ctx.solver.unify(TypeVar(a), ret),
+            Some(call_ret) =>
+              ctx.solver.unify(TypeVar(a), call_ret),
           }
         }
         Inst::Call(f) => {
@@ -435,20 +443,18 @@ pub fn typecheck(module: &hir::Module) -> (HashMap<Symbol, TypeScheme>, Solver) 
           ctx.solver.unify(rettypevar, y);
         }
         Inst::Const(symbol) => {
-          if let Some(&x) = ctx.solver_environment.get(symbol) {
-            ctx.solver.unify(TypeVar(i), x);
+          if let Some(&t) = ctx.solver_environment.get(symbol) {
+            ctx.solver.unify(TypeVar(i), t);
           } else if let Some(t) = ctx.global_environment.get(symbol) {
-            let x = ctx.solver.instantiate(t);
-            ctx.solver.unify(TypeVar(i), x);
-
+            let t = ctx.solver.instantiate(t);
+            ctx.solver.unify(TypeVar(i), t);
           } else {
             // TODO: error unbound variable
-            panic!()
+            unimplemented!()
           }
         }
-        | Inst::Field(..)
-        | Inst::GotoStaticError
-        | Inst::SetField(..) => {
+        Inst::Field(..) | Inst::GotoStaticError | Inst::SetField(..) => {
+          unimplemented!()
         }
       }
     }
@@ -541,7 +547,6 @@ impl std::fmt::Display for TypeScheme {
       for i in 0 .. self.0 { write!(f, " '{}", i)?; }
       write!(f, " . ")?;
     }
-
     return self.1.fmt(f);
   }
 }
