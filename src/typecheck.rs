@@ -197,7 +197,7 @@ impl Solver {
     // TODO: we actually need to generalize multiple typevars at the same time,
     // from a strongly-connected-component of top-level items
 
-    // TODO: to handlerecursive types, replace type state with a black-hole
+    // TODO: to handle recursive types, replace type state with a black-hole
     // when we reach it, and restore the old state after traversing descendant
     // types.
 
@@ -221,12 +221,6 @@ impl Solver {
       TypeState::TypeVar(a) => {
         Ok(ValueType::TypeVar(a))
       }
-      TypeState::TupleType(..) => {
-        Err(())
-      }
-      TypeState::TypeError => {
-        Err(())
-      }
       TypeState::ValueType(ValueTypeState::Array(a)) => {
         let a = self.generalize_value_type(count, a)?;
         Ok(ValueType::Array(Box::new(a)))
@@ -238,6 +232,9 @@ impl Solver {
       }
       TypeState::ValueType(ValueTypeState::PrimType(a)) => {
         Ok(ValueType::PrimType(a))
+      }
+      TypeState::TupleType(..) | TypeState::TypeError => {
+        Err(())
       }
     }
   }
@@ -256,15 +253,13 @@ impl Solver {
       TypeState::TypeVar(a) => {
         Ok(TupleType::TypeVar(a))
       }
-      TypeState::TypeError => {
-        Err(())
-      }
-      TypeState::ValueType(..) => {
-        Err(())
-      }
       TypeState::TupleType(ref a) => {
         let a = a.clone(); // ???
-        Ok(TupleType::Tuple(a.iter().map(|a| self.generalize_value_type(count, *a)).collect::<Result<_, _>>()?))
+        let a = a.iter().map(|b| self.generalize_value_type(count, *b)).collect::<Result<_, _>>()?;
+        Ok(TupleType::Tuple(a))
+      }
+      TypeState::TypeError | TypeState::ValueType(..) => {
+        Err(())
       }
     }
   }
@@ -290,8 +285,10 @@ impl Solver {
     match self.union_find[t.0] {
       TypeState::TypeVar(a) =>
         Ok(TupleType::TypeVar(a)),
-      TypeState::TupleType(ref t) =>
-        Ok(TupleType::Tuple(t.iter().map(|t| self.resolve_value_type(*t)).collect::<Result<_, _>>()?)),
+      TypeState::TupleType(ref a) => {
+        let a = a.iter().map(|b| self.resolve_value_type(*b)).collect::<Result<_, _>>()?;
+        Ok(TupleType::Tuple(a))
+      }
       _ =>
         Err(())
     }
@@ -442,8 +439,10 @@ pub fn typecheck(module: &hir::Module) -> (HashMap<Symbol, TypeScheme>, Solver) 
 
     // generalize
 
-    ctx.letrec_environment.clear();
+    // TODO: handle type error on failed generalization
+
     ctx.global_environment.insert(f.name, ctx.solver.generalize(funtypevar).unwrap());
+    ctx.letrec_environment.clear();
   }
 
   return (ctx.global_environment, ctx.solver);
