@@ -1,8 +1,8 @@
-// high-level intermediate representation
+// (u)ntyped (i)ntermediate (r)epresentation
 //
-// - bytecode
-// - from a source file, without context
+// - linear bytecode
 // - not type checked
+// - produced from a source file, without global context
 
 use crate::arr::Arr;
 use crate::symbol::Symbol;
@@ -52,17 +52,6 @@ pub enum Inst {
   SetField(Value, Symbol, Value),
   SetIndex(Value, Value, Value),
   SetLocal(Local, Value),
-}
-
-#[derive(Debug)]
-pub enum ValType {
-  Abstract,
-  Array(Box<ValType>),
-  Bool,
-  F64,
-  Fun(Option<Arr<ValType>>, Option<Arr<ValType>>),
-  I64,
-  TypeError, // ???
 }
 
 impl std::fmt::Display for Inst {

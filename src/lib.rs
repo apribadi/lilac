@@ -1,14 +1,13 @@
 pub mod arr;
 pub mod ast;
 pub mod buf;
-pub mod hir;
 pub mod iter;
 pub mod lexer;
 pub mod make_ast;
-pub mod make_hir;
-pub mod mir;
+pub mod make_uir;
 pub mod operator;
 pub mod parse;
+pub mod pir;
 pub mod prim;
 pub mod sexp;
 pub mod symbol;
@@ -16,6 +15,7 @@ pub mod token;
 pub mod typecheck;
 pub mod typestore;
 pub mod typevar;
+pub mod uir;
 pub mod union_find;
 
 // syntax ideas - use something in { :, @, ` } to denote symbol/label ?

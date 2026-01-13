@@ -4,8 +4,8 @@
 
 use crate::arr::Arr;
 use crate::buf::Buf;
-use crate::hir::Inst;
-use crate::hir;
+use crate::uir::Inst;
+use crate::uir;
 use crate::operator::Op1;
 use crate::operator::Op2;
 use crate::prim::PrimOp1;
@@ -320,7 +320,7 @@ impl Ctx {
   }
 }
 
-pub fn typecheck(module: &hir::Module) -> (HashMap<Symbol, TypeScheme>, Solver) {
+pub fn typecheck(module: &uir::Module) -> (HashMap<Symbol, TypeScheme>, Solver) {
   let mut ctx = Ctx::new();
 
   // allocate a type variable for each program point

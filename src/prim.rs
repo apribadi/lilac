@@ -1,4 +1,4 @@
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 #[repr(u8)]
 pub enum PrimType {
   Bool,
@@ -8,14 +8,13 @@ pub enum PrimType {
 impl std::fmt::Display for PrimType {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     match *self {
-      Self::Bool => write!(f, "Bool")?,
-      Self::I64 => write!(f, "I64")?,
+      Self::Bool => write!(f, "Bool"),
+      Self::I64 => write!(f, "I64"),
     }
-    return Ok(());
   }
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 #[repr(u8)]
 pub enum PrimOp1 {
   DecI64,
@@ -51,7 +50,7 @@ impl std::fmt::Display for PrimOp1 {
   }
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 #[repr(u8)]
 pub enum PrimOp2 {
   AddI64,
