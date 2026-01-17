@@ -257,10 +257,6 @@ impl Solver {
   }
 }
 
-fn unify(x: TypeVar, y: TypeVar, solver: &mut Solver) {
-  solver.unify(x, y);
-}
-
 impl Ctx {
   fn new() -> Self {
     let mut ctx =
@@ -368,32 +364,41 @@ pub fn typecheck(module: &uir::Module) -> (HashMap<Symbol, TypeScheme>, Solver) 
           ctx.block_outs.put(TypeVar(x));
         }
         Inst::Ret => {
-          unify(rettypevar, ctx.solver.tuple_type(ctx.block_outs.drain().collect()), &mut ctx.solver);
+          let a = ctx.solver.tuple_type(ctx.block_outs.drain().collect());
+          ctx.solver.unify(rettypevar, a);
         }
         Inst::Cond(x) => {
-          unify(TypeVar(x), ctx.solver.prim_type(PrimType::Bool), &mut ctx.solver);
+          let a = ctx.solver.prim_type(PrimType::Bool);
+          ctx.solver.unify(TypeVar(x), a);
         }
         Inst::Goto(a) => {
           match ctx.call_rettypevar {
-            None =>
-              unify(TypeVar(a), ctx.solver.tuple_type(ctx.block_outs.iter().map(|x| *x).collect()), &mut ctx.solver),
-            Some(call_ret) =>
-              unify(TypeVar(a), call_ret, &mut ctx.solver),
+            None => {
+              let b = ctx.solver.tuple_type(ctx.block_outs.iter().map(|x| *x).collect());
+              ctx.solver.unify(TypeVar(a), b);
+            }
+            Some(call_ret) => {
+              ctx.solver.unify(TypeVar(a), call_ret);
+            }
           }
         }
         Inst::Call(f) => {
           let a = ctx.solver.fresh();
           let b = ctx.solver.fresh();
-          unify(TypeVar(f), ctx.solver.fun_type(a, b), &mut ctx.solver);
-          unify(a, ctx.solver.tuple_type(ctx.block_outs.drain().collect()), &mut ctx.solver);
+          let c = ctx.solver.fun_type(a, b);
+          let d = ctx.solver.tuple_type(ctx.block_outs.drain().collect());
+          ctx.solver.unify(TypeVar(f), c);
+          ctx.solver.unify(a, d);
           ctx.call_rettypevar = Some(b);
         }
         Inst::TailCall(f) => {
           let a = ctx.solver.fresh();
           let b = ctx.solver.fresh();
-          unify(TypeVar(f), ctx.solver.fun_type(a, b), &mut ctx.solver);
-          unify(a, ctx.solver.tuple_type(ctx.block_outs.drain().collect()), &mut ctx.solver);
-          unify(rettypevar, b, &mut ctx.solver);
+          let c = ctx.solver.fun_type(a, b);
+          let d = ctx.solver.tuple_type(ctx.block_outs.drain().collect());
+          ctx.solver.unify(TypeVar(f), c);
+          ctx.solver.unify(a, d);
+          ctx.solver.unify(rettypevar, b);
         }
         Inst::Const(symbol) => {
           if let Some(&t) = ctx.letrec_environment.get(symbol) {
