@@ -3,7 +3,6 @@ pub mod ast;
 pub mod buf;
 pub mod iter;
 pub mod lexer;
-pub mod make_ast;
 pub mod make_uir;
 pub mod operator;
 pub mod parse;

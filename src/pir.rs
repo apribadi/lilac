@@ -1,4 +1,4 @@
-// mid-level intermediate representation
+// polymorphic intermediate representation
 //
 // - bytecode
 // - typed
@@ -36,8 +36,8 @@ pub enum Type {
   Array(ValueType),
   Fun(TupleType, TupleType),
   PrimType(PrimType),
-  Tuple(Arity),
-  TupleElt(ValueType),
+  Nil,
+  Cons(ValueType, TupleType),
 }
 
 #[derive(Clone, Copy)]

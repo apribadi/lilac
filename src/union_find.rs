@@ -84,11 +84,11 @@ impl<T> UnionFind<T> {
       return (unsafe { self.get_root_unchecked_mut(i) }, None);
     } else if i < j {
       let a = replace(unsafe { self.0.get_unchecked_mut(j) }, Node::Link(Cell::new(i)));
-      return (unsafe { self.get_root_unchecked_mut(i) }, Some(unsafe { a.root_unchecked() }));
+      return unsafe { (self.get_root_unchecked_mut(i), Some(a.root_unchecked())) };
     } else {
       let a = replace(unsafe { self.0.get_unchecked_mut(i) }, Node::Link(Cell::new(j)));
       let a = replace(unsafe { self.0.get_unchecked_mut(j) }, a);
-      return (unsafe { self.get_root_unchecked_mut(j) }, Some(unsafe { a.root_unchecked() }));
+      return unsafe { (self.get_root_unchecked_mut(j), Some(a.root_unchecked())) };
     }
   }
 

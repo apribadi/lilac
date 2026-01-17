@@ -2,7 +2,7 @@ pub(crate) fn dump(out: &mut impl std::fmt::Write, source: &str) {
   let mut store = oxcart::Store::new();
   let mut arena = store.arena();
 
-  let module = lilac::make_ast::parse(source.as_bytes(), &mut arena);
+  let module = lilac::parse::parse_ast(source.as_bytes(), &mut arena);
   let module = lilac::make_uir::compile(&module);
 
   let (environment, solver) = lilac::typecheck::typecheck(&module);

@@ -1,4 +1,4 @@
-// (u)ntyped (i)ntermediate (r)epresentation
+// untyped intermediate representation
 //
 // - linear bytecode
 // - not type checked
