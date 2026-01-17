@@ -323,10 +323,10 @@ impl Ctx {
 pub fn typecheck(module: &uir::Module) -> (HashMap<Symbol, TypeScheme>, Solver) {
   let mut ctx = Ctx::new();
 
-  // allocate a type variable for each program point
+  // allocate a fresh type variable for each program point, starting from zero
 
   for _ in module.code.iter() {
-    let _ = ctx.solver.fresh();
+    let _: TypeVar = ctx.solver.fresh();
   }
 
   // ?

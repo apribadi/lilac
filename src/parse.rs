@@ -695,11 +695,11 @@ impl<'a, 'b> ToAst<'a, 'b> {
   }
 
   fn put_item(&mut self, x: Item<'a>) {
-    let _ = self.items.put(x);
+    self.items.put(x);
   }
 
   fn put_bind(&mut self, x: Binding) {
-    let _ = self.binds.put(x);
+    self.binds.put(x);
   }
 
   fn pop_bind_list(&mut self, n: u32) -> &'a [Binding] {
@@ -707,7 +707,7 @@ impl<'a, 'b> ToAst<'a, 'b> {
   }
 
   fn put_expr(&mut self, x: Expr<'a>) {
-    let _ = self.exprs.put(x);
+    self.exprs.put(x);
   }
 
   fn pop_expr(&mut self) -> Expr<'a> {
@@ -719,7 +719,7 @@ impl<'a, 'b> ToAst<'a, 'b> {
   }
 
   fn put_stmt(&mut self, x: Stmt<'a>) {
-    let _ = self.stmts.put(x);
+    self.stmts.put(x);
   }
 
   fn pop_stmt_list(&mut self, n: u32) -> &'a [Stmt<'a>] {
