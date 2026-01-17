@@ -15,7 +15,6 @@ use crate::symbol::Symbol;
 use crate::typevar::TypeVar;
 use crate::union_find::UnionFind;
 use std::iter::zip;
-use std::mem::replace;
 use tangerine::map::HashMap;
 
 pub enum ValueType {
@@ -91,32 +90,30 @@ impl Solver {
   fn propagate(&mut self) {
     while let Some((x, y)) = self.to_unify.pop_if_nonempty() {
       if let (x, Some(y)) = self.union_find.union(x.0, y.0) {
-        *x =
-          match (replace(x, TypeState::Fresh), y) {
-            (TypeState::Fresh, t)| (t, TypeState::Fresh) => {
-              t
-            }
-            (TypeState::ArrayType(a), TypeState::ArrayType(b)) => {
+        match (&*x, y) {
+          (&TypeState::Fresh, t) => {
+            *x = t;
+          }
+          (&_, TypeState::Fresh) => {
+          }
+          (&TypeState::ArrayType(a), TypeState::ArrayType(b)) => {
+            self.to_unify.put((a, b));
+          }
+          (&TypeState::FunType(a, b), TypeState::FunType(c, d)) => {
+            self.to_unify.put((a, c));
+            self.to_unify.put((b, d));
+          }
+          (&TypeState::PrimType(u), TypeState::PrimType(v)) if u == v => {
+          }
+          (&TypeState::TupleType(ref u), TypeState::TupleType(ref v)) if u.len() == v.len() => {
+            for (&a, &b) in zip(u.iter(), v.iter()) {
               self.to_unify.put((a, b));
-              TypeState::ArrayType(a)
             }
-            (TypeState::FunType(a, b), TypeState::FunType(c, d)) => {
-              self.to_unify.put((a, c));
-              self.to_unify.put((b, d));
-              TypeState::FunType(a, b)
-            }
-            (TypeState::PrimType(u), TypeState::PrimType(v)) if u == v => {
-              TypeState::PrimType(u)
-            }
-            (TypeState::TupleType(u), TypeState::TupleType(v)) if u.len() == v.len() => {
-              for (&a, &b) in zip(u.iter(), v.iter()) {
-                self.to_unify.put((a, b));
-              }
-              TypeState::TupleType(u)
-            }
-            _ =>
-              TypeState::TypeError,
-          };
+          }
+          _ => {
+            *x = TypeState::TypeError;
+          }
+        }
       }
     }
   }
@@ -312,47 +309,59 @@ pub fn typecheck(module: &uir::Module) -> (HashMap<Symbol, TypeScheme>, Solver) 
     for i in f.pos .. f.pos + f.len {
       match module.code[i] {
         Inst::ConstBool(_) => {
-          unify(TypeVar(i), ctx.solver.prim_type(PrimType::Bool), &mut ctx.solver);
+          let a = ctx.solver.prim_type(PrimType::Bool);
+          ctx.solver.unify(TypeVar(i), a);
         }
         Inst::ConstInt(_) => {
-          unify(TypeVar(i), ctx.solver.prim_type(PrimType::I64), &mut ctx.solver);
+          let a = ctx.solver.prim_type(PrimType::I64);
+          ctx.solver.unify(TypeVar(i), a);
         }
         Inst::Local(x) => {
-          unify(TypeVar(i), TypeVar(x), &mut ctx.solver);
+          ctx.solver.unify(TypeVar(i), TypeVar(x));
         }
         Inst::GetLocal(v) => {
-          unify(TypeVar(i), TypeVar(v), &mut ctx.solver);
+          ctx.solver.unify(TypeVar(i), TypeVar(v));
         }
         Inst::SetLocal(v, x) => {
-          unify(TypeVar(v), TypeVar(x), &mut ctx.solver);
+          ctx.solver.unify(TypeVar(v), TypeVar(x));
         }
         Inst::Index(x, y) => {
-          unify(TypeVar(x), ctx.solver.array_type(TypeVar(i)), &mut ctx.solver);
-          unify(TypeVar(y), ctx.solver.prim_type(PrimType::I64), &mut ctx.solver);
+          let a = ctx.solver.array_type(TypeVar(i));
+          let b = ctx.solver.prim_type(PrimType::I64);
+          ctx.solver.unify(TypeVar(x), a);
+          ctx.solver.unify(TypeVar(y), b);
         }
         Inst::SetIndex(x, y, z) => {
-          unify(TypeVar(x), ctx.solver.array_type(TypeVar(z)), &mut ctx.solver);
-          unify(TypeVar(y), ctx.solver.prim_type(PrimType::I64), &mut ctx.solver);
+          let a = ctx.solver.array_type(TypeVar(z));
+          let b = ctx.solver.prim_type(PrimType::I64);
+          ctx.solver.unify(TypeVar(x), a);
+          ctx.solver.unify(TypeVar(y), b);
         }
         Inst::Op1(f, x) => {
           let f = lower_op1(f);
-          unify(TypeVar(x), ctx.solver.prim_type(f.arg_type()), &mut ctx.solver);
-          unify(TypeVar(i), ctx.solver.prim_type(f.out_type()), &mut ctx.solver);
+          let a = ctx.solver.prim_type(f.arg_type());
+          let b = ctx.solver.prim_type(f.out_type());
+          ctx.solver.unify(TypeVar(x), a);
+          ctx.solver.unify(TypeVar(i), b);
         }
         Inst::Op2(f, x, y) => {
           let f = lower_op2(f);
-          unify(TypeVar(x), ctx.solver.prim_type(f.arg_type().0), &mut ctx.solver);
-          unify(TypeVar(y), ctx.solver.prim_type(f.arg_type().1), &mut ctx.solver);
-          unify(TypeVar(i), ctx.solver.prim_type(f.out_type()), &mut ctx.solver);
+          let a = ctx.solver.prim_type(f.arg_type().0);
+          let b = ctx.solver.prim_type(f.arg_type().1);
+          let c = ctx.solver.prim_type(f.out_type());
+          ctx.solver.unify(TypeVar(x), a);
+          ctx.solver.unify(TypeVar(y), b);
+          ctx.solver.unify(TypeVar(i), c);
         }
         Inst::Label(n) => {
           ctx.block_args = (0 .. n).map(|_| ctx.solver.fresh()).collect();
           ctx.block_outs.clear();
           ctx.call_rettypevar = None;
-          unify(TypeVar(i), ctx.solver.tuple_type(ctx.block_args.clone()), &mut ctx.solver);
+          let a = ctx.solver.tuple_type(ctx.block_args.clone());
+          ctx.solver.unify(TypeVar(i), a);
         }
         Inst::Get(k) => {
-          unify(TypeVar(i), ctx.block_args[k], &mut ctx.solver);
+          ctx.solver.unify(TypeVar(i), ctx.block_args[k]);
         }
         Inst::Put(_, x) => {
           // TODO: check index
