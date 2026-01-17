@@ -34,12 +34,8 @@ impl<T> UnionFind<T> {
     return Self(Buf::new());
   }
 
-  pub fn len(&self) -> u32 {
-    return self.0.len();
-  }
-
   pub fn put(&mut self, value: T) -> u32 {
-    let n = self.len();
+    let n = self.0.len();
     self.0.put(Node::Root(value));
     return n;
   }
@@ -49,11 +45,11 @@ impl<T> UnionFind<T> {
 
     // path splitting
 
-    if let Node::Link(a) = unsafe { self.0.get_unchecked(index) } {
-      let mut a = a;
+    if let &Node::Link(ref a) = unsafe { self.0.get_unchecked(index) } {
       let mut i = a.get();
+      let mut a = a;
 
-      while let Node::Link(b) = unsafe { self.0.get_unchecked(i) } {
+      while let &Node::Link(ref b) = unsafe { self.0.get_unchecked(i) } {
         i = b.get();
         a.set(i);
         a = b;
@@ -79,6 +75,9 @@ impl<T> UnionFind<T> {
     let j = unsafe { self.find_unchecked(other) };
 
     // index by rank - all links point to lower indices
+    //
+    // If indices are assigned randomly (which is not guaranteed) then there
+    // are tighter complexity bounds.
 
     if i == j {
       return (unsafe { self.get_root_unchecked_mut(i) }, None);
@@ -138,8 +137,8 @@ impl<T: std::fmt::Display> std::fmt::Display for UnionFind<T> {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     for i in 0 .. self.0.len() {
       match &self.0[i] {
-        Node::Link(a) => write!(f, "{}: => {}\n", i, a.get())?,
-        Node::Root(a) => write!(f, "{}: {}\n", i, a)?,
+        &Node::Link(ref a) => write!(f, "{}: => {}\n", i, a.get())?,
+        &Node::Root(ref a) => write!(f, "{}: {}\n", i, a)?,
       }
     }
     return Ok(());
