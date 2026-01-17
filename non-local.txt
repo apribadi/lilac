@@ -1,5 +1,11 @@
 # non-local control flow out of local closures
 
+CF
+
+- Ruby
+- Go
+- Kotlin
+
 example
 
   fun ... ( ... ) {
@@ -67,6 +73,32 @@ example
             ...
           }
         }
+      }
+    }
+  }
+
+  fun count_up(local yield) {
+    var i = 0
+    loop { yield(i ++) }
+  }
+
+
+  fun foo(f (Int) -> Bool) -> Int
+
+  fun foo(f) {
+    for x in count_up {
+      if f(x) {
+        break x
+      }
+    }
+  }
+
+  fun bar[K]((local (Int) -> () | @outer.break Int) -> @outer.break Int | K..., f (Int) -> (Bool)) -> Int | K...
+
+  fun bar(it, f) {
+    for x in it {
+      if f(x) {
+        break x
       }
     }
   }
