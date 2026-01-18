@@ -266,6 +266,15 @@ impl<T> IndexMut<u32> for Buf<T> {
   }
 }
 
+impl<'a, T> IntoIterator for &'a Buf<T> {
+  type Item = &'a T;
+  type IntoIter = Iter<'a, T>;
+
+  fn into_iter(self) -> Self::IntoIter {
+    return self.iter();
+  }
+}
+
 pub struct Iter<'a, T> {
   ptr: ptr<T>,
   len: u32,
@@ -307,9 +316,14 @@ impl<'a, T> Iterator for Iter<'a, T> {
 
   #[inline(always)]
   fn size_hint(&self) -> (usize, Option<usize>) {
-    let n = self.len;
+    return (self.len as usize, Some(self.len as usize));
+  }
+}
 
-    return (n as usize, Some(n as usize));
+impl<'a, T> ExactSizeIterator for Iter<'a, T> {
+  #[inline(always)]
+  fn len(&self) -> usize {
+    return self.len as usize;
   }
 }
 
@@ -333,9 +347,7 @@ impl<'a, T> Iterator for PopList<'a, T> {
 
   #[inline(always)]
   fn size_hint(&self) -> (usize, Option<usize>) {
-    let n = self.len;
-
-    return (n as usize, Some(n as usize));
+    return (self.len as usize, Some(self.len as usize));
   }
 }
 

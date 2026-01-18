@@ -13,11 +13,11 @@ pub struct Arr<T> {
 }
 
 impl<T> Arr<T> {
-  const MAX_LEN: usize = {
+  const MAX_LEN: u32 = {
     if size_of::<T>() == 0 || isize::MAX as usize / size_of::<T>() > u32::MAX as usize {
-      u32::MAX as usize
+      u32::MAX
     } else {
-      isize::MAX as usize / size_of::<T>()
+      (isize::MAX as usize / size_of::<T>()) as u32
     }
   };
 
@@ -27,29 +27,39 @@ impl<T> Arr<T> {
     _phantom_data: PhantomData,
   };
 
-  pub fn new(iter: impl IntoIterator<IntoIter: ExactSizeIterator<Item = T>>) -> Self {
-    let mut iter = iter.into_iter();
-    let n = iter.len();
-
+  pub fn init(n: u32, f: impl FnMut(u32) -> T) -> Self {
     assert!(n <= Self::MAX_LEN);
 
     let p =
       if size_of::<T>() != 0 && n != 0 {
-        unsafe { global::alloc_slice::<T>(n) }
+        unsafe { global::alloc_slice::<T>(n as usize) }
       } else {
         ptr::NULL
       };
 
     let mut a = p;
+    let mut f = f;
 
-    for _ in 0 .. n {
-      unsafe { a.write(iter.next().unwrap()) };
+    for i in 0 .. n {
+      let x = f(i);
+      unsafe { a.write(x) };
       a += 1;
     }
 
+    return Self { ptr: p, len: n, _phantom_data: PhantomData };
+  }
+
+  pub fn new(iter: impl IntoIterator<IntoIter: ExactSizeIterator<Item = T>>) -> Self {
+    let mut iter = iter.into_iter();
+    let n = iter.len();
+
+    assert!(n <= Self::MAX_LEN as usize);
+
+    let r = Self::init(n as u32, |_| iter.next().unwrap());
+
     debug_assert!(iter.next().is_none());
 
-    return Self { ptr: p, len: n as u32, _phantom_data: PhantomData };
+    return r;
   }
 
   #[inline(always)]
@@ -145,6 +155,15 @@ impl<T> IndexMut<u32> for Arr<T> {
   }
 }
 
+impl<'a, T> IntoIterator for &'a Arr<T> {
+  type Item = &'a T;
+  type IntoIter = Iter<'a, T>;
+
+  fn into_iter(self) -> Self::IntoIter {
+    return self.iter();
+  }
+}
+
 pub struct Iter<'a, T> {
   ptr: ptr<T>,
   len: u32,
@@ -184,6 +203,7 @@ impl<'a, T> ExactSizeIterator for Iter<'a, T> {
   }
 }
 
+// TODO: remove?
 impl<T> FromIterator<T> for Arr<T> {
   fn from_iter<U: IntoIterator<Item = T>>(iter: U) -> Self {
     let mut buf = Buf::new();

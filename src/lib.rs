@@ -1,3 +1,6 @@
+#![cfg(any(target_pointer_width = "32", target_pointer_width = "64"))]
+
+pub mod util;
 pub mod arr;
 pub mod ast;
 pub mod buf;
