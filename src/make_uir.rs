@@ -42,8 +42,8 @@ pub fn compile<'a>(item_list: &Arr<ast::Item<'a>>) -> Module {
 
   return
     Module {
-      code: out.code.drain().collect(),
-      decl: out.decl.drain().collect(),
+      code: out.code.drain().into(),
+      decl: out.decl.drain().into(),
     };
 }
 

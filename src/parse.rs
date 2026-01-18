@@ -668,7 +668,7 @@ impl Out for ToSexp {
 pub fn parse_ast<'a>(source: &[u8], arena: &mut Arena<'a>) -> Arr<Item<'a>> {
   let mut out = ToAst::new(arena);
   parse(&mut Lexer::new(source), &mut out);
-  return Arr::new(out.items.drain());
+  return Arr::from(out.items.drain());
 }
 
 struct ToAst<'a, 'b> {

@@ -14,8 +14,6 @@ use crate::typevar::TypeVar;
 use crate::uir::Inst;
 use crate::uir;
 use crate::union_find::UnionFind;
-use crate::util::copied;
-use crate::util::map;
 use std::iter::zip;
 use tangerine::map::HashMap;
 
@@ -91,42 +89,42 @@ impl Solver {
 
   fn unify_prim_type(&mut self, x: TypeVar, t: PrimType) {
     match &mut self.union_find[x.0] {
-      x @ &mut TypeState::Fresh => {
-        *x = TypeState::PrimType(t);
+      state @ &mut TypeState::Fresh => {
+        *state = TypeState::PrimType(t);
       }
       &mut TypeState::PrimType(u) if u == t => {
       }
-      x => {
-        *x = TypeState::TypeError;
+      state => {
+        *state = TypeState::TypeError;
       }
     }
   }
 
   fn unify_array_type(&mut self, x: TypeVar, a: TypeVar) {
     match &mut self.union_find[x.0] {
-      x @ &mut TypeState::Fresh => {
-        *x = TypeState::ArrayType(a);
+      state @ &mut TypeState::Fresh => {
+        *state = TypeState::ArrayType(a);
       }
       &mut TypeState::ArrayType(b) => {
         self.to_unify.put((a, b));
       }
-      x => {
-        *x = TypeState::TypeError;
+      state => {
+        *state = TypeState::TypeError;
       }
     }
   }
 
   fn unify_fun_type(&mut self, x: TypeVar, a: TypeVar, b: TypeVar) {
     match &mut self.union_find[x.0] {
-      x @ &mut TypeState::Fresh => {
-        *x = TypeState::FunType(a, b);
+      state @ &mut TypeState::Fresh => {
+        *state = TypeState::FunType(a, b);
       }
       &mut TypeState::FunType(c, d) => {
         self.to_unify.put((a, c));
         self.to_unify.put((b, d));
       }
-      x => {
-        *x = TypeState::TypeError;
+      state => {
+        *state = TypeState::TypeError;
       }
     }
   }
@@ -138,16 +136,16 @@ impl Solver {
   {
     let t = t.into_iter();
     match &mut self.union_find[x.0] {
-      x @ &mut TypeState::Fresh => {
-        *x = TypeState::TupleType(copied(t));
+      state @ &mut TypeState::Fresh => {
+        *state = TypeState::TupleType(Arr::from(t.copied()));
       }
       &mut TypeState::TupleType(ref u) if t.len() == u.len() as usize => {
         for (&a, &b) in zip(t, u) {
           self.to_unify.put((a, b));
         }
       }
-      x => {
-        *x = TypeState::TypeError
+      state => {
+        *state = TypeState::TypeError
       }
     }
   }
@@ -157,8 +155,8 @@ impl Solver {
       match self.union_find.union(x.0, y.0) {
         (_, None) => {
         }
-        (x @ &mut TypeState::Fresh, Some(t)) => {
-          *x = t;
+        (state @ &mut TypeState::Fresh, Some(t)) => {
+          *state = t;
         }
         (&mut _, Some(TypeState::Fresh)) => {
         }
@@ -176,45 +174,45 @@ impl Solver {
             self.to_unify.put((a, b));
           }
         }
-        (x, _) => {
-          *x = TypeState::TypeError;
+        (state, _) => {
+          *state = TypeState::TypeError;
         }
       }
     }
   }
 
   fn instantiate(&mut self, t: &TypeScheme) -> TypeVar {
-    let bound_type_vars = Arr::init(t.0, |_| self.fresh());
+    let bound_type_vars = Arr::new(t.0, |_| self.fresh());
     return self.instantiate_value_type(&bound_type_vars, &t.1);
   }
 
   fn instantiate_value_type(&mut self, bound_type_vars: &Arr<TypeVar>, t: &ValueType) -> TypeVar {
-    match *t {
-      ValueType::Array(ref a) => {
+    match t {
+      &ValueType::Array(ref a) => {
         let a = self.instantiate_value_type(bound_type_vars, a);
         self.array_type(a)
       }
-      ValueType::Fun(ref a, ref b) => {
+      &ValueType::Fun(ref a, ref b) => {
         let a = self.instantiate_tuple_type(bound_type_vars, a);
         let b = self.instantiate_tuple_type(bound_type_vars, b);
         self.fun_type(a, b)
       }
-      ValueType::PrimType(t) => {
+      &ValueType::PrimType(t) => {
         self.prim_type(t)
       }
-      ValueType::TypeVar(x) => {
+      &ValueType::TypeVar(x) => {
         bound_type_vars[x.0]
       }
     }
   }
 
   fn instantiate_tuple_type(&mut self, bound_type_vars: &Arr<TypeVar>, t: &TupleType) -> TypeVar {
-    match *t {
-      TupleType::Tuple(ref u) => {
-        let u = Arr::new(u.iter().map(|a| self.instantiate_value_type(bound_type_vars, a)));
+    match t {
+      &TupleType::Tuple(ref u) => {
+        let u = Arr::from(u.iter().map(|a| self.instantiate_value_type(bound_type_vars, a)));
         self.tuple_type(u)
       }
-      TupleType::TypeVar(a) => {
+      &TupleType::TypeVar(a) => {
         bound_type_vars[a.0]
       }
     }
@@ -234,55 +232,49 @@ impl Solver {
   }
 
   fn generalize_value_type(&mut self, count: &mut u32, t: TypeVar) -> Result<ValueType, ()> {
-    let t = &mut self.union_find[t.0];
-
-    match *t {
-      TypeState::Fresh => {
-        let i = *count;
-        *count = i + 1;
-        let a = TypeVar(i);
-        *t = TypeState::TypeVar(a);
+    match &mut self.union_find[t.0] {
+      state @ &mut TypeState::Fresh => {
+        let a = TypeVar(*count);
+        *count += 1;
+        *state = TypeState::TypeVar(a);
         Ok(ValueType::TypeVar(a))
       }
-      TypeState::TypeVar(a) => {
+      &mut TypeState::TypeVar(a) => {
         Ok(ValueType::TypeVar(a))
       }
-      TypeState::ArrayType(a) => {
+      &mut TypeState::ArrayType(a) => {
         let a = self.generalize_value_type(count, a)?;
         Ok(ValueType::Array(Box::new(a)))
       }
-      TypeState::FunType(a, b) => {
+      &mut TypeState::FunType(a, b) => {
         let a = self.generalize_tuple_type(count, a)?;
         let b = self.generalize_tuple_type(count, b)?;
         Ok(ValueType::Fun(a, b))
       }
-      TypeState::PrimType(a) => {
+      &mut TypeState::PrimType(a) => {
         Ok(ValueType::PrimType(a))
       }
-      TypeState::TupleType(..) | TypeState::TypeError => {
+      &mut TypeState::TupleType(..) | &mut TypeState::TypeError => {
         Err(())
       }
     }
   }
 
   fn generalize_tuple_type(&mut self, count: &mut u32, t: TypeVar) -> Result<TupleType, ()> {
-    let t = &mut self.union_find[t.0];
-
-    match *t {
-      TypeState::Fresh => {
-        let i = *count;
-        *count = i + 1;
-        let a = TypeVar(i);
-        *t = TypeState::TypeVar(a);
+    match &mut self.union_find[t.0] {
+      state @ &mut TypeState::Fresh => {
+        let a = TypeVar(*count);
+        *count += 1;
+        *state = TypeState::TypeVar(a);
         Ok(TupleType::TypeVar(a))
       }
-      TypeState::TypeVar(a) => {
+      &mut TypeState::TypeVar(a) => {
         Ok(TupleType::TypeVar(a))
       }
-      TypeState::TupleType(ref a) => {
+      &mut TypeState::TupleType(ref a) => {
         let a = a.clone(); // ???
-        let a = a.iter().map(|b| self.generalize_value_type(count, *b)).collect::<Result<_, _>>()?;
-        Ok(TupleType::Tuple(a))
+        let mut a = a.iter().map(|b| self.generalize_value_type(count, *b)).collect::<Result<Buf<_>, _>>()?;
+        Ok(TupleType::Tuple(Arr::from(a.drain())))
       }
       _ => {
         Err(())
@@ -312,8 +304,8 @@ impl Solver {
       TypeState::TypeVar(a) =>
         Ok(TupleType::TypeVar(a)),
       TypeState::TupleType(ref a) => {
-        let a = a.iter().map(|b| self.resolve_value_type(*b)).collect::<Result<_, _>>()?;
-        Ok(TupleType::Tuple(a))
+        let mut a = a.iter().map(|b| self.resolve_value_type(*b)).collect::<Result<Buf<_>, _>>()?;
+        Ok(TupleType::Tuple(Arr::from(a.drain())))
       }
       _ =>
         Err(())
@@ -338,8 +330,8 @@ impl Ctx {
       TypeScheme(
         1,
         ValueType::Fun(
-          TupleType::Tuple(Arr::new([ValueType::TypeVar(TypeVar(0))])),
-          TupleType::Tuple(Arr::new([ValueType::PrimType(PrimType::I64)]))))
+          TupleType::Tuple(Arr::from([ValueType::TypeVar(TypeVar(0))])),
+          TupleType::Tuple(Arr::from([ValueType::PrimType(PrimType::I64)]))))
     );
 
     return ctx;
@@ -403,7 +395,7 @@ pub fn typecheck(module: &uir::Module) -> (HashMap<Symbol, TypeScheme>, Solver) 
           ctx.solver.unify_prim_type(TypeVar(i), f.out_type());
         }
         Inst::Label(n) => {
-          ctx.block_args = map(0 .. n, |_| ctx.solver.fresh());
+          ctx.block_args = Arr::new(n, |_| ctx.solver.fresh());
           ctx.block_outs.clear();
           ctx.call_rettypevar = None;
           ctx.solver.unify_tuple_type(TypeVar(i), &ctx.block_args);

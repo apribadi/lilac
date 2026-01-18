@@ -357,3 +357,11 @@ impl<'a, T> ExactSizeIterator for PopList<'a, T> {
     return self.len as usize;
   }
 }
+
+impl<A> FromIterator<A> for Buf<A> {
+  fn from_iter<T: IntoIterator<Item = A>>(iter: T) -> Self {
+    let mut buf = Buf::new();
+    iter.into_iter().for_each(|x| buf.put(x));
+    return buf;
+  }
+}

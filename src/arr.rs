@@ -2,9 +2,9 @@ use core::marker::PhantomData;
 use core::mem::needs_drop;
 use core::ops::Index;
 use core::ops::IndexMut;
-use crate::buf::Buf;
 use pop::global;
 use pop::ptr;
+use crate::util::usize_u32_saturating_cast;
 
 pub struct Arr<T> {
   ptr: ptr<T>,
@@ -13,13 +13,12 @@ pub struct Arr<T> {
 }
 
 impl<T> Arr<T> {
-  const MAX_LEN: u32 = {
-    if size_of::<T>() == 0 || isize::MAX as usize / size_of::<T>() > u32::MAX as usize {
+  const MAX_LEN: u32 =
+    if size_of::<T>() == 0 {
       u32::MAX
     } else {
-      (isize::MAX as usize / size_of::<T>()) as u32
-    }
-  };
+      usize_u32_saturating_cast(isize::MAX as usize / size_of::<T>())
+    };
 
   pub const EMPTY: Self = Self {
     ptr: ptr::NULL,
@@ -27,14 +26,14 @@ impl<T> Arr<T> {
     _phantom_data: PhantomData,
   };
 
-  pub fn init(n: u32, f: impl FnMut(u32) -> T) -> Self {
+  pub fn new(n: u32, f: impl FnMut(u32) -> T) -> Self {
     assert!(n <= Self::MAX_LEN);
 
     let p =
-      if size_of::<T>() != 0 && n != 0 {
-        unsafe { global::alloc_slice::<T>(n as usize) }
-      } else {
+      if size_of::<T>() == 0 || n == 0 {
         ptr::NULL
+      } else {
+        unsafe { global::alloc_slice::<T>(n as usize) }
       };
 
     let mut a = p;
@@ -47,19 +46,6 @@ impl<T> Arr<T> {
     }
 
     return Self { ptr: p, len: n, _phantom_data: PhantomData };
-  }
-
-  pub fn new(iter: impl IntoIterator<IntoIter: ExactSizeIterator<Item = T>>) -> Self {
-    let mut iter = iter.into_iter();
-    let n = iter.len();
-
-    assert!(n <= Self::MAX_LEN as usize);
-
-    let r = Self::init(n as u32, |_| iter.next().unwrap());
-
-    debug_assert!(iter.next().is_none());
-
-    return r;
   }
 
   #[inline(always)]
@@ -118,7 +104,7 @@ impl<T> Drop for Arr<T> {
 
 impl<T: Clone> Clone for Arr<T> {
   fn clone(&self) -> Self {
-    return Self::new(self.iter().map(T::clone));
+    return Self::from(self.iter().map(T::clone));
   }
 }
 
@@ -203,12 +189,13 @@ impl<'a, T> ExactSizeIterator for Iter<'a, T> {
   }
 }
 
-// TODO: remove?
-impl<T> FromIterator<T> for Arr<T> {
-  fn from_iter<U: IntoIterator<Item = T>>(iter: U) -> Self {
-    let mut buf = Buf::new();
-    for item in iter.into_iter() { buf.put(item); }
-    return Arr::new(buf.drain());
+impl<T, U: IntoIterator<IntoIter: ExactSizeIterator<Item = T>>> From<U> for Arr<T> {
+  fn from(value: U) -> Self {
+    let mut iter = value.into_iter();
+    let n = u32::try_from(iter.len()).unwrap();
+    let r = Self::new(n, |_| iter.next().unwrap());
+    debug_assert!(iter.next().is_none());
+    return r;
   }
 }
 
