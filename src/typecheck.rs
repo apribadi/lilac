@@ -131,8 +131,7 @@ impl Solver {
 
   fn unify_tuple_type<'a, T>(&mut self, x: TypeVar, t: T)
   where
-    T: IntoIterator,
-    T::IntoIter: ExactSizeIterator<Item = &'a TypeVar>
+    T: IntoIterator<IntoIter: ExactSizeIterator<Item = &'a TypeVar>>
   {
     let t = t.into_iter();
     match &mut self.union_find[x.0] {
@@ -271,10 +270,11 @@ impl Solver {
       &mut TypeState::TypeVar(a) => {
         Ok(TupleType::TypeVar(a))
       }
-      &mut TypeState::TupleType(ref a) => {
-        let a = a.clone(); // ???
-        let mut a = a.iter().map(|b| self.generalize_value_type(count, *b)).collect::<Result<Buf<_>, _>>()?;
-        Ok(TupleType::Tuple(Arr::from(a.drain())))
+      &mut TypeState::TupleType(ref u) => {
+        let u = u.clone(); // ???
+        let mut buf = Buf::new();
+        for &a in &u { buf.put(self.generalize_value_type(count, a)?); }
+        Ok(TupleType::Tuple(Arr::from(buf.drain())))
       }
       _ => {
         Err(())
@@ -303,9 +303,10 @@ impl Solver {
     match self.union_find[t.0] {
       TypeState::TypeVar(a) =>
         Ok(TupleType::TypeVar(a)),
-      TypeState::TupleType(ref a) => {
-        let mut a = a.iter().map(|b| self.resolve_value_type(*b)).collect::<Result<Buf<_>, _>>()?;
-        Ok(TupleType::Tuple(Arr::from(a.drain())))
+      TypeState::TupleType(ref u) => {
+        let mut buf = Buf::new();
+        for &a in u { buf.put(self.resolve_value_type(a)?); }
+        Ok(TupleType::Tuple(Arr::from(buf.drain())))
       }
       _ =>
         Err(())
