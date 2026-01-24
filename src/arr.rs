@@ -60,7 +60,7 @@ impl<T> Arr<T> {
 
     debug_assert!(index < n);
 
-    return unsafe { (p + index).as_ref() }
+    return unsafe { (p + index).as_ref() };
   }
 
   #[inline(always)]
@@ -70,7 +70,7 @@ impl<T> Arr<T> {
 
     debug_assert!(index < n);
 
-    return unsafe { (p + index).as_mut_ref() }
+    return unsafe { (p + index).as_mut_ref() };
   }
 
   pub fn iter(&self) -> Iter<'_, T> {
@@ -125,7 +125,7 @@ impl<T> Index<u32> for Arr<T> {
 
     assert!(index < n);
 
-    return unsafe { (p + index).as_ref() }
+    return unsafe { (p + index).as_ref() };
   }
 }
 
@@ -137,7 +137,7 @@ impl<T> IndexMut<u32> for Arr<T> {
 
     assert!(index < n);
 
-    return unsafe { (p + index).as_mut_ref() }
+    return unsafe { (p + index).as_mut_ref() };
   }
 }
 
@@ -164,9 +164,7 @@ impl<'a, T> Iterator for Iter<'a, T> {
     let p = self.ptr;
     let n = self.len;
 
-    if n == 0 {
-      return None;
-    }
+    if n == 0 { return None; }
 
     self.ptr = p + 1;
     self.len = n - 1;

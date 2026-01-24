@@ -168,7 +168,7 @@ impl<T> Buf<T> {
 
     debug_assert!(index < n);
 
-    return unsafe { (p + index).as_ref() }
+    return unsafe { (p + index).as_ref() };
   }
 
   #[inline(always)]
@@ -178,7 +178,7 @@ impl<T> Buf<T> {
 
     debug_assert!(index < n);
 
-    return unsafe { (p + index).as_mut_ref() }
+    return unsafe { (p + index).as_mut_ref() };
   }
 
   pub fn clear(&mut self) {
@@ -217,7 +217,7 @@ impl<T> Buf<T> {
       }
     }
 
-    if size_of::<T>() != 0 && c != 0 {
+    if ! (size_of::<T>() == 0 || c == 0) {
       unsafe { global::dealloc_slice(p, c as usize) };
     }
   }
@@ -250,7 +250,7 @@ impl<T> Index<u32> for Buf<T> {
 
     assert!(index < n);
 
-    return unsafe { (p + index).as_ref() }
+    return unsafe { (p + index).as_ref() };
   }
 }
 
@@ -262,7 +262,7 @@ impl<T> IndexMut<u32> for Buf<T> {
 
     assert!(index < n);
 
-    return unsafe { (p + index).as_mut_ref() }
+    return unsafe { (p + index).as_mut_ref() };
   }
 }
 
@@ -289,10 +289,7 @@ pub struct PopList<'a, T> {
 
 impl<'a, T> Drop for PopList<'a, T> {
   fn drop(&mut self) {
-    if needs_drop::<T>() {
-      for _ in self {
-      }
-    }
+    if needs_drop::<T>() { for _ in self { } }
   }
 }
 
@@ -304,9 +301,7 @@ impl<'a, T> Iterator for Iter<'a, T> {
     let p = self.ptr;
     let n = self.len;
 
-    if n == 0 {
-      return None;
-    }
+    if n == 0 { return None; }
 
     self.ptr = p + 1;
     self.len = n - 1;
@@ -335,9 +330,7 @@ impl<'a, T> Iterator for PopList<'a, T> {
     let p = self.ptr;
     let n = self.len;
 
-    if n == 0 {
-      return None;
-    }
+    if n == 0 { return None; }
 
     self.ptr = p + 1;
     self.len = n - 1;
