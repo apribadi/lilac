@@ -50,7 +50,7 @@ struct Ctx {
   global_environment: HashMap<Symbol, TypeScheme>,
   letrec_environment: HashMap<Symbol, TypeVar>,
   solver: Solver,
-  block_args: Arr<TypeVar>,
+  block_args: Buf<TypeVar>,
   block_outs: Buf<TypeVar>,
   block_call_ret: Option<TypeVar>,
 }
@@ -321,7 +321,7 @@ impl Ctx {
         global_environment: HashMap::new(),
         letrec_environment: HashMap::new(),
         solver: Solver::new(),
-        block_args: Arr::EMPTY,
+        block_args: Buf::new(),
         block_outs: Buf::new(),
         block_call_ret: None,
       };
@@ -396,9 +396,10 @@ pub fn typecheck(module: &uir::Module) -> (HashMap<Symbol, TypeScheme>, Solver) 
           ctx.solver.unify_prim_type(TypeVar(i), f.out_type());
         }
         Inst::Label(n) => {
-          ctx.block_args = Arr::new(n, |_| ctx.solver.fresh());
+          ctx.block_args.clear();
           ctx.block_outs.clear();
           ctx.block_call_ret = None;
+          for _ in 0 .. n { ctx.block_args.put(ctx.solver.fresh()); }
           ctx.solver.unify_tuple_type(TypeVar(i), &ctx.block_args);
         }
         Inst::Get(k) => {
