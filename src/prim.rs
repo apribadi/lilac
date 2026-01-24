@@ -7,10 +7,12 @@ pub enum PrimType {
 
 impl std::fmt::Display for PrimType {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    match *self {
-      Self::Bool => write!(f, "Bool"),
-      Self::I64 => write!(f, "I64"),
-    }
+    let s =
+      match self {
+        &Self::Bool => "bool",
+        &Self::I64 => "i64",
+      };
+    f.write_str(s)
   }
 }
 
@@ -46,7 +48,7 @@ impl PrimOp1 {
 
 impl std::fmt::Display for PrimOp1 {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    write!(f, "{}", self.as_str())
+    f.write_str(self.as_str())
   }
 }
 
@@ -106,6 +108,6 @@ impl PrimOp2 {
 
 impl std::fmt::Display for PrimOp2 {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    write!(f, "{}", self.as_str())
+    f.write_str(self.as_str())
   }
 }

@@ -1,6 +1,6 @@
 //! The syntactic operators available for overloading.
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 #[repr(u8)]
 pub enum Op1 {
   Dec,
@@ -9,7 +9,7 @@ pub enum Op1 {
   Not,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 #[repr(u8)]
 pub enum Op2 {
   Add,
@@ -43,7 +43,7 @@ impl Op1 {
 
 impl std::fmt::Display for Op1 {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    write!(f, "{}", self.as_str())
+    f.write_str(self.as_str())
   }
 }
 
@@ -72,6 +72,6 @@ impl Op2 {
 
 impl std::fmt::Display for Op2 {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    write!(f, "{}", self.as_str())
+    f.write_str(self.as_str())
   }
 }
