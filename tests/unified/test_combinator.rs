@@ -128,9 +128,9 @@ fn test_select() {
   ");
 
   expect![[r#"
-      === fun select : forall '0 . Fun(Bool, '0, '0) -> ('0) ===
-      %0 LABEL 3 : (Bool, '0, '0)
-      %1 = GET 0 : Bool
+      === fun select : forall '0 . Fun(bool, '0, '0) -> ('0) ===
+      %0 LABEL 3 : (bool, '0, '0)
+      %1 = GET 0 : bool
       %2 = GET 1 : '0
       %3 = GET 2 : '0
       %4 COND %1
@@ -142,22 +142,22 @@ fn test_select() {
       %10 LABEL 0 : ()
       %11 PUT 0 %2
       %12 RET
-      === fun relu : Fun(I64) -> (I64) ===
-      %13 LABEL 1 : (I64)
-      %14 = GET 0 : I64
-      %15 = 0 : I64
-      %16 = %14 >= %15 : Bool
-      %17 = 0 : I64
-      %18 = CONST select : Fun(Bool, I64, I64) -> (I64)
+      === fun relu : Fun(i64) -> (i64) ===
+      %13 LABEL 1 : (i64)
+      %14 = GET 0 : i64
+      %15 = 0 : i64
+      %16 = %14 >= %15 : bool
+      %17 = 0 : i64
+      %18 = CONST select : Fun(bool, i64, i64) -> (i64)
       %19 PUT 0 %16
       %20 PUT 1 %14
       %21 PUT 2 %17
       %22 CALL %18
       %23 ==> GOTO %24
-      %24 LABEL 1 : (I64)
-      %25 = GET 0 : I64
-      %26 = 0 : I64
-      %27 = %25 + %26 : I64
+      %24 LABEL 1 : (i64)
+      %25 = GET 0 : i64
+      %26 = 0 : i64
+      %27 = %25 + %26 : i64
       %28 PUT 0 %27
       %29 RET
   "#]].assert_eq(out.drain(..).as_ref());
@@ -178,16 +178,16 @@ fn test_foo() {
   ");
 
   expect![[r#"
-      === fun foo : forall '0 . Fun('0, Fun('0) -> (Bool), Fun('0) -> ('0)) -> ('0) ===
-      %0 LABEL 3 : ('0, Fun('0) -> (Bool), Fun('0) -> ('0))
+      === fun foo : forall '0 . Fun('0, Fun('0) -> (bool), Fun('0) -> ('0)) -> ('0) ===
+      %0 LABEL 3 : ('0, Fun('0) -> (bool), Fun('0) -> ('0))
       %1 = GET 0 : '0
-      %2 = GET 1 : Fun('0) -> (Bool)
+      %2 = GET 1 : Fun('0) -> (bool)
       %3 = GET 2 : Fun('0) -> ('0)
       %4 PUT 0 %1
       %5 CALL %2
       %6 ==> GOTO %7
-      %7 LABEL 1 : (Bool)
-      %8 = GET 0 : Bool
+      %7 LABEL 1 : (bool)
+      %8 = GET 0 : bool
       %9 COND %8
       %10 ==> GOTO %12
       %11 ==> GOTO %15
