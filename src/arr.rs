@@ -96,7 +96,7 @@ impl<T> Drop for Arr<T> {
       }
     }
 
-    if size_of::<T>() != 0 && n != 0 {
+    if ! (size_of::<T>() == 0 || n == 0) {
       unsafe { global::dealloc_slice(p, n as usize) };
     }
   }
