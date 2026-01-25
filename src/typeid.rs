@@ -1,9 +1,9 @@
 use std::num::NonZeroU32;
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct TypeVar(pub u32);
+pub struct TypeId(pub u32);
 
-unsafe impl tangerine::key::IntoKey for TypeVar {
+unsafe impl tangerine::key::IntoKey for TypeId {
   type Key = NonZeroU32;
 
   #[inline(always)]

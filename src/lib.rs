@@ -15,8 +15,8 @@ pub mod sexp;
 pub mod symbol;
 pub mod token;
 pub mod typecheck;
+pub mod typeid;
 pub mod typestore;
-pub mod typevar;
 pub mod uir;
 pub mod union_find;
 

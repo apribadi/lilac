@@ -33,15 +33,15 @@ pub(crate) fn dump(out: &mut impl std::fmt::Write, source: &str) {
         | lilac::uir::Inst::GetLocal(..)
         | lilac::uir::Inst::Op1(..)
         | lilac::uir::Inst::Op2(..) => {
-          let x = lilac::typevar::TypeVar(i);
+          let x = lilac::typeid::TypeId(i);
           write!(out, "%{} {} : {}\n", i, inst, solver.resolve_value_type(x).unwrap()).unwrap();
         }
         | lilac::uir::Inst::Local(..) => {
-          let x = lilac::typevar::TypeVar(i);
+          let x = lilac::typeid::TypeId(i);
           write!(out, "%{} {} : Local {}\n", i, inst, solver.resolve_value_type(x).unwrap()).unwrap();
         }
         | lilac::uir::Inst::Label(_) => {
-          let x = solver.resolve_tuple_type(lilac::typevar::TypeVar(i)).unwrap();
+          let x = solver.resolve_tuple_type(lilac::typeid::TypeId(i)).unwrap();
           write!(out, "%{} {} : {}\n", i, inst, x).unwrap();
         }
       }
