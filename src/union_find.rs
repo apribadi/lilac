@@ -34,9 +34,9 @@ impl<T> UnionFind<T> {
     return Self(Buf::new());
   }
 
-  pub fn put(&mut self, value: T) -> u32 {
+  pub fn push(&mut self, value: T) -> u32 {
     let n = self.0.len();
-    self.0.put(Node::Root(value));
+    self.0.push(Node::Root(value));
     return n;
   }
 

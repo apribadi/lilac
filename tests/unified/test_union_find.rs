@@ -5,7 +5,7 @@ fn init(n: u32, x: impl IntoIterator<Item = (u32, u32)>) -> UnionFind<String> {
   let mut t = UnionFind::new();
 
   for i in 0 .. n {
-    assert!(i == t.put(format!("{}", i)));
+    assert!(i == t.push(format!("{}", i)));
   }
 
   for (a, b) in x {

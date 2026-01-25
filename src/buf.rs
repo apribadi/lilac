@@ -98,6 +98,11 @@ impl<T> Buf<T> {
   }
 
   #[inline(always)]
+  pub fn push(&mut self, value: T) {
+    self.put(value);
+  }
+
+  #[inline(always)]
   pub fn pop(&mut self) -> T {
     let p = self.ptr;
     let n = self.len;
@@ -110,7 +115,7 @@ impl<T> Buf<T> {
   }
 
   #[inline(always)]
-  pub fn pop_if_nonempty(&mut self) -> Option<T> {
+  pub fn pop_checked(&mut self) -> Option<T> {
     let p = self.ptr;
     let n = self.len;
 
