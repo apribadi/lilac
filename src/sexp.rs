@@ -4,8 +4,6 @@
 //!   (foo (bar x y) (baz z))
 //! ```
 
-use crate::iter::enumerate;
-
 pub enum Sexp {
   Atom(Box<[u8]>),
   List(Box<[Sexp]>),
@@ -27,7 +25,7 @@ impl std::fmt::Display for Sexp {
       }
       Self::List(x) => {
         write!(f, "(")?;
-        for (i, y) in enumerate(x) {
+        for (i, y) in x.iter().enumerate() {
           if i != 0 {
             write!(f, " ")?;
           }

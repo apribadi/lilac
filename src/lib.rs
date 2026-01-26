@@ -1,15 +1,14 @@
 #![cfg(any(target_pointer_width = "32", target_pointer_width = "64"))]
 
-pub mod util;
 pub mod arr;
 pub mod ast;
 pub mod buf;
-pub mod iter;
+pub mod irp;
+pub mod iru;
 pub mod lexer;
-pub mod make_uir;
+pub mod make_iru;
 pub mod operator;
 pub mod parse;
-pub mod pir;
 pub mod prim;
 pub mod sexp;
 pub mod symbol;
@@ -17,8 +16,8 @@ pub mod token;
 pub mod typecheck;
 pub mod typeid;
 pub mod typestore;
-pub mod uir;
-pub mod union_find;
+pub mod unionfind;
+pub mod util;
 
 // syntax ideas - use something in { :, @, ` } to denote symbol/label ?
 //

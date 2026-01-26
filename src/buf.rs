@@ -98,11 +98,6 @@ impl<T> Buf<T> {
   }
 
   #[inline(always)]
-  pub fn put(&mut self, value: T) {
-    self.push(value);
-  }
-
-  #[inline(always)]
   pub fn pop(&mut self) -> T {
     let p = self.ptr;
     let n = self.len;

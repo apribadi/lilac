@@ -4,6 +4,8 @@
 
 use crate::arr::Arr;
 use crate::buf::Buf;
+use crate::iru::Inst;
+use crate::iru;
 use crate::operator::Op1;
 use crate::operator::Op2;
 use crate::prim::PrimOp1;
@@ -11,9 +13,7 @@ use crate::prim::PrimOp2;
 use crate::prim::PrimType;
 use crate::symbol::Symbol;
 use crate::typeid::TypeId;
-use crate::uir::Inst;
-use crate::uir;
-use crate::union_find::UnionFind;
+use crate::unionfind::UnionFind;
 use std::iter::zip;
 use tangerine::map::HashMap;
 
@@ -341,7 +341,7 @@ impl Ctx {
   }
 }
 
-pub fn typecheck(module: &uir::Module) -> (HashMap<Symbol, TypeScheme>, Solver) {
+pub fn typecheck(module: &iru::Module) -> (HashMap<Symbol, TypeScheme>, Solver) {
   let mut ctx = Ctx::new();
 
   // allocate a fresh type variable for each program point, starting from zero
