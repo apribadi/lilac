@@ -2,7 +2,7 @@
 //!
 //! NB: single-byte tokens are their own variant tag
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 #[repr(u8)]
 pub enum Token {
   Not        = 0x21, // !
@@ -32,9 +32,9 @@ pub enum Token {
   BitOr      = 0x7c, // |
   RBrace     = 0x7d, // }
   Tilde      = 0x7e, // ~
-  Eof        = 0,
-  Error      = 1,
-  And        = 0xa0, // &&
+  Eof        = 0xa0,
+  Error,
+  And,               // &&
   CmpEq,             // ==
   CmpGe,             // >=
   CmpLe,             // <=
