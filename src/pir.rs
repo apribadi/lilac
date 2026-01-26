@@ -35,7 +35,7 @@ pub struct Fun {
 pub enum Type {
   Array(ValueType),
   Fun(TupleType, TupleType),
-  PrimType(PrimType),
+  Prim(PrimType),
   Nil,
   Cons(ValueType, TupleType),
 }
