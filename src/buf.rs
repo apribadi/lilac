@@ -80,7 +80,7 @@ impl<T> Buf<T> {
   }
 
   #[inline(always)]
-  pub fn put(&mut self, value: T) {
+  pub fn push(&mut self, value: T) {
     let p = self.ptr;
     let c = self.cap;
     let n = self.len;
@@ -98,8 +98,8 @@ impl<T> Buf<T> {
   }
 
   #[inline(always)]
-  pub fn push(&mut self, value: T) {
-    self.put(value);
+  pub fn put(&mut self, value: T) {
+    self.push(value);
   }
 
   #[inline(always)]
@@ -359,7 +359,7 @@ impl<'a, T> ExactSizeIterator for PopList<'a, T> {
 impl<A> FromIterator<A> for Buf<A> {
   fn from_iter<T: IntoIterator<Item = A>>(iter: T) -> Self {
     let mut buf = Buf::new();
-    iter.into_iter().for_each(|x| buf.put(x));
+    iter.into_iter().for_each(|x| buf.push(x));
     return buf;
   }
 }
