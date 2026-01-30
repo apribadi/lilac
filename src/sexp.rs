@@ -26,9 +26,7 @@ impl std::fmt::Display for Sexp {
       Self::List(x) => {
         write!(f, "(")?;
         for (i, y) in x.iter().enumerate() {
-          if i != 0 {
-            write!(f, " ")?;
-          }
+          if i != 0 { write!(f, " ")?; }
           write!(f, "{}", y)?;
         }
         write!(f, ")")?;

@@ -1,5 +1,5 @@
 use expect_test::expect;
-use lilac::union_find::UnionFind;
+use lilac::unionfind::UnionFind;
 
 fn init(n: u32, x: impl IntoIterator<Item = (u32, u32)>) -> UnionFind<String> {
   let mut t = UnionFind::new();

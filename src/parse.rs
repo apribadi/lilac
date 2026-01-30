@@ -60,7 +60,7 @@ enum Prec {
   Shift,
   Add,
   Mul,
-  Max,
+  Prefix,
 }
 
 // toplevel sequence of items
@@ -198,22 +198,22 @@ fn parse_prec<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O, p: Prec, is_stmt: bool) 
     }
     Token::Dec => {
       t.next();
-      parse_expr_prec(t, o, Prec::Max);
+      parse_expr_prec(t, o, Prec::Prefix);
       o.on_pre_op(Op1::Dec);
     }
     Token::Inc => {
       t.next();
-      parse_expr_prec(t, o, Prec::Max);
+      parse_expr_prec(t, o, Prec::Prefix);
       o.on_pre_op(Op1::Inc);
     }
     Token::Hyphen => {
       t.next();
-      parse_expr_prec(t, o, Prec::Max);
+      parse_expr_prec(t, o, Prec::Prefix);
       o.on_op1(Op1::Neg);
     }
     Token::Not => {
       t.next();
-      parse_expr_prec(t, o, Prec::Max);
+      parse_expr_prec(t, o, Prec::Prefix);
       o.on_op1(Op1::Not);
     }
     Token::If => {
