@@ -218,13 +218,13 @@ impl<'a, 'b, 'c> T<'a, 'b, 'c> {
       }
       Token::Dec => {
         self.next();
-        self.parse_expr_prec(P::Prefix);
-        self.on_pre_op(Op1::Dec);
+        let s = self.expect_symbol();
+        self.on_pre_op(s, Op1::Dec);
       }
       Token::Inc => {
         self.next();
-        self.parse_expr_prec(P::Prefix);
-        self.on_pre_op(Op1::Inc);
+        let s = self.expect_symbol();
+        self.on_pre_op(s, Op1::Inc);
       }
       Token::Hyphen => {
         self.next();
@@ -610,9 +610,9 @@ impl<'a, 'b, 'c> T<'a, 'b, 'c> {
     self.push_expr(x);
   }
 
-  fn on_pre_op(&mut self, op: Op1) {
-    let x = self.pop_expr();
-    let x = Expr::PreOp(self.alloc((op, x)));
+  fn on_pre_op(&mut self, symbol: &[u8], op: Op1) {
+    let s = Symbol::from_bytes(symbol);
+    let x = Expr::PreOp(self.alloc((s, op)));
     self.push_expr(x);
   }
 

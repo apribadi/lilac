@@ -425,15 +425,13 @@ fn compile_expr<'a>(x: &Expr<'a>, ctx: &mut Ctx, out: &mut Out) -> What {
       ctx.values.push(x);
       return What::NumValues(1);
     }
-    Expr::PreOp(&(f, ref x)) => {
-      if let Expr::Variable(s) = *x {
-        if let Some(&Referent::Local(v)) = get_referent(s, &ctx.scopes) {
-          let x = out.emit(Inst::GetLocal(v));
-          let y = out.emit(Inst::Op1(f, x));
-          let _ = out.emit(Inst::SetLocal(v, y));
-          ctx.values.push(y); // pre
-          return What::NumValues(1);
-        }
+    Expr::PreOp(&(s, f)) => {
+      if let Some(&Referent::Local(v)) = get_referent(s, &ctx.scopes) {
+        let x = out.emit(Inst::GetLocal(v));
+        let y = out.emit(Inst::Op1(f, x));
+        let _ = out.emit(Inst::SetLocal(v, y));
+        ctx.values.push(y); // pre
+        return What::NumValues(1);
       }
       // error, pre-op must target a local variable
       let _ = out.emit(Inst::GotoStaticError);
