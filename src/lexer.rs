@@ -107,11 +107,11 @@ static TRANSITION: [[u8; 16]; 256] = {
 };
 
 fn is_start(x: u8) -> bool {
-  return STATE_KIND[(x & 0b1111) as usize] == 1;
+  STATE_KIND[(x & 0b1111) as usize] == 1
 }
 
 fn is_continue(x: u8) -> bool {
-  return STATE_KIND[(x & 0b1111) as usize] == 2;
+  STATE_KIND[(x & 0b1111) as usize] == 2
 }
 
 impl<'a> Lexer<'a> {
@@ -130,23 +130,23 @@ impl<'a> Lexer<'a> {
   }
 
   pub fn token_start(&self) -> usize {
-    return self.start;
+    self.start
   }
 
   pub fn token_stop(&self) -> usize {
-    return self.stop;
+    self.stop
   }
 
   pub fn token_is_attached(&self) -> bool {
-    return self.is_attached;
+    self.is_attached
   }
 
   pub fn token(&self) -> Token {
-    return self.token;
+    self.token
   }
 
   pub fn token_span(&self) -> &'a [u8] {
-    return unsafe { self.source.get_unchecked(self.start .. self.stop) };
+    unsafe { self.source.get_unchecked(self.start .. self.stop) }
   }
 
   pub fn next(&mut self) {

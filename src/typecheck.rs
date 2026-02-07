@@ -10,6 +10,8 @@ use crate::operator::Op1;
 use crate::operator::Op2;
 use crate::prim::PrimOp1;
 use crate::prim::PrimOp2;
+use crate::prim::PrimType::Bool;
+use crate::prim::PrimType::I64;
 use crate::prim::PrimType;
 use crate::symbol::Symbol;
 use crate::typeid::TypeId;
@@ -334,7 +336,7 @@ impl Ctx {
         1,
         ValueType::Fun(
           TupleType::Tuple(Arr::from([ValueType::Var(TypeId(0))])),
-          TupleType::Tuple(Arr::from([ValueType::Prim(PrimType::I64)]))))
+          TupleType::Tuple(Arr::from([ValueType::Prim(I64)]))))
     );
 
     return ctx;
@@ -364,10 +366,10 @@ pub fn typecheck(module: &iru::Module) -> (HashMap<Symbol, TypeScheme>, Solver) 
     for i in f.pos .. f.pos + f.len {
       match module.code[i] {
         Inst::ConstBool(_) => {
-          ctx.solver.constrain_prim(TypeId(i), PrimType::Bool);
+          ctx.solver.constrain_prim(TypeId(i), Bool);
         }
         Inst::ConstInt(_) => {
-          ctx.solver.constrain_prim(TypeId(i), PrimType::I64);
+          ctx.solver.constrain_prim(TypeId(i), I64);
         }
         Inst::Local(x) => {
           ctx.solver.unify(TypeId(i), TypeId(x));
@@ -380,11 +382,11 @@ pub fn typecheck(module: &iru::Module) -> (HashMap<Symbol, TypeScheme>, Solver) 
         }
         Inst::Index(x, y) => {
           ctx.solver.constrain_array(TypeId(x), TypeId(i));
-          ctx.solver.constrain_prim(TypeId(y), PrimType::I64);
+          ctx.solver.constrain_prim(TypeId(y), I64);
         }
         Inst::SetIndex(x, y, z) => {
           ctx.solver.constrain_array(TypeId(x), TypeId(z));
-          ctx.solver.constrain_prim(TypeId(y), PrimType::I64);
+          ctx.solver.constrain_prim(TypeId(y), I64);
         }
         Inst::Op1(f, x) => {
           let f = lower_op1(f);
@@ -415,7 +417,7 @@ pub fn typecheck(module: &iru::Module) -> (HashMap<Symbol, TypeScheme>, Solver) 
           ctx.solver.constrain_tuple(rettypevar, &ctx.block_outs);
         }
         Inst::Cond(x) => {
-          ctx.solver.constrain_prim(TypeId(x), PrimType::Bool);
+          ctx.solver.constrain_prim(TypeId(x), Bool);
         }
         Inst::Goto(a) => {
           match ctx.block_call_ret {

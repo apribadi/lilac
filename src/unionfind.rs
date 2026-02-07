@@ -15,29 +15,29 @@ enum Node<T> {
 impl<T> Node<T> {
   unsafe fn root_unchecked(self) -> T {
     let Node::Root(value) = self else { unsafe { unreachable_unchecked() } };
-    return value;
+    value
   }
 
   unsafe fn root_unchecked_ref(&self) -> &T {
     let Node::Root(value) = self else { unsafe { unreachable_unchecked() } };
-    return value;
+    value
   }
 
   unsafe fn root_unchecked_mut_ref(&mut self) -> &mut T {
     let Node::Root(value) = self else { unsafe { unreachable_unchecked() } };
-    return value;
+    value
   }
 }
 
 impl<T> UnionFind<T> {
   pub fn new() -> Self {
-    return Self(Buf::new());
+    Self(Buf::new())
   }
 
   pub fn push(&mut self, value: T) -> u32 {
     let n = self.0.len();
     self.0.push(Node::Root(value));
-    return n;
+    n
   }
 
   unsafe fn find_unchecked(&self, index: u32) -> u32 {
@@ -105,13 +105,13 @@ impl<T> UnionFind<T> {
   unsafe fn get_root_unchecked(&self, index: u32) -> &T {
     debug_assert!(index < self.0.len());
 
-    return unsafe { self.0.get_unchecked(index).root_unchecked_ref() };
+    unsafe { self.0.get_unchecked(index).root_unchecked_ref() }
   }
 
   unsafe fn get_root_unchecked_mut(&mut self, index: u32) -> &mut T {
     debug_assert!(index < self.0.len());
 
-    return unsafe { self.0.get_unchecked_mut(index).root_unchecked_mut_ref() };
+    unsafe { self.0.get_unchecked_mut(index).root_unchecked_mut_ref() }
   }
 }
 
@@ -121,7 +121,7 @@ impl<T> Index<u32> for UnionFind<T> {
   fn index(&self, index: u32) -> &T {
     assert!(index < self.0.len());
 
-    return unsafe { self.get_root_unchecked(self.find_unchecked(index)) };
+    unsafe { self.get_root_unchecked(self.find_unchecked(index)) }
   }
 }
 
@@ -129,7 +129,7 @@ impl<T> IndexMut<u32> for UnionFind<T> {
   fn index_mut(&mut self, index: u32) -> &mut T {
     assert!(index < self.0.len());
 
-    return unsafe { self.get_root_unchecked_mut(self.find_unchecked(index)) };
+    unsafe { self.get_root_unchecked_mut(self.find_unchecked(index)) }
   }
 }
 
@@ -141,6 +141,6 @@ impl<T: std::fmt::Display> std::fmt::Display for UnionFind<T> {
         &Node::Root(ref a) => write!(f, "{}: {}\n", i, a)?,
       }
     }
-    return Ok(());
+    Ok(())
   }
 }

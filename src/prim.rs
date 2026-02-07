@@ -5,6 +5,8 @@ pub enum PrimType {
   I64,
 }
 
+use PrimType::*;
+
 impl std::fmt::Display for PrimType {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     let s =
@@ -26,23 +28,23 @@ pub enum PrimOp1 {
 }
 
 static OP1_TABLE: [(&'static str, PrimType, PrimType); 4] = [
-  ("dec.i64", PrimType::I64, PrimType::I64),
-  ("inc.i64", PrimType::I64, PrimType::I64),
-  ("neg.i64", PrimType::I64, PrimType::I64),
-  ("not.bool", PrimType::Bool, PrimType::Bool),
+  ("dec.i64", I64, I64),
+  ("inc.i64", I64, I64),
+  ("neg.i64", I64, I64),
+  ("not.bool", Bool, Bool),
 ];
 
 impl PrimOp1 {
   pub fn as_str(&self) -> &'static str {
-    return OP1_TABLE[*self as usize].0;
+    OP1_TABLE[*self as usize].0
   }
 
   pub fn arg_type(&self) -> PrimType {
-    return OP1_TABLE[*self as usize].1;
+    OP1_TABLE[*self as usize].1
   }
 
   pub fn out_type(&self) -> PrimType {
-    return OP1_TABLE[*self as usize].2;
+    OP1_TABLE[*self as usize].2
   }
 }
 
@@ -74,35 +76,35 @@ pub enum PrimOp2 {
 }
 
 static OP2_TABLE: [(&'static str, (PrimType, PrimType), PrimType); 16] = [
-  ("add.i64", (PrimType::I64, PrimType::I64), PrimType::I64),
-  ("bitand.i64", (PrimType::I64, PrimType::I64), PrimType::I64),
-  ("bitor.i64", (PrimType::I64, PrimType::I64), PrimType::I64),
-  ("bitxor.i64", (PrimType::I64, PrimType::I64), PrimType::I64),
-  ("cmpeq.i64", (PrimType::I64, PrimType::I64), PrimType::Bool),
-  ("cmpge.i64", (PrimType::I64, PrimType::I64), PrimType::Bool),
-  ("cmpgt.i64", (PrimType::I64, PrimType::I64), PrimType::Bool),
-  ("cmple.i64", (PrimType::I64, PrimType::I64), PrimType::Bool),
-  ("cmplt.i64", (PrimType::I64, PrimType::I64), PrimType::Bool),
-  ("cmpne.i64", (PrimType::I64, PrimType::I64), PrimType::Bool),
-  ("div.i64", (PrimType::I64, PrimType::I64), PrimType::I64),
-  ("mul.i64", (PrimType::I64, PrimType::I64), PrimType::I64),
-  ("rem.i64", (PrimType::I64, PrimType::I64), PrimType::I64),
-  ("shl.i64", (PrimType::I64, PrimType::I64), PrimType::I64),
-  ("shr.i64", (PrimType::I64, PrimType::I64), PrimType::I64),
-  ("sub.i64", (PrimType::I64, PrimType::I64), PrimType::I64),
+  ("add.i64", (I64, I64), I64),
+  ("bitand.i64", (I64, I64), I64),
+  ("bitor.i64", (I64, I64), I64),
+  ("bitxor.i64", (I64, I64), I64),
+  ("cmpeq.i64", (I64, I64), Bool),
+  ("cmpge.i64", (I64, I64), Bool),
+  ("cmpgt.i64", (I64, I64), Bool),
+  ("cmple.i64", (I64, I64), Bool),
+  ("cmplt.i64", (I64, I64), Bool),
+  ("cmpne.i64", (I64, I64), Bool),
+  ("div.i64", (I64, I64), I64),
+  ("mul.i64", (I64, I64), I64),
+  ("rem.i64", (I64, I64), I64),
+  ("shl.i64", (I64, I64), I64),
+  ("shr.i64", (I64, I64), I64),
+  ("sub.i64", (I64, I64), I64),
 ];
 
 impl PrimOp2 {
   pub fn as_str(&self) -> &'static str {
-    return OP2_TABLE[*self as usize].0;
+    OP2_TABLE[*self as usize].0
   }
 
   pub fn arg_type(&self) -> (PrimType, PrimType) {
-    return OP2_TABLE[*self as usize].1;
+    OP2_TABLE[*self as usize].1
   }
 
   pub fn out_type(&self) -> PrimType {
-    return OP2_TABLE[*self as usize].2;
+    OP2_TABLE[*self as usize].2
   }
 }
 

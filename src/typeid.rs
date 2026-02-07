@@ -8,11 +8,11 @@ unsafe impl tangerine::key::IntoKey for TypeId {
 
   #[inline(always)]
   fn inject(Self(n): Self) -> Self::Key {
-    return NonZeroU32::new(n.wrapping_add(1)).unwrap();
+    NonZeroU32::new(n.wrapping_add(1)).unwrap()
   }
 
   #[inline(always)]
   unsafe fn project(n: Self::Key) -> Self {
-    return Self(n.get().wrapping_sub(1));
+    Self(n.get().wrapping_sub(1))
   }
 }

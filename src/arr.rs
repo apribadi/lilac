@@ -45,12 +45,12 @@ impl<T> Arr<T> {
       a += 1;
     }
 
-    return Self { ptr: p, len: n, _phantom_data: PhantomData };
+    Self { ptr: p, len: n, _phantom_data: PhantomData }
   }
 
   #[inline(always)]
   pub fn len(&self) -> u32 {
-    return self.len;
+    self.len
   }
 
   #[inline(always)]
@@ -60,7 +60,7 @@ impl<T> Arr<T> {
 
     debug_assert!(index < n);
 
-    return unsafe { (p + index).as_ref() };
+    unsafe { (p + index).as_ref() }
   }
 
   #[inline(always)]
@@ -70,11 +70,11 @@ impl<T> Arr<T> {
 
     debug_assert!(index < n);
 
-    return unsafe { (p + index).as_mut_ref() };
+    unsafe { (p + index).as_mut_ref() }
   }
 
   pub fn iter(&self) -> Iter<'_, T> {
-    return Iter { ptr: self.ptr, len: self.len, _phantom_data: PhantomData };
+    Iter { ptr: self.ptr, len: self.len, _phantom_data: PhantomData }
   }
 }
 
@@ -104,14 +104,14 @@ impl<T> Drop for Arr<T> {
 
 impl<T: Clone> Clone for Arr<T> {
   fn clone(&self) -> Self {
-    return Self::from(self.iter().map(T::clone));
+    Self::from(self.iter().map(T::clone))
   }
 }
 
 impl<T> Default for Arr<T> {
   #[inline(always)]
   fn default() -> Self {
-    return Self::EMPTY;
+    Self::EMPTY
   }
 }
 
@@ -125,7 +125,7 @@ impl<T> Index<u32> for Arr<T> {
 
     assert!(index < n);
 
-    return unsafe { (p + index).as_ref() };
+    unsafe { (p + index).as_ref() }
   }
 }
 
@@ -137,7 +137,7 @@ impl<T> IndexMut<u32> for Arr<T> {
 
     assert!(index < n);
 
-    return unsafe { (p + index).as_mut_ref() };
+    unsafe { (p + index).as_mut_ref() }
   }
 }
 
@@ -146,7 +146,7 @@ impl<'a, T> IntoIterator for &'a Arr<T> {
   type IntoIter = Iter<'a, T>;
 
   fn into_iter(self) -> Self::IntoIter {
-    return self.iter();
+    self.iter()
   }
 }
 
@@ -169,21 +169,19 @@ impl<'a, T> Iterator for Iter<'a, T> {
     self.ptr = p + 1;
     self.len = n - 1;
 
-    return Some(unsafe { p.as_ref() });
+    Some(unsafe { p.as_ref() })
   }
 
   #[inline(always)]
   fn size_hint(&self) -> (usize, Option<usize>) {
-    let n = self.len;
-
-    return (n as usize, Some(n as usize));
+    (self.len as usize, Some(self.len as usize))
   }
 }
 
 impl<'a, T> ExactSizeIterator for Iter<'a, T> {
   #[inline(always)]
   fn len(&self) -> usize {
-    return self.len as usize;
+    self.len as usize
   }
 }
 
@@ -193,7 +191,7 @@ impl<T, U: IntoIterator<IntoIter: ExactSizeIterator<Item = T>>> From<U> for Arr<
     let n = u32::try_from(iter.len()).unwrap();
     let r = Self::new(n, |_| iter.next().unwrap());
     debug_assert!(iter.next().is_none());
-    return r;
+    r
   }
 }
 

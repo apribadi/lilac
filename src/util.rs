@@ -1,10 +1,10 @@
 pub const fn usize_u32_saturating_cast(x: usize) -> u32 {
-  return if (x as u32) as usize == x { x as u32 } else { u32::MAX };
+  if (x as u32) as usize == x { x as u32 } else { u32::MAX }
 }
 
 #[inline(always)]
 pub fn enumerate<T: IntoIterator>(iter: T) -> impl Iterator<Item = (u32, T::Item)> {
-  return Enumerate { iter: iter.into_iter(), count: 0 };
+  Enumerate { iter: iter.into_iter(), count: 0 }
 }
 
 struct Enumerate<T> {
@@ -20,6 +20,6 @@ impl<T: Iterator> Iterator for Enumerate<T> {
     let a = self.iter.next()?;
     let i = self.count;
     self.count = i + 1;
-    return Some((i, a));
+    Some((i, a))
   }
 }
