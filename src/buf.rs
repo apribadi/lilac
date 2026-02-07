@@ -22,7 +22,7 @@ fn increment_size_class(n: usize) -> usize {
   let k = usize::BITS - 1 - m.leading_zeros();
   let a = 1 << k;
   let b = a >> 1;
-  return a | b & m;
+  a | b & m
 }
 
 impl<T> Buf<T> {
@@ -36,22 +36,22 @@ impl<T> Buf<T> {
 
   #[inline(always)]
   pub const fn new() -> Self {
-    return Self {
+    Self {
       ptr: ptr::NULL,
       cap: if size_of::<T>() == 0 { u32::MAX } else { 0 },
       len: 0,
       _phantom_data: PhantomData,
-    };
+    }
   }
 
   #[inline(always)]
   pub fn is_empty(&self) -> bool {
-    return self.len == 0;
+    self.len == 0
   }
 
   #[inline(always)]
   pub fn len(&self) -> u32 {
-    return self.len;
+    self.len
   }
 
   #[inline(never)]
@@ -66,7 +66,7 @@ impl<T> Buf<T> {
 
       let new_p = unsafe { global::alloc_slice::<T>(new_c) };
 
-      return (new_p, new_c as u32);
+      (new_p, new_c as u32)
     } else {
       let old_s = old_c as usize * size_of::<T>();
       let new_c = increment_size_class(old_s) / size_of::<T>();
@@ -75,7 +75,7 @@ impl<T> Buf<T> {
 
       let new_p = unsafe { global::realloc_slice::<T>(old_p, old_c as usize, new_c) };
 
-      return (new_p, new_c as u32);
+      (new_p, new_c as u32)
     }
   }
 
@@ -106,7 +106,7 @@ impl<T> Buf<T> {
 
     self.len = n - 1;
 
-    return unsafe { (p + (n - 1)).read() };
+    unsafe { (p + (n - 1)).read() }
   }
 
   #[inline(always)]
@@ -118,7 +118,7 @@ impl<T> Buf<T> {
 
     self.len = n - 1;
 
-    return Some(unsafe { (p + (n - 1)).read() });
+    Some(unsafe { (p + (n - 1)).read() })
   }
 
   pub fn pop_list(&mut self, count: u32) -> PopList<'_, T> {
@@ -129,7 +129,7 @@ impl<T> Buf<T> {
 
     self.len = n - count;
 
-    return PopList { ptr: p + (n - count), len: count, _phantom_data: PhantomData };
+    PopList { ptr: p + (n - count), len: count, _phantom_data: PhantomData }
   }
 
   pub fn drain(&mut self) -> PopList<'_, T> {
@@ -138,7 +138,7 @@ impl<T> Buf<T> {
 
     self.len = 0;
 
-    return PopList { ptr: p, len: n, _phantom_data: PhantomData };
+    PopList { ptr: p, len: n, _phantom_data: PhantomData }
   }
 
   #[inline(always)]
@@ -148,7 +148,7 @@ impl<T> Buf<T> {
 
     assert!(n != 0);
 
-    return unsafe { (p + (n - 1)).as_ref() };
+    unsafe { (p + (n - 1)).as_ref() }
   }
 
   #[inline(always)]
@@ -158,7 +158,7 @@ impl<T> Buf<T> {
 
     assert!(n != 0);
 
-    return unsafe { (p + (n - 1)).as_mut_ref() };
+    unsafe { (p + (n - 1)).as_mut_ref() }
   }
 
   #[inline(always)]
@@ -168,7 +168,7 @@ impl<T> Buf<T> {
 
     debug_assert!(index < n);
 
-    return unsafe { (p + index).as_ref() };
+    unsafe { (p + index).as_ref() }
   }
 
   #[inline(always)]
@@ -178,7 +178,7 @@ impl<T> Buf<T> {
 
     debug_assert!(index < n);
 
-    return unsafe { (p + index).as_mut_ref() };
+    unsafe { (p + index).as_mut_ref() }
   }
 
   pub fn clear(&mut self) {
@@ -223,7 +223,7 @@ impl<T> Buf<T> {
   }
 
   pub fn iter(&self) -> Iter<'_, T> {
-    return Iter { ptr: self.ptr, len: self.len, _phantom_data: PhantomData };
+    Iter { ptr: self.ptr, len: self.len, _phantom_data: PhantomData }
   }
 }
 
@@ -236,7 +236,7 @@ impl<T> Drop for Buf<T> {
 impl<T> Default for Buf<T> {
   #[inline(always)]
   fn default() -> Self {
-    return Self::new();
+    Self::new()
   }
 }
 
@@ -250,7 +250,7 @@ impl<T> Index<u32> for Buf<T> {
 
     assert!(index < n);
 
-    return unsafe { (p + index).as_ref() };
+    unsafe { (p + index).as_ref() }
   }
 }
 
@@ -262,7 +262,7 @@ impl<T> IndexMut<u32> for Buf<T> {
 
     assert!(index < n);
 
-    return unsafe { (p + index).as_mut_ref() };
+    unsafe { (p + index).as_mut_ref() }
   }
 }
 
@@ -271,7 +271,7 @@ impl<'a, T> IntoIterator for &'a Buf<T> {
   type IntoIter = Iter<'a, T>;
 
   fn into_iter(self) -> Self::IntoIter {
-    return self.iter();
+    self.iter()
   }
 }
 
@@ -306,19 +306,19 @@ impl<'a, T> Iterator for Iter<'a, T> {
     self.ptr = p + 1;
     self.len = n - 1;
 
-    return Some(unsafe { p.as_ref() });
+    Some(unsafe { p.as_ref() })
   }
 
   #[inline(always)]
   fn size_hint(&self) -> (usize, Option<usize>) {
-    return (self.len as usize, Some(self.len as usize));
+    (self.len as usize, Some(self.len as usize))
   }
 }
 
 impl<'a, T> ExactSizeIterator for Iter<'a, T> {
   #[inline(always)]
   fn len(&self) -> usize {
-    return self.len as usize;
+    self.len as usize
   }
 }
 
@@ -335,19 +335,19 @@ impl<'a, T> Iterator for PopList<'a, T> {
     self.ptr = p + 1;
     self.len = n - 1;
 
-    return Some(unsafe { p.read() });
+    Some(unsafe { p.read() })
   }
 
   #[inline(always)]
   fn size_hint(&self) -> (usize, Option<usize>) {
-    return (self.len as usize, Some(self.len as usize));
+    (self.len as usize, Some(self.len as usize))
   }
 }
 
 impl<'a, T> ExactSizeIterator for PopList<'a, T> {
   #[inline(always)]
   fn len(&self) -> usize {
-    return self.len as usize;
+    self.len as usize
   }
 }
 
@@ -355,6 +355,6 @@ impl<A> FromIterator<A> for Buf<A> {
   fn from_iter<T: IntoIterator<Item = A>>(iter: T) -> Self {
     let mut buf = Buf::new();
     iter.into_iter().for_each(|x| buf.push(x));
-    return buf;
+    buf
   }
 }
