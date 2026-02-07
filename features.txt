@@ -1,0 +1,8 @@
+- non-uniform representations of value types
+- mutable objects can be inlined into their containing object, with interior pointers
+- implicit generalization of polymorphic types for top-level items
+- type-directed resolution of overloaded operators
+- garbage collection
+- stack allocation of downwards funargs
+- function calls with multiple continuations
+- internal iteration with support for jumping out of the loop

@@ -36,8 +36,8 @@ pub enum Type {
   Array(ValueType),
   Fun(TupleType, TupleType),
   Prim(PrimType),
-  Nil,
-  Cons(ValueType, TupleType),
+  Tuple(Arity),
+  TupleElt(ValueType),
 }
 
 #[derive(Clone, Copy)]

@@ -10,7 +10,6 @@ pub mod make_iru;
 pub mod operator;
 pub mod parse;
 pub mod prim;
-pub mod sexp;
 pub mod symbol;
 pub mod token;
 pub mod typecheck;

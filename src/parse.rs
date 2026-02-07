@@ -8,48 +8,19 @@ use crate::buf::Buf;
 use crate::lexer::Lexer;
 use crate::operator::Op1;
 use crate::operator::Op2;
-use crate::sexp::Sexp;
-use crate::sexp;
 use crate::symbol::Symbol;
 use crate::token::Token;
 use oxcart::Arena;
 
-pub trait Out {
-  fn on_and(&mut self);
-  fn on_binding(&mut self, name: Option<&[u8]>); // TODO: type ascription
-  fn on_break(&mut self, n_args: u32);
-  fn on_call(&mut self, n_args: u32);
-  fn on_continue(&mut self);
-  fn on_error_missing_expected_token(&mut self, token: Token);
-  fn on_error_missing_expr(&mut self);
-  fn on_field(&mut self, symbol: &[u8]);
-  fn on_fun(&mut self, name: &[u8], n_args: u32, n_stmts: u32);
-  fn on_if(&mut self, n_stmts: u32);
-  fn on_if_else(&mut self, n_stmts_then: u32, n_stmts_else: u32);
-  fn on_index(&mut self);
-  fn on_let(&mut self, n_bindings: u32, n_args: u32);
-  fn on_literal_bool(&mut self, value: bool);
-  fn on_literal_number(&mut self, value: &[u8]);
-  fn on_loop(&mut self, n_stmts: u32);
-  fn on_op1(&mut self, op: Op1);
-  fn on_op2(&mut self, op: Op2);
-  fn on_or(&mut self);
-  fn on_post_op(&mut self, op: Op1);
-  fn on_pre_op(&mut self, op: Op1);
-  fn on_return(&mut self, n_args: u32);
-  fn on_set(&mut self, symbol: &[u8]);
-  fn on_set_field(&mut self, symbol: &[u8]);
-  fn on_set_index(&mut self);
-  fn on_stmt_expr_list(&mut self, n_exprs: u32);
-  fn on_ternary(&mut self);
-  fn on_var(&mut self, symbol: &[u8]);
-  fn on_variable(&mut self, symbol: &[u8]);
-  fn on_while(&mut self, n_stmts: u32);
+pub fn parse<'a>(source: &[u8], arena: &mut Arena<'a>) -> Arr<Item<'a>> {
+  let mut out = ToAst::new(arena);
+  parse_item_list(&mut Lexer::new(source), &mut out);
+  return Arr::from(out.items.drain());
 }
 
 #[derive(Eq, Ord, PartialEq, PartialOrd)]
 enum Prec {
-  Min,
+  Any,
   Ternary,
   Or,
   And,
@@ -63,9 +34,35 @@ enum Prec {
   Prefix,
 }
 
-// toplevel sequence of items
+struct ToAst<'a, 'b> {
+  arena: &'b mut Arena<'a>,
+  items: Buf<Item<'a>>,
+  binds: Buf<Binding>,
+  exprs: Buf<Expr<'a>>,
+  stmts: Buf<Stmt<'a>>,
+}
 
-pub fn parse<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O) {
+fn expect<'a, 'b, 'c>(t: &mut Lexer<'a>, o: &mut ToAst<'b, 'c>, token: Token) {
+  if t.token() != token {
+    o.on_error_missing_expected_token(token);
+  } else {
+    t.next();
+  }
+}
+
+fn expect_symbol<'a, 'b, 'c>(t: &mut Lexer<'a>, o: &mut ToAst<'b, 'c>) -> &'a [u8] {
+  if t.token() != Token::Symbol {
+    o.on_error_missing_expected_token(Token::Symbol);
+    // TODO: Option::None?
+    return b"!!!";
+  } else {
+    let symbol = t.token_span();
+    t.next();
+    return symbol;
+  }
+}
+
+fn parse_item_list<'a, 'b, 'c>(t: &mut Lexer<'a>, o: &mut ToAst<'b, 'c>) {
   loop {
     match t.token() {
       Token::Eof => {
@@ -88,27 +85,7 @@ pub fn parse<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O) {
   }
 }
 
-fn expect<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O, token: Token) {
-  if t.token() != token {
-    o.on_error_missing_expected_token(token);
-  } else {
-    t.next();
-  }
-}
-
-fn expect_symbol<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O) -> &'a [u8] {
-  if t.token() != Token::Symbol {
-    o.on_error_missing_expected_token(Token::Symbol);
-    // TODO: Option::None?
-    return b"!!!";
-  } else {
-    let symbol = t.token_span();
-    t.next();
-    return symbol;
-  }
-}
-
-fn parse_binding<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O) {
+fn parse_binding<'a, 'b, 'c>(t: &mut Lexer<'a>, o: &mut ToAst<'b, 'c>) {
   match t.token() {
     Token::Symbol => {
       o.on_binding(Some(t.token_span()));
@@ -125,7 +102,7 @@ fn parse_binding<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O) {
   }
 }
 
-fn parse_binding_list<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O, stop: Token) -> u32 {
+fn parse_binding_list<'a, 'b, 'c>(t: &mut Lexer<'a>, o: &mut ToAst<'b, 'c>, stop: Token) -> u32 {
   let mut n_bindings = 0;
   if t.token() != stop {
     loop {
@@ -138,11 +115,11 @@ fn parse_binding_list<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O, stop: Token) -> 
   return n_bindings;
 }
 
-fn parse_expr<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O) {
-  parse_expr_prec(t, o, Prec::Min);
+fn parse_expr<'a, 'b, 'c>(t: &mut Lexer<'a>, o: &mut ToAst<'b, 'c>) {
+  parse_expr_prec(t, o, Prec::Any);
 }
 
-fn parse_expr_list<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O, stop: Token) -> u32 {
+fn parse_expr_list<'a, 'b, 'c>(t: &mut Lexer<'a>, o: &mut ToAst<'b, 'c>, stop: Token) -> u32 {
   let mut n_exprs = 0;
   if t.token() != stop {
     loop {
@@ -155,13 +132,13 @@ fn parse_expr_list<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O, stop: Token) -> u32
   return n_exprs;
 }
 
-fn parse_expr_prec<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O, p: Prec) {
+fn parse_expr_prec<'a, 'b, 'c>(t: &mut Lexer<'a>, o: &mut ToAst<'b, 'c>, p: Prec) {
   let _: bool = parse_prec(t, o, p, false);
 }
 
 // returns `true` if we parsed a statement
 
-fn parse_prec<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O, p: Prec, is_stmt: bool) -> bool {
+fn parse_prec<'a, 'b, 'c>(t: &mut Lexer<'a>, o: &mut ToAst<'b, 'c>, p: Prec, is_stmt: bool) -> bool {
   match t.token() {
     Token::LParen => {
       t.next();
@@ -383,7 +360,7 @@ fn parse_prec<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O, p: Prec, is_stmt: bool) 
   }
 }
 
-fn parse_block<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O) -> u32 {
+fn parse_block<'a, 'b, 'c>(t: &mut Lexer<'a>, o: &mut ToAst<'b, 'c>) -> u32 {
   expect(t, o, Token::LBrace);
 
   let mut n_stmts = 0;
@@ -462,7 +439,7 @@ fn parse_block<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O) -> u32 {
 
         let pos = t.token_start();
 
-        if ! parse_prec(t, o, Prec::Min, true) {
+        if ! parse_prec(t, o, Prec::Any, true) {
           let mut n_exprs = 1;
           while t.token() == Token::Comma {
             t.next();
@@ -485,215 +462,7 @@ fn parse_block<'a, O: Out>(t: &mut Lexer<'a>, o: &mut O) -> u32 {
   return n_stmts;
 }
 
-// ------- EXAMPLE PARSE OUTPUT - DUMP AS SEXP -------
-
-struct ToSexp(Buf<Sexp>);
-
-pub fn parse_sexp(source: &[u8]) -> Buf<Sexp> {
-  let mut out = ToSexp::new();
-  parse(&mut Lexer::new(source), &mut out);
-  return out.0;
-}
-
-impl ToSexp {
-  fn new() -> Self {
-    return Self(Buf::new());
-  }
-
-  fn push(&mut self, x: Sexp) {
-    self.0.push(x);
-  }
-
-  fn pop(&mut self) -> Sexp {
-    return self.0.pop();
-  }
-
-  fn pop_list(&mut self, n: u32) -> impl ExactSizeIterator<Item = Sexp> {
-    return self.0.pop_list(n);
-  }
-}
-
-impl Out for ToSexp {
-  fn on_fun(&mut self, name: &[u8], n_args: u32, n_stmts: u32) {
-    let z = sexp::list(self.pop_list(n_stmts));
-    let y = sexp::list(self.pop_list(n_args));
-    let x = sexp::atom(name);
-    self.push(sexp::list([sexp::atom("fun"), x, y, z]));
-  }
-
-  fn on_binding(&mut self, name: Option<&[u8]>) {
-    self.push(sexp::atom(match name { None => b"_", Some(name) => name }));
-  }
-
-  fn on_variable(&mut self, symbol: &[u8]) {
-    self.push(sexp::atom(symbol));
-  }
-
-  fn on_literal_bool(&mut self, value: bool) {
-    self.push(sexp::atom(if value { "true" } else { "false" }));
-  }
-
-  fn on_literal_number(&mut self, value: &[u8]) {
-    self.push(sexp::atom(value));
-  }
-
-  fn on_ternary(&mut self) {
-    let z = self.pop();
-    let y = self.pop();
-    let x = self.pop();
-    self.push(sexp::list([sexp::atom(":?"), x, y, z]));
-  }
-
-  fn on_or(&mut self) {
-    let y = self.pop();
-    let x = self.pop();
-    self.push(sexp::list([sexp::atom("||"), x, y]));
-  }
-
-  fn on_and(&mut self) {
-    let y = self.pop();
-    let x = self.pop();
-    self.push(sexp::list([sexp::atom("&&"), x, y]));
-  }
-
-  fn on_op1(&mut self, op: Op1) {
-    let x = self.pop();
-    self.push(sexp::list([sexp::atom(op.as_str()), x]));
-  }
-
-  fn on_op2(&mut self, op: Op2) {
-    let y = self.pop();
-    let x = self.pop();
-    self.push(sexp::list([sexp::atom(op.as_str()), x, y]));
-  }
-
-  fn on_post_op(&mut self, op: Op1) {
-    let x = self.pop();
-    self.push(sexp::list([sexp::atom("%post"), sexp::atom(op.as_str()), x]));
-  }
-
-  fn on_pre_op(&mut self, op: Op1) {
-    let x = self.pop();
-    self.push(sexp::list([sexp::atom("%pre"), sexp::atom(op.as_str()), x]));
-  }
-
-  fn on_field(&mut self, symbol: &[u8]) {
-    let s = sexp::atom(format!(".{}", str::from_utf8(symbol).unwrap()));
-    let x = self.pop();
-    self.push(sexp::list([s, x]));
-  }
-
-  fn on_index(&mut self) {
-    let y = self.pop();
-    let x = self.pop();
-    self.push(sexp::list([sexp::atom("[]"), x, y]));
-  }
-
-  fn on_if(&mut self, n_stmts: u32) {
-    let y = sexp::list(self.pop_list(n_stmts));
-    let x = self.pop();
-    self.push(sexp::list([sexp::atom("if"), x, y]));
-  }
-
-  fn on_if_else(&mut self, n_stmts_then: u32, n_stmts_else: u32) {
-    let z = sexp::list(self.pop_list(n_stmts_else));
-    let y = sexp::list(self.pop_list(n_stmts_then));
-    let x = self.pop();
-    self.push(sexp::list([sexp::atom("if"), x, y, z]));
-  }
-
-  fn on_call(&mut self, n_args: u32) {
-    let x = sexp::list(self.pop_list(1 + n_args));
-    self.push(x);
-  }
-
-  fn on_loop(&mut self, n_stmts: u32) {
-    let x = sexp::list(self.pop_list(n_stmts));
-    self.push(sexp::list([sexp::atom("loop"), x]));
-  }
-
-  fn on_stmt_expr_list(&mut self, n_exprs: u32) {
-    let x = sexp::list(self.pop_list(n_exprs));
-    self.push(x);
-  }
-
-  fn on_break(&mut self, n_args: u32) {
-    let x = sexp::atom("break");
-    let y = sexp::list(self.pop_list(n_args));
-    self.push(sexp::list([x, y]));
-  }
-
-  fn on_continue(&mut self) {
-    self.push(sexp::atom("continue"));
-  }
-
-  fn on_let(&mut self, n_bindings: u32, n_exprs: u32) {
-    let y = sexp::list(self.pop_list(n_exprs));
-    let x = sexp::list(self.pop_list(n_bindings));
-    self.push(sexp::list([sexp::atom("let"), x, y]));
-  }
-
-  fn on_return(&mut self, n_args: u32) {
-    let x = sexp::atom("return");
-    let y = sexp::list(self.pop_list(n_args));
-    self.push(sexp::list([x, y]));
-  }
-
-  fn on_set(&mut self, symbol: &[u8]) {
-    let x = self.pop();
-    let s = sexp::atom(symbol);
-    self.push(sexp::list([sexp::atom("="), s, x]));
-  }
-
-  fn on_set_field(&mut self, symbol: &[u8]) {
-    let s = sexp::atom(format!(".{}<-", str::from_utf8(symbol).unwrap()).as_bytes());
-    let y = self.pop();
-    let x = self.pop();
-    self.push(sexp::list([s, x, y]));
-  }
-
-  fn on_set_index(&mut self) {
-    let z = self.pop();
-    let y = self.pop();
-    let x = self.pop();
-    self.push(sexp::list([sexp::atom("[]="), x, y, z]));
-  }
-
-  fn on_var(&mut self, symbol: &[u8]) {
-    let x = self.pop();
-    let s = sexp::atom(symbol);
-    self.push(sexp::list([sexp::atom("var"), s, x]));
-  }
-
-  fn on_while(&mut self, n_stmts: u32) {
-    let y = sexp::list(self.pop_list(n_stmts));
-    let x = self.pop();
-    self.push(sexp::list([sexp::atom("while"), x, y]));
-  }
-
-  fn on_error_missing_expected_token(&mut self, _: Token) {
-  }
-
-  fn on_error_missing_expr(&mut self) {
-    self.push(sexp::atom("undefined"));
-  }
-}
-
 // ------- PARSE INTO ARENA-ALLOCATED AST -------
-
-pub fn parse_ast<'a>(source: &[u8], arena: &mut Arena<'a>) -> Arr<Item<'a>> {
-  let mut out = ToAst::new(arena);
-  parse(&mut Lexer::new(source), &mut out);
-  return Arr::from(out.items.drain());
-}
-
-struct ToAst<'a, 'b> {
-  arena: &'b mut Arena<'a>,
-  items: Buf<Item<'a>>,
-  binds: Buf<Binding>,
-  exprs: Buf<Expr<'a>>,
-  stmts: Buf<Stmt<'a>>,
-}
 
 impl<'a, 'b> ToAst<'a, 'b> {
   fn new(arena: &'b mut Arena<'a>) -> Self {
@@ -743,7 +512,7 @@ impl<'a, 'b> ToAst<'a, 'b> {
   }
 }
 
-impl<'a, 'b> Out for ToAst<'a, 'b> {
+impl<'a, 'b> ToAst<'a, 'b> {
   fn on_fun(&mut self, name: &[u8], n_args: u32, n_stmts: u32) {
     let z = self.pop_stmt_list(n_stmts);
     let y = self.pop_bind_list(n_args);
