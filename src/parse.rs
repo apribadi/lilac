@@ -13,13 +13,22 @@ use crate::token::Token;
 use oxcart::Arena;
 
 pub fn parse<'a>(source: &[u8], arena: &mut Arena<'a>) -> Arr<Item<'a>> {
-  let mut out = ToAst::new(arena);
-  parse_item_list(&mut Lexer::new(source), &mut out);
-  return Arr::from(out.items.drain());
+  let mut t = T::new(source, arena);
+  t.parse_item_list();
+  return Arr::from(t.items.drain());
+}
+
+struct T<'a, 'b, 'c> {
+  lexer: Lexer<'c>,
+  arena: &'b mut Arena<'a>,
+  items: Buf<Item<'a>>,
+  binds: Buf<Binding>,
+  exprs: Buf<Expr<'a>>,
+  stmts: Buf<Stmt<'a>>,
 }
 
 #[derive(Eq, Ord, PartialEq, PartialOrd)]
-enum Prec {
+enum P {
   Any,
   Ternary,
   Or,
@@ -34,439 +43,10 @@ enum Prec {
   Prefix,
 }
 
-struct ToAst<'a, 'b> {
-  arena: &'b mut Arena<'a>,
-  items: Buf<Item<'a>>,
-  binds: Buf<Binding>,
-  exprs: Buf<Expr<'a>>,
-  stmts: Buf<Stmt<'a>>,
-}
-
-fn expect<'a, 'b, 'c>(t: &mut Lexer<'a>, o: &mut ToAst<'b, 'c>, token: Token) {
-  if t.token() != token {
-    o.on_error_missing_expected_token(token);
-  } else {
-    t.next();
-  }
-}
-
-fn expect_symbol<'a, 'b, 'c>(t: &mut Lexer<'a>, o: &mut ToAst<'b, 'c>) -> &'a [u8] {
-  if t.token() != Token::Symbol {
-    o.on_error_missing_expected_token(Token::Symbol);
-    // TODO: Option::None?
-    return b"!!!";
-  } else {
-    let symbol = t.token_span();
-    t.next();
-    return symbol;
-  }
-}
-
-fn parse_item_list<'a, 'b, 'c>(t: &mut Lexer<'a>, o: &mut ToAst<'b, 'c>) {
-  loop {
-    match t.token() {
-      Token::Eof => {
-        break;
-      }
-      Token::Fun => {
-        t.next();
-        let name = expect_symbol(t, o);
-        expect(t, o, Token::LParen);
-        let m = parse_binding_list(t, o, Token::RParen);
-        expect(t, o, Token::RParen);
-        let n = parse_block(t, o);
-        o.on_fun(name, m, n);
-      }
-      _ => {
-        // TODO: error?
-        break;
-      }
-    }
-  }
-}
-
-fn parse_binding<'a, 'b, 'c>(t: &mut Lexer<'a>, o: &mut ToAst<'b, 'c>) {
-  match t.token() {
-    Token::Symbol => {
-      o.on_binding(Some(t.token_span()));
-      t.next();
-    }
-    Token::Underscore => {
-      o.on_binding(None);
-      t.next();
-    }
-    _ => {
-      o.on_error_missing_expected_token(Token::Symbol);
-      o.on_binding(None);
-    }
-  }
-}
-
-fn parse_binding_list<'a, 'b, 'c>(t: &mut Lexer<'a>, o: &mut ToAst<'b, 'c>, stop: Token) -> u32 {
-  let mut n_bindings = 0;
-  if t.token() != stop {
-    loop {
-      parse_binding(t, o);
-      n_bindings += 1;
-      if t.token() != Token::Comma { break; }
-      t.next();
-    }
-  }
-  return n_bindings;
-}
-
-fn parse_expr<'a, 'b, 'c>(t: &mut Lexer<'a>, o: &mut ToAst<'b, 'c>) {
-  parse_expr_prec(t, o, Prec::Any);
-}
-
-fn parse_expr_list<'a, 'b, 'c>(t: &mut Lexer<'a>, o: &mut ToAst<'b, 'c>, stop: Token) -> u32 {
-  let mut n_exprs = 0;
-  if t.token() != stop {
-    loop {
-      parse_expr(t, o);
-      n_exprs += 1;
-      if t.token() != Token::Comma { break; }
-      t.next();
-    }
-  }
-  return n_exprs;
-}
-
-fn parse_expr_prec<'a, 'b, 'c>(t: &mut Lexer<'a>, o: &mut ToAst<'b, 'c>, p: Prec) {
-  let _: bool = parse_prec(t, o, p, false);
-}
-
-// returns `true` if we parsed a statement
-
-fn parse_prec<'a, 'b, 'c>(t: &mut Lexer<'a>, o: &mut ToAst<'b, 'c>, p: Prec, is_stmt: bool) -> bool {
-  match t.token() {
-    Token::LParen => {
-      t.next();
-      parse_expr(t, o);
-      expect(t, o, Token::RParen);
-    }
-    Token::True => {
-      t.next();
-      o.on_literal_bool(true);
-    }
-    Token::False => {
-      t.next();
-      o.on_literal_bool(false);
-    }
-    Token::Number => {
-      let value = t.token_span();
-      t.next();
-      o.on_literal_number(value);
-    }
-    Token::Symbol => {
-      let symbol = t.token_span();
-      t.next();
-      match t.token() {
-        Token::Equal if is_stmt => {
-          t.next();
-          parse_expr(t, o);
-          o.on_set(symbol);
-          return true;
-        }
-        _ => {
-          o.on_variable(symbol);
-        }
-      }
-    }
-    Token::Dec => {
-      t.next();
-      parse_expr_prec(t, o, Prec::Prefix);
-      o.on_pre_op(Op1::Dec);
-    }
-    Token::Inc => {
-      t.next();
-      parse_expr_prec(t, o, Prec::Prefix);
-      o.on_pre_op(Op1::Inc);
-    }
-    Token::Hyphen => {
-      t.next();
-      parse_expr_prec(t, o, Prec::Prefix);
-      o.on_op1(Op1::Neg);
-    }
-    Token::Not => {
-      t.next();
-      parse_expr_prec(t, o, Prec::Prefix);
-      o.on_op1(Op1::Not);
-    }
-    Token::If => {
-      t.next();
-      parse_expr(t, o);
-      let n = parse_block(t, o);
-      if t.token() == Token::Else {
-        t.next();
-        let m = parse_block(t, o);
-        o.on_if_else(n, m);
-      } else {
-        o.on_if(n);
-      }
-    }
-    Token::Loop => {
-      t.next();
-      let n = parse_block(t, o);
-      o.on_loop(n);
-    }
-    _ => {
-      o.on_error_missing_expr();
-    }
-  }
-
-  loop {
-    match t.token() {
-      Token::Query if p <= Prec::Ternary => {
-        t.next();
-        parse_expr(t, o);
-        expect(t, o, Token::Colon);
-        parse_expr_prec(t, o, Prec::Ternary);
-        o.on_ternary();
-      }
-      Token::Or if p < Prec::Or => {
-        t.next();
-        parse_expr_prec(t, o, Prec::Or);
-        o.on_or();
-      }
-      Token::And if p < Prec::And => {
-        t.next();
-        parse_expr_prec(t, o, Prec::And);
-        o.on_and();
-      }
-      Token::CmpEq if p < Prec::Cmp => {
-        t.next();
-        parse_expr_prec(t, o, Prec::Cmp);
-        o.on_op2(Op2::CmpEq);
-      }
-      Token::CmpGe if p < Prec::Cmp => {
-        t.next();
-        parse_expr_prec(t, o, Prec::Cmp);
-        o.on_op2(Op2::CmpGe);
-      }
-      Token::CmpGt if p < Prec::Cmp => {
-        t.next();
-        parse_expr_prec(t, o, Prec::Cmp);
-        o.on_op2(Op2::CmpGt);
-      }
-      Token::CmpLe if p < Prec::Cmp => {
-        t.next();
-        parse_expr_prec(t, o, Prec::Cmp);
-        o.on_op2(Op2::CmpLe);
-      }
-      Token::CmpLt if p < Prec::Cmp => {
-        t.next();
-        parse_expr_prec(t, o, Prec::Cmp);
-        o.on_op2(Op2::CmpLt);
-      }
-      Token::CmpNe if p < Prec::Cmp => {
-        t.next();
-        parse_expr_prec(t, o, Prec::Cmp);
-        o.on_op2(Op2::CmpNe);
-      }
-      Token::BitOr if p < Prec::BitOr => {
-        t.next();
-        parse_expr_prec(t, o, Prec::BitOr);
-        o.on_op2(Op2::BitOr);
-      }
-      Token::BitXor if p < Prec::BitXor => {
-        t.next();
-        parse_expr_prec(t, o, Prec::BitXor);
-        o.on_op2(Op2::BitXor);
-      }
-      Token::BitAnd if p < Prec::BitAnd => {
-        t.next();
-        parse_expr_prec(t, o, Prec::BitAnd);
-        o.on_op2(Op2::BitAnd);
-      }
-      Token::Shl if p < Prec::Shift => {
-        t.next();
-        parse_expr_prec(t, o, Prec::Shift);
-        o.on_op2(Op2::Shl);
-      }
-      Token::Shr if p < Prec::Shift => {
-        t.next();
-        parse_expr_prec(t, o, Prec::Shift);
-        o.on_op2(Op2::Shr);
-      }
-      Token::Add if p < Prec::Add => {
-        t.next();
-        parse_expr_prec(t, o, Prec::Add);
-        o.on_op2(Op2::Add);
-      }
-      Token::Hyphen if p < Prec::Add => {
-        t.next();
-        parse_expr_prec(t, o, Prec::Add);
-        o.on_op2(Op2::Sub);
-      }
-      Token::Div if p < Prec::Mul => {
-        t.next();
-        parse_expr_prec(t, o, Prec::Mul);
-        o.on_op2(Op2::Div);
-      }
-      Token::Mul if p < Prec::Mul => {
-        t.next();
-        parse_expr_prec(t, o, Prec::Mul);
-        o.on_op2(Op2::Mul);
-      }
-      Token::Rem if p < Prec::Mul => {
-        t.next();
-        parse_expr_prec(t, o, Prec::Mul);
-        o.on_op2(Op2::Rem);
-      }
-      Token::Dec => {
-        t.next();
-        o.on_post_op(Op1::Dec);
-      }
-      Token::Inc => {
-        t.next();
-        o.on_post_op(Op1::Inc);
-      }
-      Token::Field if t.token_is_attached() => {
-        let symbol = &t.token_span()[1 ..];
-        t.next();
-        if is_stmt && t.token() == Token::Equal {
-          t.next();
-          parse_expr(t, o);
-          o.on_set_field(symbol);
-          return true;
-        } else {
-          o.on_field(symbol);
-        }
-      }
-      Token::LBracket if t.token_is_attached() => {
-        t.next();
-        parse_expr(t, o);
-        expect(t, o, Token::RBracket);
-        if is_stmt && t.token() == Token::Equal {
-          t.next();
-          parse_expr(t, o);
-          o.on_set_index();
-          return true;
-        } else {
-          o.on_index();
-        }
-      }
-      Token::LParen if t.token_is_attached() => {
-        t.next();
-        let n_args = parse_expr_list(t, o, Token::RParen);
-        expect(t, o, Token::RParen);
-        o.on_call(n_args);
-      }
-      _ => {
-        return false;
-      }
-    }
-  }
-}
-
-fn parse_block<'a, 'b, 'c>(t: &mut Lexer<'a>, o: &mut ToAst<'b, 'c>) -> u32 {
-  expect(t, o, Token::LBrace);
-
-  let mut n_stmts = 0;
-
-  loop {
-    match t.token() {
-      Token::RBrace => {
-        t.next();
-        break;
-      }
-      Token::Break => {
-        t.next();
-        let n_args = parse_expr_list(t, o, Token::RBrace);
-        o.on_break(n_args);
-        n_stmts += 1;
-        expect(t, o, Token::RBrace);
-        break;
-      }
-      Token::Continue => {
-        t.next();
-        o.on_continue();
-        n_stmts += 1;
-        expect(t, o, Token::RBrace);
-        break;
-      }
-      Token::Let => {
-        t.next();
-        // NB: we allow a list of zero bindings, like
-        //
-        //   let = f(x)
-        //
-        // which is a bit weird. but works semantically
-        let n_bindings = parse_binding_list(t, o, Token::Equal);
-        expect(t, o, Token::Equal);
-        let mut n_exprs = 0;
-        loop {
-          parse_expr(t, o);
-          n_exprs += 1;
-          if t.token() != Token::Comma { break; }
-          t.next();
-        }
-        o.on_let(n_bindings, n_exprs);
-        n_stmts += 1;
-      }
-      Token::Return => {
-        t.next();
-        let n_args = parse_expr_list(t, o, Token::RBrace);
-        o.on_return(n_args);
-        n_stmts += 1;
-        expect(t, o, Token::RBrace);
-        break;
-      }
-      Token::Var => {
-        t.next();
-        let symbol = expect_symbol(t, o);
-        expect(t, o, Token::Equal);
-        parse_expr(t, o);
-        o.on_var(symbol);
-        n_stmts += 1;
-      }
-      Token::While => {
-        t.next();
-        parse_expr(t, o);
-        let n = parse_block(t, o);
-        o.on_while(n);
-        n_stmts += 1;
-      }
-      _ => {
-        // NB: If we couldn't parse anything at all, then we immediately close
-        // the block so that we don't get stuck in an infinite loop.
-        //
-        // Note that we already know that there ISN'T an RBrace here, so the
-        // expect will fail.
-        //
-        // Also, note that in this case we still emit an `undefined` expr/stmt.
-
-        let pos = t.token_start();
-
-        if ! parse_prec(t, o, Prec::Any, true) {
-          let mut n_exprs = 1;
-          while t.token() == Token::Comma {
-            t.next();
-            parse_expr(t, o);
-            n_exprs += 1;
-          }
-          o.on_stmt_expr_list(n_exprs);
-        }
-
-        n_stmts += 1;
-
-        if t.token_start() == pos {
-          expect(t, o, Token::RBrace);
-          break;
-        }
-      }
-    }
-  }
-
-  return n_stmts;
-}
-
-// ------- PARSE INTO ARENA-ALLOCATED AST -------
-
-impl<'a, 'b> ToAst<'a, 'b> {
-  fn new(arena: &'b mut Arena<'a>) -> Self {
+impl<'a, 'b, 'c> T<'a, 'b, 'c> {
+  fn new(source: &'c [u8], arena: &'b mut Arena<'a>) -> Self {
     Self {
+      lexer: Lexer::new(source),
       arena,
       items: Buf::new(),
       binds: Buf::new(),
@@ -474,6 +54,451 @@ impl<'a, 'b> ToAst<'a, 'b> {
       stmts: Buf::new(),
     }
   }
+
+  fn next(&mut self) {
+    self.lexer.next();
+  }
+
+  fn token(&self) -> Token {
+    return self.lexer.token();
+  }
+
+  fn token_start(&self) -> usize {
+    return self.lexer.token_start();
+  }
+
+  fn token_span(&self) -> &'c [u8] {
+    return self.lexer.token_span();
+  }
+
+  fn token_is_attached(&self) -> bool {
+    return self.lexer.token_is_attached();
+  }
+
+  fn expect(&mut self, token: Token) {
+    if self.token() != token {
+      self.on_error_missing_expected_token(token);
+    } else {
+      self.next();
+    }
+  }
+
+  fn expect_symbol(&mut self) -> &'c [u8] {
+    if self.token() != Token::Symbol {
+      self.on_error_missing_expected_token(Token::Symbol);
+      // TODO: Option::None?
+      return b"!!!";
+    } else {
+      let symbol = self.token_span();
+      self.next();
+      return symbol;
+    }
+  }
+
+  fn parse_item_list(&mut self) {
+    loop {
+      match self.token() {
+        Token::Eof => {
+          break;
+        }
+        Token::Fun => {
+          self.next();
+          let name = self.expect_symbol();
+          self.expect(Token::LParen);
+          let m = self.parse_binding_list(Token::RParen);
+          self.expect(Token::RParen);
+          let n = self.parse_block();
+          self.on_fun(name, m, n);
+        }
+        _ => {
+          // TODO: error?
+          break;
+        }
+      }
+    }
+  }
+
+  fn parse_binding(&mut self) {
+    match self.token() {
+      Token::Symbol => {
+        let s = self.token_span();
+        self.on_binding(Some(s));
+        self.next();
+      }
+      Token::Underscore => {
+        self.on_binding(None);
+        self.next();
+      }
+      _ => {
+        self.on_error_missing_expected_token(Token::Symbol);
+        self.on_binding(None);
+      }
+    }
+  }
+
+  fn parse_binding_list(&mut self, stop: Token) -> u32 {
+    let mut n_bindings = 0;
+    if self.token() != stop {
+      loop {
+        self.parse_binding();
+        n_bindings += 1;
+        if self.token() != Token::Comma { break; }
+        self.next();
+      }
+    }
+    return n_bindings;
+  }
+
+  fn parse_expr(&mut self) {
+    self.parse_expr_prec(P::Any);
+  }
+
+  fn parse_expr_list(&mut self, stop: Token) -> u32 {
+    let mut n_exprs = 0;
+    if self.token() != stop {
+      loop {
+        self.parse_expr();
+        n_exprs += 1;
+        if self.token() != Token::Comma { break; }
+        self.next();
+      }
+    }
+    return n_exprs;
+  }
+
+  fn parse_expr_prec(&mut self, p: P) {
+    let _: bool = self.parse_prec(p, false);
+  }
+
+  // returns `true` if we parsed a statement
+
+  fn parse_prec(&mut self, p: P, is_stmt: bool) -> bool {
+    match self.token() {
+      Token::LParen => {
+        self.next();
+        self.parse_expr();
+        self.expect(Token::RParen);
+      }
+      Token::True => {
+        self.next();
+        self.on_literal_bool(true);
+      }
+      Token::False => {
+        self.next();
+        self.on_literal_bool(false);
+      }
+      Token::Number => {
+        let value = self.token_span();
+        self.next();
+        self.on_literal_number(value);
+      }
+      Token::Symbol => {
+        let symbol = self.token_span();
+        self.next();
+        match self.token() {
+          Token::Equal if is_stmt => {
+            self.next();
+            self.parse_expr();
+            self.on_set(symbol);
+            return true;
+          }
+          Token::Dec => {
+            self.next();
+            self.on_variable(symbol);
+            self.on_post_op(Op1::Dec);
+          }
+          Token::Inc => {
+            self.next();
+            self.on_variable(symbol);
+            self.on_post_op(Op1::Inc);
+          }
+          _ => {
+            self.on_variable(symbol);
+          }
+        }
+      }
+      Token::Dec => {
+        self.next();
+        self.parse_expr_prec(P::Prefix);
+        self.on_pre_op(Op1::Dec);
+      }
+      Token::Inc => {
+        self.next();
+        self.parse_expr_prec(P::Prefix);
+        self.on_pre_op(Op1::Inc);
+      }
+      Token::Hyphen => {
+        self.next();
+        self.parse_expr_prec(P::Prefix);
+        self.on_op1(Op1::Neg);
+      }
+      Token::Not => {
+        self.next();
+        self.parse_expr_prec(P::Prefix);
+        self.on_op1(Op1::Not);
+      }
+      Token::If => {
+        self.next();
+        self.parse_expr();
+        let n = self.parse_block();
+        if self.token() == Token::Else {
+          self.next();
+          let m = self.parse_block();
+          self.on_if_else(n, m);
+        } else {
+          self.on_if(n);
+        }
+      }
+      Token::Loop => {
+        self.next();
+        let n = self.parse_block();
+        self.on_loop(n);
+      }
+      _ => {
+        self.on_error_missing_expr();
+      }
+    }
+
+    loop {
+      match self.token() {
+        Token::Query if p <= P::Ternary => {
+          self.next();
+          self.parse_expr();
+          self.expect(Token::Colon);
+          self.parse_expr_prec(P::Ternary);
+          self.on_ternary();
+        }
+        Token::Or if p < P::Or => {
+          self.next();
+          self.parse_expr_prec(P::Or);
+          self.on_or();
+        }
+        Token::And if p < P::And => {
+          self.next();
+          self.parse_expr_prec(P::And);
+          self.on_and();
+        }
+        Token::CmpEq if p < P::Cmp => {
+          self.next();
+          self.parse_expr_prec(P::Cmp);
+          self.on_op2(Op2::CmpEq);
+        }
+        Token::CmpGe if p < P::Cmp => {
+          self.next();
+          self.parse_expr_prec(P::Cmp);
+          self.on_op2(Op2::CmpGe);
+        }
+        Token::CmpGt if p < P::Cmp => {
+          self.next();
+          self.parse_expr_prec(P::Cmp);
+          self.on_op2(Op2::CmpGt);
+        }
+        Token::CmpLe if p < P::Cmp => {
+          self.next();
+          self.parse_expr_prec(P::Cmp);
+          self.on_op2(Op2::CmpLe);
+        }
+        Token::CmpLt if p < P::Cmp => {
+          self.next();
+          self.parse_expr_prec(P::Cmp);
+          self.on_op2(Op2::CmpLt);
+        }
+        Token::CmpNe if p < P::Cmp => {
+          self.next();
+          self.parse_expr_prec(P::Cmp);
+          self.on_op2(Op2::CmpNe);
+        }
+        Token::BitOr if p < P::BitOr => {
+          self.next();
+          self.parse_expr_prec(P::BitOr);
+          self.on_op2(Op2::BitOr);
+        }
+        Token::BitXor if p < P::BitXor => {
+          self.next();
+          self.parse_expr_prec(P::BitXor);
+          self.on_op2(Op2::BitXor);
+        }
+        Token::BitAnd if p < P::BitAnd => {
+          self.next();
+          self.parse_expr_prec(P::BitAnd);
+          self.on_op2(Op2::BitAnd);
+        }
+        Token::Shl if p < P::Shift => {
+          self.next();
+          self.parse_expr_prec(P::Shift);
+          self.on_op2(Op2::Shl);
+        }
+        Token::Shr if p < P::Shift => {
+          self.next();
+          self.parse_expr_prec(P::Shift);
+          self.on_op2(Op2::Shr);
+        }
+        Token::Add if p < P::Add => {
+          self.next();
+          self.parse_expr_prec(P::Add);
+          self.on_op2(Op2::Add);
+        }
+        Token::Hyphen if p < P::Add => {
+          self.next();
+          self.parse_expr_prec(P::Add);
+          self.on_op2(Op2::Sub);
+        }
+        Token::Div if p < P::Mul => {
+          self.next();
+          self.parse_expr_prec(P::Mul);
+          self.on_op2(Op2::Div);
+        }
+        Token::Mul if p < P::Mul => {
+          self.next();
+          self.parse_expr_prec(P::Mul);
+          self.on_op2(Op2::Mul);
+        }
+        Token::Rem if p < P::Mul => {
+          self.next();
+          self.parse_expr_prec(P::Mul);
+          self.on_op2(Op2::Rem);
+        }
+        Token::Field if self.token_is_attached() => {
+          let symbol = &self.token_span()[1 ..];
+          self.next();
+          if is_stmt && self.token() == Token::Equal {
+            self.next();
+            self.parse_expr();
+            self.on_set_field(symbol);
+            return true;
+          } else {
+            self.on_field(symbol);
+          }
+        }
+        Token::LBracket if self.token_is_attached() => {
+          self.next();
+          self.parse_expr();
+          self.expect(Token::RBracket);
+          if is_stmt && self.token() == Token::Equal {
+            self.next();
+            self.parse_expr();
+            self.on_set_index();
+            return true;
+          } else {
+            self.on_index();
+          }
+        }
+        Token::LParen if self.token_is_attached() => {
+          self.next();
+          let n_args = self.parse_expr_list(Token::RParen);
+          self.expect(Token::RParen);
+          self.on_call(n_args);
+        }
+        _ => {
+          return false;
+        }
+      }
+    }
+  }
+
+  fn parse_block(&mut self) -> u32 {
+    self.expect(Token::LBrace);
+
+    let mut n_stmts = 0;
+
+    loop {
+      match self.token() {
+        Token::RBrace => {
+          self.next();
+          break;
+        }
+        Token::Break => {
+          self.next();
+          let n_args = self.parse_expr_list(Token::RBrace);
+          self.on_break(n_args);
+          n_stmts += 1;
+          self.expect(Token::RBrace);
+          break;
+        }
+        Token::Continue => {
+          self.next();
+          self.on_continue();
+          n_stmts += 1;
+          self.expect(Token::RBrace);
+          break;
+        }
+        Token::Let => {
+          self.next();
+          // NB: we allow a list of zero bindings, like
+          //
+          //   let = f(x)
+          //
+          // which is a bit weird. but works semantically
+          let n_bindings = self.parse_binding_list(Token::Equal);
+          self.expect(Token::Equal);
+          let mut n_exprs = 0;
+          loop {
+            self.parse_expr();
+            n_exprs += 1;
+            if self.token() != Token::Comma { break; }
+            self.next();
+          }
+          self.on_let(n_bindings, n_exprs);
+          n_stmts += 1;
+        }
+        Token::Return => {
+          self.next();
+          let n_args = self.parse_expr_list(Token::RBrace);
+          self.on_return(n_args);
+          n_stmts += 1;
+          self.expect(Token::RBrace);
+          break;
+        }
+        Token::Var => {
+          self.next();
+          let symbol = self.expect_symbol();
+          self.expect(Token::Equal);
+          self.parse_expr();
+          self.on_var(symbol);
+          n_stmts += 1;
+        }
+        Token::While => {
+          self.next();
+          self.parse_expr();
+          let n = self.parse_block();
+          self.on_while(n);
+          n_stmts += 1;
+        }
+        _ => {
+          // NB: If we couldn't parse anything at all, then we immediately close
+          // the block so that we don't get stuck in an infinite loop.
+          //
+          // Note that we already know that there ISN'T an RBrace here, so the
+          // expect will fail.
+          //
+          // Also, note that in this case we still emit an `undefined` expr/stmt.
+
+          let pos = self.token_start();
+
+          if ! self.parse_prec(P::Any, true) {
+            let mut n_exprs = 1;
+            while self.token() == Token::Comma {
+              self.next();
+              self.parse_expr();
+              n_exprs += 1;
+            }
+            self.on_stmt_expr_list(n_exprs);
+          }
+
+          n_stmts += 1;
+
+          if self.token_start() == pos {
+            self.expect(Token::RBrace);
+            break;
+          }
+        }
+      }
+    }
+
+    return n_stmts;
+  }
+
+  // ------- PARSER OUTPUT TO AST -------
 
   fn alloc<T>(&mut self, x: T) -> &'a T {
     return self.arena.alloc().init(x);
@@ -510,9 +535,7 @@ impl<'a, 'b> ToAst<'a, 'b> {
   fn pop_stmt_list(&mut self, n: u32) -> &'a [Stmt<'a>] {
     return self.arena.slice_from_iter(self.stmts.pop_list(n));
   }
-}
 
-impl<'a, 'b> ToAst<'a, 'b> {
   fn on_fun(&mut self, name: &[u8], n_args: u32, n_stmts: u32) {
     let z = self.pop_stmt_list(n_stmts);
     let y = self.pop_bind_list(n_args);
