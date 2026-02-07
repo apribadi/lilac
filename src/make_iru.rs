@@ -410,15 +410,13 @@ fn compile_expr<'a>(x: &Expr<'a>, ctx: &mut Ctx, out: &mut Out) -> What {
       ctx.points.push(r);
       return What::NumPoints(n + 1);
     }
-    Expr::PostOp(&(f, ref x)) => {
-      if let Expr::Variable(s) = *x {
-        if let Some(&Referent::Local(v)) = get_referent(s, &ctx.scopes) {
-          let x = out.emit(Inst::GetLocal(v));
-          let y = out.emit(Inst::Op1(f, x));
-          let _ = out.emit(Inst::SetLocal(v, y));
-          ctx.values.push(x); // post
-          return What::NumValues(1);
-        }
+    Expr::PostOp(&(s, f)) => {
+      if let Some(&Referent::Local(v)) = get_referent(s, &ctx.scopes) {
+        let x = out.emit(Inst::GetLocal(v));
+        let y = out.emit(Inst::Op1(f, x));
+        let _ = out.emit(Inst::SetLocal(v, y));
+        ctx.values.push(x); // post
+        return What::NumValues(1);
       }
       // error, post-op must target a local variable
       let _ = out.emit(Inst::GotoStaticError);

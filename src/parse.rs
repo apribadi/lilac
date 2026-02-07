@@ -204,13 +204,12 @@ impl<'a, 'b, 'c> T<'a, 'b, 'c> {
           }
           Token::Dec => {
             self.next();
-            self.on_variable(symbol);
-            self.on_post_op(Op1::Dec);
+            self.on_post_op(symbol, Op1::Dec);
           }
           Token::Inc => {
             self.next();
             self.on_variable(symbol);
-            self.on_post_op(Op1::Inc);
+            self.on_post_op(symbol, Op1::Inc);
           }
           _ => {
             self.on_variable(symbol);
@@ -605,9 +604,9 @@ impl<'a, 'b, 'c> T<'a, 'b, 'c> {
     self.push_expr(x);
   }
 
-  fn on_post_op(&mut self, op: Op1) {
-    let x = self.pop_expr();
-    let x = Expr::PostOp(self.alloc((op, x)));
+  fn on_post_op(&mut self, symbol: &[u8], op: Op1) {
+    let s = Symbol::from_bytes(symbol);
+    let x = Expr::PostOp(self.alloc((s, op)));
     self.push_expr(x);
   }
 
