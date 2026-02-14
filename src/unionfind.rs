@@ -23,7 +23,7 @@ impl<T> Node<T> {
     value
   }
 
-  unsafe fn root_unchecked_mut_ref(&mut self) -> &mut T {
+  unsafe fn root_unchecked_mut(&mut self) -> &mut T {
     let Node::Root(value) = self else { unsafe { unreachable_unchecked() } };
     value
   }
@@ -111,7 +111,7 @@ impl<T> UnionFind<T> {
   unsafe fn get_root_unchecked_mut(&mut self, index: u32) -> &mut T {
     debug_assert!(index < self.0.len());
 
-    unsafe { self.0.get_unchecked_mut(index).root_unchecked_mut_ref() }
+    unsafe { self.0.get_unchecked_mut(index).root_unchecked_mut() }
   }
 }
 

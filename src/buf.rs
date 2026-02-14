@@ -98,19 +98,7 @@ impl<T> Buf<T> {
   }
 
   #[inline(always)]
-  pub fn pop(&mut self) -> T {
-    let p = self.ptr;
-    let n = self.len;
-
-    assert!(n != 0);
-
-    self.len = n - 1;
-
-    unsafe { (p + (n - 1)).read() }
-  }
-
-  #[inline(always)]
-  pub fn pop_checked(&mut self) -> Option<T> {
+  pub fn pop(&mut self) -> Option<T> {
     let p = self.ptr;
     let n = self.len;
 
