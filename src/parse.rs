@@ -12,15 +12,15 @@ use crate::symbol::Symbol;
 use crate::token::Token;
 use oxcart::Arena;
 
-pub fn parse<'a>(source: &[u8], arena: &mut Arena<'a>) -> Arr<Item<'a>> {
+pub fn parse<'a>(source: &[u8], arena: Arena<'a>) -> (Arr<Item<'a>>, Arena<'a>) {
   let mut t = T::new(source, arena);
   t.parse_item_list();
-  return Arr::from(t.items.drain());
+  return (Arr::from(t.items.drain()), t.arena);
 }
 
-struct T<'a, 'b, 'c> {
-  lexer: Lexer<'c>,
-  arena: &'b mut Arena<'a>,
+struct T<'a, 'b> {
+  arena: Arena<'a>,
+  lexer: Lexer<'b>,
   items: Buf<Item<'a>>,
   binds: Buf<Binding>,
   exprs: Buf<Expr<'a>>,
@@ -43,11 +43,11 @@ enum P {
   Prefix,
 }
 
-impl<'a, 'b, 'c> T<'a, 'b, 'c> {
-  fn new(source: &'c [u8], arena: &'b mut Arena<'a>) -> Self {
+impl<'a, 'b> T<'a, 'b> {
+  fn new(source: &'b [u8], arena: Arena<'a>) -> Self {
     Self {
-      lexer: Lexer::new(source),
       arena,
+      lexer: Lexer::new(source),
       items: Buf::new(),
       binds: Buf::new(),
       exprs: Buf::new(),
@@ -67,7 +67,7 @@ impl<'a, 'b, 'c> T<'a, 'b, 'c> {
     return self.lexer.token_start();
   }
 
-  fn token_span(&self) -> &'c [u8] {
+  fn token_span(&self) -> &'b [u8] {
     return self.lexer.token_span();
   }
 
@@ -83,7 +83,7 @@ impl<'a, 'b, 'c> T<'a, 'b, 'c> {
     }
   }
 
-  fn expect_symbol(&mut self) -> &'c [u8] {
+  fn expect_symbol(&mut self) -> &'b [u8] {
     if self.token() != Token::Symbol {
       self.on_error_missing_expected_token(Token::Symbol);
       // TODO: Option::None?
