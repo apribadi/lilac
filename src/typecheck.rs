@@ -154,7 +154,8 @@ impl Solver {
   }
 
   fn propagate(&mut self) {
-    while let Some((x, y)) = self.to_unify.pop() {
+    while ! self.to_unify.is_empty() {
+      let (x, y) = self.to_unify.pop();
       match self.union_find.union(x.0, y.0) {
         (&mut _, None) => {
         }

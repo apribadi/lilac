@@ -520,7 +520,7 @@ impl<'a, 'b> T<'a, 'b> {
   }
 
   fn pop_expr(&mut self) -> Expr<'a> {
-    return self.exprs.pop().unwrap();
+    return self.exprs.pop();
   }
 
   fn pop_expr_list(&mut self, n: u32) -> &'a [Expr<'a>] {

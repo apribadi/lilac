@@ -129,7 +129,7 @@ fn push_scope(t: &mut ScopeStack) {
 }
 
 fn pop_scope(t: &mut ScopeStack) {
-  for (s, x) in t.undo.pop_list(t.counts.pop().unwrap()) {
+  for (s, x) in t.undo.pop_list(t.counts.pop()) {
     match x {
       None => {
         t.table.remove(s);
@@ -157,7 +157,7 @@ fn push_loop(a: Label, t: &mut LoopStack) {
 }
 
 fn pop_loop(t: &mut LoopStack, points: &mut Buf<Point>) -> u32 {
-  let Some(LoopInfo::NonTail { n_breaks, .. }) = t.info.pop() else { unreachable!() };
+  let LoopInfo::NonTail { n_breaks, .. } = t.info.pop() else { unreachable!() };
   for p in t.breaks.pop_list(n_breaks) {
     points.push(p);
   }
@@ -245,7 +245,7 @@ impl What {
       }
       What::NumValues(n_values) => {
         if n_values == 1 {
-          return ctx.values.pop().unwrap();
+          return ctx.values.pop();
         } else {
           // error, arity mismatch
           let _ = ctx.values.pop_list(n_values);
@@ -565,7 +565,7 @@ fn compile_expr_tail<'a>(x: &Expr<'a>, ctx: &mut Ctx, out: &mut Out) {
     | Expr::Undefined
     | Expr::Variable(..) => {
       let What::NumValues(1) = compile_expr(x, ctx, out) else { unreachable!() };
-      let _ = out.emit(Inst::Put(0, ctx.values.pop().unwrap()));
+      let _ = out.emit(Inst::Put(0, ctx.values.pop()));
       let _ = out.emit(Inst::Ret);
     }
   }
@@ -584,7 +584,7 @@ fn compile_stmt<'a>(x: &Stmt<'a>, ctx: &mut Ctx, out: &mut Out) -> What {
         }
         LoopInfo::NonTail { .. } => {
           let n = compile_expr_list(xs, ctx, out).into_point_list(ctx, out);
-          let LoopInfo::NonTail { n_breaks, .. } = ctx.loops.info.top_mut() else { unreachable!() };
+          let &mut LoopInfo::NonTail { ref mut n_breaks, .. } = ctx.loops.info.top_mut() else { unreachable!() };
           for p in ctx.points.pop_list(n) {
             ctx.loops.breaks.push(p);
             *n_breaks += 1;

@@ -98,15 +98,15 @@ impl<T> Buf<T> {
   }
 
   #[inline(always)]
-  pub fn pop(&mut self) -> Option<T> {
+  pub fn pop(&mut self) -> T {
     let p = self.ptr;
     let n = self.len;
 
-    if n == 0 { return None; }
+    assert!(n != 0);
 
     self.len = n - 1;
 
-    Some(unsafe { (p + (n - 1)).read() })
+    unsafe { (p + (n - 1)).read() }
   }
 
   pub fn pop_list(&mut self, count: u32) -> PopList<'_, T> {
