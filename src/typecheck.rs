@@ -31,11 +31,6 @@ pub enum TupleType {
   Var(TypeId),
 }
 
-pub enum SeqType {
-  Nil,
-  Cons(Box<(ValueType, SeqType)>),
-}
-
 pub struct TypeScheme(/* arity */ pub u32, pub ValueType);
 
 pub enum TypeState {
