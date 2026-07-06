@@ -33,12 +33,12 @@ unsafe impl tangerine::key::IntoKey for Symbol {
   type Key = NonZeroU64;
 
   #[inline(always)]
-  fn inject(Self(n): Self) -> Self::Key {
+  fn into_key(Self(n): Self) -> Self::Key {
     n
   }
 
   #[inline(always)]
-  unsafe fn project(n: Self::Key) -> Self {
+  unsafe fn from_key(n: Self::Key) -> Self {
     Self(n)
   }
 }

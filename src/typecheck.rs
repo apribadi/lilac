@@ -17,7 +17,7 @@ use crate::symbol::Symbol;
 use crate::typeid::TypeId;
 use crate::unionfind::UnionFind;
 use std::iter::zip;
-use tangerine::map::HashMap;
+use tangerine::map::IntMap;
 
 pub enum ValueType {
   Array(Box<ValueType>),
@@ -44,8 +44,8 @@ pub enum TypeState {
 }
 
 struct Ctx {
-  global_environment: HashMap<Symbol, TypeScheme>,
-  letrec_environment: HashMap<Symbol, TypeId>,
+  global_environment: IntMap<Symbol, TypeScheme>,
+  letrec_environment: IntMap<Symbol, TypeId>,
   solver: Solver,
   block_args: Buf<TypeId>,
   block_outs: Buf<TypeId>,
@@ -318,8 +318,8 @@ impl Ctx {
   fn new() -> Self {
     let mut ctx =
       Self {
-        global_environment: HashMap::new(),
-        letrec_environment: HashMap::new(),
+        global_environment: IntMap::new(),
+        letrec_environment: IntMap::new(),
         solver: Solver::new(),
         block_args: Buf::new(),
         block_outs: Buf::new(),
@@ -339,7 +339,7 @@ impl Ctx {
   }
 }
 
-pub fn typecheck(module: &iru::Module) -> (HashMap<Symbol, TypeScheme>, Solver) {
+pub fn typecheck(module: &iru::Module) -> (IntMap<Symbol, TypeScheme>, Solver) {
   let mut ctx = Ctx::new();
 
   // allocate a fresh type variable for each program point, starting from zero

@@ -7,12 +7,12 @@ unsafe impl tangerine::key::IntoKey for TypeId {
   type Key = NonZeroU32;
 
   #[inline(always)]
-  fn inject(Self(n): Self) -> Self::Key {
+  fn into_key(Self(n): Self) -> Self::Key {
     NonZeroU32::new(n.wrapping_add(1)).unwrap()
   }
 
   #[inline(always)]
-  unsafe fn project(n: Self::Key) -> Self {
+  unsafe fn from_key(n: Self::Key) -> Self {
     Self(n.get().wrapping_sub(1))
   }
 }

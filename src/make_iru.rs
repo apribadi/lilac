@@ -15,7 +15,7 @@ use crate::iru::Module;
 use crate::util::enumerate;
 use crate::symbol::Symbol;
 use std::iter::zip;
-use tangerine::map::HashMap;
+use tangerine::map::IntMap;
 
 // TODO: consider special lowering for arguments to cond
 
@@ -95,7 +95,7 @@ impl Ctx {
 struct ScopeStack {
   counts: Buf<u32>,
   undo: Buf<(Symbol, Option<Referent>)>,
-  table: HashMap<Symbol, Referent>,
+  table: IntMap<Symbol, Referent>,
 }
 
 impl ScopeStack {
@@ -103,7 +103,7 @@ impl ScopeStack {
     return Self {
       counts: Buf::new(),
       undo: Buf::new(),
-      table: HashMap::new()
+      table: IntMap::new()
     };
   }
 }
@@ -142,7 +142,7 @@ fn pop_scope(t: &mut ScopeStack) {
 }
 
 fn push_referent(s: Symbol, x: Referent, t: &mut ScopeStack) {
-  let y = t.table.get_and_insert(s, x);
+  let y = t.table.insert(s, x);
   let n = t.counts.top_mut();
   t.undo.push((s, y));
   *n += 1;
