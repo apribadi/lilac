@@ -208,7 +208,6 @@ impl<'a, 'b> T<'a, 'b> {
           }
           Token::Inc => {
             self.next();
-            self.on_variable(symbol);
             self.on_post_op(symbol, Op1::Inc);
           }
           _ => {
@@ -268,11 +267,13 @@ impl<'a, 'b> T<'a, 'b> {
           self.on_ternary();
         }
         Token::Or if p < P::Or => {
+          // TODO: right assoc
           self.next();
           self.parse_expr_prec(P::Or);
           self.on_or();
         }
         Token::And if p < P::And => {
+          // TODO: right assoc
           self.next();
           self.parse_expr_prec(P::And);
           self.on_and();
@@ -358,6 +359,9 @@ impl<'a, 'b> T<'a, 'b> {
           self.on_op2(Op2::Rem);
         }
         Token::Field if self.token_is_attached() => {
+          // TODO: not after block?
+          // TODO: maybe define attachment to never include attaching to an
+          // RBrace
           let symbol = &self.token_span()[1 ..];
           self.next();
           if is_stmt && self.token() == Token::Equal {
@@ -370,6 +374,7 @@ impl<'a, 'b> T<'a, 'b> {
           }
         }
         Token::LBracket if self.token_is_attached() => {
+          // TODO: not after block?
           self.next();
           self.parse_expr();
           self.expect(Token::RBracket);
@@ -383,6 +388,7 @@ impl<'a, 'b> T<'a, 'b> {
           }
         }
         Token::LParen if self.token_is_attached() => {
+          // TODO: not after block?
           self.next();
           let n_args = self.parse_expr_list(Token::RParen);
           self.expect(Token::RParen);
